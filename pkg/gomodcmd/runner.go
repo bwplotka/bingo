@@ -1,9 +1,11 @@
+// Copyright (c) Bartłomiej Płotka @bwplotka
+// Licensed under the Apache License 2.0.
+
 package gomodcmd
 
 import (
 	"bytes"
 	"context"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +19,8 @@ type Runner struct {
 	goCmd    string
 	modDir   string
 	insecure bool
+
+	verbose bool
 }
 
 // NewRunner checks Go version compatibility and initialize new go.mod in the modDir if not yet present, then returns Runner.
@@ -27,7 +31,7 @@ func NewRunner(ctx context.Context, insecure bool, modDir string, goCmd string) 
 		insecure: insecure,
 	}
 
-	ver, err := r.execGo(ctx, false, "version")
+	ver, err := r.execGo(ctx, "version")
 	if err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
@@ -44,47 +48,45 @@ func NewRunner(ctx context.Context, insecure bool, modDir string, goCmd string) 
 		if !os.IsNotExist(err) {
 			return nil, errors.Wrapf(err, "stat module file %s", filepath.Join(r.modDir, "go.mod"))
 		}
-		currMod, err := r.execGo(ctx, false, "list", "-m")
+		currMod, err := r.execGo(ctx, "list", "-m")
 		if err != nil {
 			return nil, err
 		}
 
 		// TODO(bwplotka): Check if currMod is not gobin..
 
-		if _, err := r.execGoInModDir(ctx, false, "mod", "init", filepath.Join(currMod, r.modDir)); err != nil {
+		if _, err := r.execGoInModDir(ctx, "mod", "init", filepath.Join(currMod, r.modDir)); err != nil {
 			return nil, err
 		}
 	}
 	return r, nil
 }
 
-func (c *Runner) execGo(ctx context.Context, verbose bool, args ...string) (string, error) {
-	return c.exec(ctx, verbose, "", c.goCmd, args...)
+func (c *Runner) execGo(ctx context.Context, args ...string) (string, error) {
+	return c.exec(ctx, "", c.goCmd, args...)
 }
 
-func (c *Runner) execGoInModDir(ctx context.Context, verbose bool, args ...string) (string, error) {
-	return c.exec(ctx, verbose, c.modDir, c.goCmd, args...)
+func (c *Runner) execGoInModDir(ctx context.Context, args ...string) (string, error) {
+	return c.exec(ctx, c.modDir, c.goCmd, args...)
 }
 
-func (c *Runner) exec(ctx context.Context, verbose bool, cd string, command string, args ...string) (string, error) {
+func (c *Runner) exec(ctx context.Context, cd string, command string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = filepath.Join(cmd.Dir, cd)
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
 
-	if verbose {
-		cmd.Stdout = io.MultiWriter(cmd.Stdout, os.Stdout)
-		cmd.Stderr = io.MultiWriter(cmd.Stderr, os.Stderr)
-	}
 	if err := cmd.Run(); err != nil {
-		out := b.String()
-		if verbose {
-			out = ""
-		}
-		return "", errors.Errorf("error while running command '%s %s'; out: %s; err: %v", command, strings.Join(args, " "), out, err)
-	}
+		if _, ok := err.(*exec.ExitError); ok {
+			if c.verbose {
+				return "", errors.Errorf("error while running command '%s %s'; out: %s; err: %v", command, strings.Join(args, " "), b.String(), err)
+			}
+			return "", errors.New(b.String())
 
+		}
+		return "", errors.Errorf("error while running command '%s %s'; out: %s; err: %v", command, strings.Join(args, " "), b.String(), err)
+	}
 	return strings.TrimRight(b.String(), "\n"), nil
 }
 
@@ -106,18 +108,18 @@ func (c *Runner) GetD(ctx context.Context, update GetUpdatePolicy, packages ...s
 	if update != NoUpdatePolicy {
 		args = append(args, string(update))
 	}
-	_, err := c.execGoInModDir(ctx, false, append(args, packages...)...)
+	_, err := c.execGoInModDir(ctx, append(args, packages...)...)
 	return err
 }
 
 // Installs runs 'go install' against separate go modules file with given packages.
 func (c *Runner) Install(ctx context.Context, packages ...string) error {
-	_, err := c.execGoInModDir(ctx, false, append([]string{"install"}, packages...)...)
+	_, err := c.execGoInModDir(ctx, append([]string{"install"}, packages...)...)
 	return err
 }
 
 // ModTidy runs 'go mod tidy' against separate go modules file.
 func (c *Runner) ModTidy(ctx context.Context) error {
-	_, err := c.execGoInModDir(ctx, false, "mod", "tidy")
+	_, err := c.execGoInModDir(ctx, "mod", "tidy")
 	return err
 }

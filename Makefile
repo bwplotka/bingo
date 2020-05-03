@@ -12,7 +12,7 @@ GIT               ?= $(shell which git)
 GOIMPORTS         ?= go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports
 GOLANGCILINT      ?= go run -modfile=_gobin/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint
 MISSPELL          ?= go run -modfile=_gobin/go.mod github.com/client9/misspell/cmd/misspell
-FAILINT           ?= go run -modfile=_gobin/go.mod github.com/fatih/faillint
+FAILLINT          ?= go run -modfile=_gobin/go.mod github.com/fatih/faillint
 COPYRIGHT         ?= go run -modfile=_gobin/go.mod github.com/bwplotka/flagarize/scripts/copyright
 
 # Support gsed on OSX (installed via brew), falling back to sed. On Linux
@@ -101,5 +101,5 @@ lint: format check-git deps
 	@find . -type f \( -name "*.md" -o -name "*.go" \) | SED_BIN="$(SED)" xargs scripts/cleanup-white-noise.sh
 	$(call require_clean_work_tree,"detected white noise")
 	@echo ">> ensuring Copyright headers"
-	@(COPYRIGHT)
+	@$(COPYRIGHT)
 	$(call require_clean_work_tree,"detected files without copyright")

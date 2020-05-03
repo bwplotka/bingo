@@ -1,13 +1,16 @@
+// Copyright (c) Bartłomiej Płotka @bwplotka
+// Licensed under the Apache License 2.0.
+
 package gobin
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/bwplotka/gobin/pkg/testutil"
+	"github.com/pkg/errors"
 )
 
 func TestParse(t *testing.T) {

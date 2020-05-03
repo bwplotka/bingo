@@ -1,3 +1,6 @@
+// Copyright (c) Bartłomiej Płotka @bwplotka
+// Licensed under the Apache License 2.0.
+
 package main
 
 import (
@@ -136,12 +139,16 @@ func get(
 		if i.Size() > 0 {
 			pkgs, err = gobin.Parse(binFile, f)
 			if err != nil {
-				logger.Println("Parse error; file", binFile, "will be recreated. Err: %v", err)
+				logger.Println("Parse error; file", binFile, "will be recreated. Err:", err)
 			}
 		}
 	}
 	if err := f.Truncate(0); err != nil {
 		return errors.Wrapf(err, "truncate %s", binFile)
+	}
+
+	if _, err := f.Seek(0, 0); err != nil {
+		return errors.Wrapf(err, "seek %s", binFile)
 	}
 
 	// DedupAndWrite will deduplicate and sort if needed.
