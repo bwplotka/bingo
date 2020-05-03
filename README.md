@@ -1,8 +1,8 @@
 # gobin
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/bwplotka/flagarize)
-[![Latest Release](https://img.shields.io/github/release/bwplotka/flagarize.svg?style=flat-square)](https://github.com/bwplotka/flagarize/releases/latest)
-[![CI](https://github.com/bwplotka/flagarize/workflows/test/badge.svg)](https://github.com/bwplotka/flagarize/actions?query=workflow%3Atest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bwplotka/flagarize)](https://goreportcard.com/report/github.com/bwplotka/flagarize)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/bwplotka/gobin)
+[![Latest Release](https://img.shields.io/github/release/bwplotka/gobin.svg?style=flat-square)](https://github.com/bwplotka/gobin/releases/latest)
+[![CI](https://github.com/bwplotka/gobin/workflows/go/badge.svg)](https://github.com/bwplotka/gobin/actions?query=workflow%3Ago)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bwplotka/gobin)](https://goreportcard.com/report/github.com/bwplotka/gobin)
 
 Tiny `go` command for a clean and reproducible module-based management of all Go binaries your project requires for the development.
 
