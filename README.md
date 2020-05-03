@@ -4,7 +4,7 @@
 [![CI](https://github.com/bwplotka/flagarize/workflows/test/badge.svg)](https://github.com/bwplotka/flagarize/actions?query=workflow%3Atest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bwplotka/flagarize)](https://goreportcard.com/report/github.com/bwplotka/flagarize)
 
-Tiny `go` command for clean and reproducible module-based management of all Go binaries your project requires for development.  
+Tiny `go` command for a clean and reproducible module-based management of all Go binaries your project requires for the development.  
 
 ## Goals
 
@@ -14,12 +14,13 @@ Tiny `go` command for clean and reproducible module-based management of all Go b
 
 ## Requirements:
 
-* Go 1.10+ 
+* Go 1.14+ 
+* Linux or MacOS.
 * Tools have to be build in Go and have to be [Go Modules] compatible.
 
 ## Usage / Example
 
-The key idea is that we want to maintain separate go module for our binaries. By default it will be in `.gobin/go.sum`.
+The key idea is that we want to maintain separate go module for our binaries. By default it will be in `.gobin/go.mod`.
 Your project should commit all the files in this directory.
 
 Let's imagine our project requires nice import formatting via external [`goimports`](https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=doc) binary (It should!). 
@@ -61,18 +62,18 @@ Just always use tools using either:
 
 * Go 1.14+:
 
-`go run -modfile=.gobin/go.sum golang.org/x/tools/cmd/goimports`
+`go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports`
 
 * Go older than 1.14:
 
-`cd .gobin/go.sum && go run golang.org/x/tools/cmd/goimports`
+`cd _gobin/go.mod && go run golang.org/x/tools/cmd/goimports`
 
 Don't worry about compiling it all the time. Thanks to amazing Go Team, all is cached ❤️
 
 Not if you use Makefile it is as easy as: 
 
 ```Makefile
-GOIMPORTS ?= go run -modfile=.gobin/go.sum golang.org/x/tools/cmd/goimports
+GOIMPORTS ?= go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports
 
 .PHONY: format
 format: ## Formats Go code including imports.
@@ -86,6 +87,7 @@ format: $(GOIMPORTS)
 
 To see production example see:
 
+ * [gobin tools](WIP)
  * [Thanos](WIP)
  * [go-grpc-middleware](WIP)
  
@@ -126,11 +128,11 @@ This `gobin` have a bit wider [Goals](#Goals)
 * [ ] List command.
 * [ ] Versioned binary names.
 
-When getting binary or when you want to install binary versioned in our `.gobin/go.sum` use following command:
+When getting binary or when you want to install binary versioned in our `_gobin/go.mod` use following command:
 
 `gobin get -versioned golang.org/x/tools/cmd/goimports`
 
-This will produce versioned binary name as follows: `<bin>-<version>` where version is exactly what is stored in `.gobin/go.sum`.
+This will produce versioned binary name as follows: `<bin>-<version>` where version is exactly what is stored in `_gobin/go.mod`.
 
 For example for our `goimports` example it will create output:
 

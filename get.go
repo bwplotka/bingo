@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
+	"strings"
 
+	"github.com/bwplotka/gobin/pkg/gobin"
 	"github.com/bwplotka/gobin/pkg/gomodcmd"
 	"github.com/pkg/errors"
 )
@@ -85,34 +86,40 @@ import (
 //
 //  5. Runs go mod tidy.
 //
-// See also: gobin list
+// See also: gobin list.
 func get(
 	ctx context.Context,
 	logger *log.Logger,
 	r *gomodcmd.Runner,
 	binFile string,
 	update gomodcmd.GetUpdatePolicy,
-	packages ...string,
-) error {
-	// Steps 1 & 2: Resolve and download (if needed) thanks to go get on the separate go.mod file.
-	if err := r.GetD(ctx, update, packages...); err != nil {
-		return err
-	}
+	requestedPkgs ...string,
+) (err error) {
+	var nonVersionPackages []string
+	if len(requestedPkgs) > 0 {
+		// Steps 1 & 2: Resolve and download (if needed) thanks to go get on the separate go.mod file.
+		if err := r.GetD(ctx, update, requestedPkgs...); err != nil {
+			return err
+		}
 
-	// Step 3: Build and install. This will fail if any path is pointing to non-buildable package.
-	if err := r.Install(ctx, packages...); err != nil {
-		return err
+		for _, p := range requestedPkgs {
+			s := strings.Split(p, "@")
+			if len(s) > 1 && s[1] == "none" {
+				continue
+			}
+			nonVersionPackages = append(nonVersionPackages, s[0])
+		}
+
+		// Step 3: Build and install. This will fail if any path is pointing to non-buildable package.
+		if err := r.Install(ctx, nonVersionPackages...); err != nil {
+			return err
+		}
 	}
 
 	// Step 4: Regenerate moddir/binaries.go.
-	binaries, err := fetchBinariesFromFile(binFile)
+	f, err := os.OpenFile(binFile, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
-		return err
-	}
-
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0)
-	if err != nil {
-		return errors.Wrapf(err, "open %s", file)
+		return errors.Wrapf(err, "open %s", binFile)
 	}
 	defer func() {
 		if cerr := f.Close(); cerr != nil {
@@ -124,6 +131,31 @@ func get(
 		}
 	}()
 
-	fmt.Println(binaries)
-	return nil
+	var pkgs []string
+	if i, err := f.Stat(); err == nil {
+		if i.Size() > 0 {
+			pkgs, err = gobin.Parse(binFile, f)
+			if err != nil {
+				logger.Println("Parse error; file", binFile, "will be recreated. Err: %v", err)
+			}
+		}
+	}
+	if err := f.Truncate(0); err != nil {
+		return errors.Wrapf(err, "truncate %s", binFile)
+	}
+
+	// DedupAndWrite will deduplicate and sort if needed.
+	if err := gobin.DedupAndWrite(binFile, f, append(pkgs, nonVersionPackages...)); err != nil {
+		return err
+	}
+
+	if len(requestedPkgs) == 0 {
+		// Special mode of gobin, install all.
+		if err := r.Install(ctx, pkgs...); err != nil {
+			return err
+		}
+	}
+
+	// Step 5: tidy.
+	return r.ModTidy(ctx)
 }
