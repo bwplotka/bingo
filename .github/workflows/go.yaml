@@ -9,6 +9,8 @@ on:
 
 jobs:
   lint:
+    runs-on: ubuntu-latest
+    name: Linters (Static Analysis) for Go
     steps:
       - name: Checkout code into the Go module directory.
         uses: actions/checkout@v2
@@ -16,7 +18,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14.2
+          go-version: 1.14.x
 
       - uses: actions/cache@v1
         with:
@@ -27,11 +29,12 @@ jobs:
         run: make lint
 
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        go: [ '1.14.2' ]
-    name: Unit tests on Go ${{ matrix.go }}
+        go: [ '1.13.x' '1.14.x' ]
+        platform: [ubuntu-latest, macos-latest]
+    name: Unit tests on Go ${{ matrix.go }} ${{ matrix.platform }}
     steps:
       - name: Checkout code into the Go module directory.
         uses: actions/checkout@v2

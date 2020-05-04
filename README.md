@@ -4,7 +4,7 @@
 [![CI](https://github.com/bwplotka/gobin/workflows/go/badge.svg)](https://github.com/bwplotka/gobin/actions?query=workflow%3Ago)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bwplotka/gobin)](https://goreportcard.com/report/github.com/bwplotka/gobin)
 
-Tiny `go` command for a clean and reproducible module-based management of all Go binaries your project requires for the development.
+Simple CLI that automates versioning of Go binaries (e.g required as tools by your project!) in a nested Go module, allowing reproducible dev environment  
 
 ## Goals
 
@@ -14,7 +14,7 @@ Tiny `go` command for a clean and reproducible module-based management of all Go
 
 ## Requirements:
 
-* Go 1.14+
+* Go 1.13+
 * Linux or MacOS.
 * Tools have to be build in Go and have to be [Go Modules] compatible.
 
