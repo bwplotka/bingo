@@ -27,13 +27,14 @@ jobs:
 
       - name: Linting & vetting.
         run: make lint
-
   tests:
     runs-on: ${{ matrix.platform }}
     strategy:
+      fail-fast: false
       matrix:
-        go: [ '1.13.x' '1.14.x' ]
+        go: [ '1.13.x', '1.14.x' ]
         platform: [ubuntu-latest, macos-latest]
+
     name: Unit tests on Go ${{ matrix.go }} ${{ matrix.platform }}
     steps:
       - name: Checkout code into the Go module directory.

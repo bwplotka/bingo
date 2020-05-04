@@ -99,7 +99,6 @@ lint: format check-git deps
 	@find . -type f | grep -v vendor/ | grep -vE '\./\..*' | xargs $(MISSPELL) -error
 	@echo ">> detecting white noise"
 	@find . -type f \( -name "*.md" -o -name "*.go" \) | SED_BIN="$(SED)" xargs scripts/cleanup-white-noise.sh
-	$(call require_clean_work_tree,"detected white noise")
 	@echo ">> ensuring Copyright headers"
 	@$(COPYRIGHT)
-	$(call require_clean_work_tree,"detected files without copyright")
+	$(call require_clean_work_tree,"detected white noise or/and files without copyright; run 'make lint' file and commit changes.")
