@@ -36,7 +36,7 @@ binary (Actually it is recommend for all projects 🤓).
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
-### Adding a Go Tool / Starting
+#### Adding a Go Tool / Starting
 
 On repo without `gobin` used before, or with already existing `_gobin` directory, you can start by
 adding a tool.
@@ -49,7 +49,7 @@ If you don't pin the version it will use the latest available and pin that versi
 
 This will also **always** install the tool in a given version in you `${GOBIN}` path.
 
-### Changing Version of a Tool
+#### Changing Version of a Tool
 
 If you want to update to the latest add `-u`, the same as `go get`:
 
@@ -61,13 +61,13 @@ If you want to pin to certain version, do as well same as `go get`:
 
 Use `-o` option to change binary output name.
 
-### Removing a Tool
+#### Removing a Tool
 
 Exactly the same as native `go get`, just add `@none` and run `go get`:
 
 `gobin get golang.org/x/tools/cmd/goimports@none`
 
-### Reliable Usage of a Tool
+#### Reliable Usage of a Tool
 
 In you script or Makefile, try to always make sure the correct version of the tools are invoked.
 Running just `goimports` is not enough, because user might have `goimports` in another path or installed different version
