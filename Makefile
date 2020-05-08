@@ -1,3 +1,4 @@
+include .gobin/Makefile.binary-variables
 FILES_TO_FMT      ?= $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 GO111MODULE       ?= on
@@ -9,11 +10,6 @@ GOBIN             ?= $(firstword $(subst :, ,${GOPATH}))/bin
 
 # Tools.
 GIT               ?= $(shell which git)
-GOIMPORTS         ?= go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports
-GOLANGCILINT      ?= go run -modfile=_gobin/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint
-MISSPELL          ?= go run -modfile=_gobin/go.mod github.com/client9/misspell/cmd/misspell
-FAILLINT          ?= go run -modfile=_gobin/go.mod github.com/fatih/faillint
-COPYRIGHT         ?= go run -modfile=_gobin/go.mod github.com/bwplotka/flagarize/scripts/copyright
 
 # Support gsed on OSX (installed via brew), falling back to sed. On Linux
 # systems gsed won't be installed, so will use sed as expected.
@@ -61,7 +57,7 @@ check-comments: ## Checks Go code comments if they have trailing period (exclude
 
 .PHONY: format
 format: ## Formats Go code including imports and cleans up white noise.
-format: check-comments
+format: $(GOIMPORTS)
 	@echo ">> formatting code"
 	@$(GOIMPORTS) -w $(FILES_TO_FMT)
 	@SED_BIN="$(SED)" scripts/cleanup-white-noise.sh $(FILES_TO_FMT)
@@ -86,7 +82,7 @@ endif
 #      --mem-profile-path string   Path to memory profile output file
 # to debug big allocations during linting.
 lint: ## Runs various static analysis against our code.
-lint: format check-git deps
+lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format check-git deps
 	$(call require_clean_work_tree,"detected not clean master before running lint")
 	@echo ">> verifying modules being imported"
 	@$(FAILLINT) -paths "errors=github.com/pkg/errors" ./...
@@ -94,7 +90,7 @@ lint: format check-git deps
 	@echo ">> examining all of the Go files"
 	@go vet -stdmethods=false ./...
 	@echo ">> linting all of the Go files GOGC=${GOGC}"
-	@$(GOLANGCILINT) run
+	@$(GOLANGCI_LINT) run
 	@echo ">> detecting misspells"
 	@find . -type f | grep -v vendor/ | grep -vE '\./\..*' | xargs $(MISSPELL) -error
 	@echo ">> detecting white noise"
