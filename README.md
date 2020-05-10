@@ -77,6 +77,10 @@ This allows to solve our [goals](#Goals) without polluting main go module. Your 
 For example purposes, let's imagine our project requires a nice import formatting via external [`goimports`](https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=doc)
 binary (Actually it is recommend for all projects 🤓).
 
+### Installing gobin
+
+`go get github.com/bwplotka/gobin`
+
 ### Adding a Go Tool
 
 On repo without `gobin` used before, or with already existing `_gobin` directory, you can start by
