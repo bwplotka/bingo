@@ -26,7 +26,7 @@ GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GOBIN_TOOL ?= $(GOBIN)/{{ .GobinBinName }}
 $(GOBIN_TOOL): {{ .RelDir }}/{{ .GobinBinName }}.mod
 	@# Install gobin allowing to install all pinned binaries.
-	@go get -modfile={{ .RelDir }}/{{ .GobinBinName }}.mod {{ .GobinPath }}
+	@GOBIN=$(GOBIN) go get -modfile={{ .RelDir }}/{{ .GobinBinName }}.mod {{ .GobinPath }}
 {{ .GobinBinName }}.mod: ;
 
 {{- range .Binaries }}

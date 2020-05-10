@@ -3,8 +3,6 @@ FILES_TO_FMT      ?= $(shell find . -path ./vendor -prune -o -name '*.go' -print
 
 GO111MODULE       ?= on
 export GO111MODULE
-GOPROXY           ?= https://proxy.golang.org
-export GOPROXY
 
 GOBIN             ?= $(firstword $(subst :, ,${GOPATH}))/bin
 

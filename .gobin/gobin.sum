@@ -1,5 +1,5 @@
-github.com/bwplotka/gobin v0.1.0-rc.1 h1:w0c7d3c9VtpoMJPuqNZ9X7GLwIQXKfrqFHJqDUQPocs=
-github.com/bwplotka/gobin v0.1.0-rc.1/go.mod h1:v8qxEZBPaeml/zrxf8CkrpimIM9wQ2cqq7c2T1Wjt1o=
+github.com/bwplotka/gobin v0.1.0-rc.2 h1:SRR1nputJsNLzDbiu9adKXdzF1j6yh9oKC7fkhgeKG8=
+github.com/bwplotka/gobin v0.1.0-rc.2/go.mod h1:v8qxEZBPaeml/zrxf8CkrpimIM9wQ2cqq7c2T1Wjt1o=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=
 github.com/oklog/run v1.1.0/go.mod h1:sVPdnTZT1zYwAJeCMu2Th4T21pA3FPOQRfWjQlk7DVU=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
