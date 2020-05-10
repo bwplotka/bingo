@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	version             = "v0.9.0"
 	defaultMakefileName = "Makefile"
 	gobinBinName        = "gobin"
 	gobinInstallPath    = "github.com/bwplotka/gobin"
@@ -52,7 +51,7 @@ func main() {
 		"If no package/binary is specified, gobin get will return error")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	update := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
-	updatePatch := getFlags.Bool("u=patch", false, "The -u=patch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
+	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
 	insecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
 	makefile := getFlags.String("makefile", "", "Makefile to use for generated helper for make. It is expected to be relative to project root module. If not found, no helper will be generated. If flag is specified but file was not found, it will return error")
 	// Go flags are so broken, need to add shadow -v flag to make those work in both before and after `get` command.
@@ -108,7 +107,7 @@ Prints gobin version.
 
 		upPolicy := gomodcmd.NoUpdatePolicy
 		if *update {
-			upPolicy = gomodcmd.UpdatePatchPolicy
+			upPolicy = gomodcmd.UpdatePolicy
 		}
 		if *updatePatch {
 			upPolicy = gomodcmd.UpdatePatchPolicy

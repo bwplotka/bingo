@@ -250,7 +250,7 @@ func ensureGobinModFile(
 	r *gomodcmd.Runner,
 	modDir string,
 ) error {
-	_, err := os.Stat(filepath.Join(modDir, gobinBinName))
+	_, err := os.Stat(filepath.Join(modDir, gobinBinName+".mod"))
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "stat module file %s", filepath.Join(modDir, gobinBinName))
 	}
