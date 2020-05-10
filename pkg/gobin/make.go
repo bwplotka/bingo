@@ -21,10 +21,12 @@ const (
 	makefileBinVarsTmpl = `# bwplotka/gobin {{ .Version }} generated tools helper. Every time 'gobin get' is ran, this helper will regenerate
 # if needed. Those generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used (reinstall will happen transparently if needed). See more details: https://{{ .GobinPath }}
+GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
+
 GOBIN_TOOL ?= $(GOBIN)/{{ .GobinBinName }}
 $(GOBIN_TOOL): {{ .RelDir }}/{{ .GobinBinName }}.mod
 	@# Install gobin allowing to install all pinned binaries.
-	@go get -modfile={{ .GobinBinName }}.mod {{ .GobinPath }}
+	@go get -modfile={{ .RelDir }}/{{ .GobinBinName }}.mod {{ .GobinPath }}
 {{ .GobinBinName }}.mod: ;
 
 {{- range .Binaries }}

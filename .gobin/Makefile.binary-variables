@@ -1,10 +1,12 @@
-# bwplotka/gobin v0.9.0 generated tools helper. Every time 'gobin get' is ran, this helper will regenerate
+# bwplotka/gobin v0.1.0.rc.2 generated tools helper. Every time 'gobin get' is ran, this helper will regenerate
 # if needed. Those generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used (reinstall will happen transparently if needed). See more details: https://github.com/bwplotka/gobin
+GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
+
 GOBIN_TOOL ?= $(GOBIN)/gobin
 $(GOBIN_TOOL): .gobin/gobin.mod
 	@# Install gobin allowing to install all pinned binaries.
-	@go get -modfile=gobin.mod github.com/bwplotka/gobin
+	@go get -modfile=.gobin/gobin.mod github.com/bwplotka/gobin
 gobin.mod: ;
 
 COPYRIGHT ?= $(GOBIN)/copyright

@@ -110,7 +110,8 @@ func ensureModFileExists(r gomodcmd.Runnable, modFile string) error {
 			return errors.Wrapf(err, "stat readme %s", modFile)
 		}
 
-		if err := ioutil.WriteFile(readmePath, []byte(fmt.Sprintf(modREADMEFmt, filepath.Dir(modFile), filepath.Dir(modFile), filepath.Dir(modFile))), os.ModePerm); err != nil {
+		relDir := filepath.Join("<root>", filepath.Base(filepath.Dir(modFile)))
+		if err := ioutil.WriteFile(readmePath, []byte(fmt.Sprintf(modREADMEFmt, relDir, relDir, relDir)), os.ModePerm); err != nil {
 			return err
 		}
 	}
