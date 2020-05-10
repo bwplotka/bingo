@@ -144,7 +144,7 @@ func getOne(
 
 		if modVer == "none" {
 			// none means we no longer want to version this package.
-			return os.RemoveAll(filepath.Join(modDir, binOrPackage+".mod"))
+			return os.RemoveAll(filepath.Join(modDir, binOrPackage+"*"))
 		}
 
 		// Record binary name used as long as rename was not expected. This is what it was configured with before.
@@ -155,7 +155,7 @@ func getOne(
 	} else {
 		if modVer == "none" {
 			// none means we no longer want to version this package.
-			return os.RemoveAll(filepath.Join(modDir, path.Base(pkgPath)+".mod"))
+			return os.RemoveAll(filepath.Join(modDir, path.Base(pkgPath)+"*"))
 		}
 	}
 

@@ -26,6 +26,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Linting & vetting.
+        env:
+          GOBIN: /tmp/.bin
         run: make lint
   tests:
     runs-on: ${{ matrix.platform }}
@@ -51,4 +53,6 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Run unit tests.
+        env:
+          GOBIN: /tmp/.bin
         run: make test
