@@ -158,7 +158,7 @@ Prints gobin version.
 					return err
 				}
 				if !has {
-					if err := os.RemoveAll(f); err != nil {
+					if err := os.RemoveAll(strings.TrimSuffix(f, ".mod") + "*"); err != nil {
 						return err
 					}
 				}

@@ -18,11 +18,6 @@ func TestCreateGoFileWithPackages(t *testing.T) {
 	testutil.Ok(t, err)
 	defer testutil.Ok(t, os.RemoveAll(tmpDir))
 
-	t.Run("empty moddir", func(t *testing.T) {
-		err := CreateGoFileWithPackages(filepath.Join(tmpDir, ""), "github.com/bwplotka/gobin")
-		testutil.NotOk(t, err)
-		testutil.Equals(t, "moddir cannot be empty, got filePath: .", err.Error())
-	})
 	t.Run("ok", func(t *testing.T) {
 		b := &strings.Builder{}
 		testutil.Ok(t, CreateGoFileWithPackages(filepath.Join(tmpDir, "somefile.go"),

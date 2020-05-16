@@ -54,8 +54,8 @@ Read full story about this tool [here](WIP).
 * Allow maintaining separate, hidden, nested Go modules for Go buildable packages you need **without obfuscating your own module**!
     * Also works for non-Go projects, requiring tools that just happen to be written in Go (:
 * Easy upgrade, downgrade, addition or removal of the needed binary's version, with no risk of dependency conflicts.
+    * NOTE: Tools are **often** not following semantic versioning, so they need to be pinned by commit.
 * Reliable way to make sure users and CIs are using expected version of the binaries, with reinstall on demand only if needed.
-    * With just using Go native tools (no need for them to install `gobin` even!)
 * Package level versioning, which allows versioning different packages from single module in different versions.
 * Versioning of multiple versions of binaries from the same Go package.
 * Optional, easy integration with Makefiles.
@@ -71,7 +71,7 @@ Read full story about this tool [here](WIP).
 Usage is simple, because `gobin` is just automating various existing `go` commands like `go mod init`, `go mod tidy`, `go get`
 or `go install`.
 
-The key idea is that **we want to maintain a separate, nested go module for our binaries. By default, it will be in `_gobin/go.mod`.**
+The key idea is that **we want to maintain a separate, nested go module for our binaries. By default, it will be in `.gobin/go.mod`.**
 This allows to solve our [goals](#Goals) without polluting main go module. Your project should commit all the files in this directory.
 
 For example purposes, let's imagine our project requires a nice import formatting via external [`goimports`](https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=doc)
@@ -83,18 +83,18 @@ binary (Actually it is recommend for all projects 🤓).
 
 ### Adding a Go Tool
 
-On repo without `gobin` used before, or with already existing `_gobin` directory, you can start by
-adding a tool.
+On repo without `gobin` used before, or with already existing `.gobin` directory, you can start by
+adding a binary (tool).
 
 Similar to official way of adding dependencies, like `go get`, do:
 
 `gobin get -u golang.org/x/tools/cmd/goimports`
 
-If you don't pin the version it will use the latest available and pin that version in separate `_gobin/go.mod` module.
+If you don't pin the version it will use the latest available and pin that version in separate `.gobin/go.mod` module.
 
 This will also **always** install the tool in a given version in you `${GOBIN}` path.
 
-#### Changing Version of a Tool
+### Changing Version of a Tool
 
 If you want to update to the latest add `-u`, the same as `go get`:
 
@@ -106,55 +106,49 @@ If you want to pin to certain version, do as well same as `go get`:
 
 Use `-o` option to change binary output name.
 
-#### Removing a Tool
+### Removing a Tool
 
 Exactly the same as native `go get`, just add `@none` and run `go get`:
 
 `gobin get golang.org/x/tools/cmd/goimports@none`
 
-#### Reliable Usage of a Tool
+### Reliable Usage of a Tool
 
 In you script or Makefile, try to always make sure the correct version of the tools are invoked.
-Running just `goimports` is not enough, because user might have `goimports` in another path or installed different version
+Running just `goimports` is not enough, because user might have `goimports` in another path or installed a different version
 manually.
 
-You can ensure correct binaries are used using simple trick.
+You can ensure correct version of the binaries are used using following tricks:
 
-Just always use tools using either:
+### Getting correct binary using go
 
-* Go 1.14+:
+From project's root, run:
 
-`go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports`
+`go get -modfile .gobin/gobin.mod`
 
-* Go older than 1.14:
+### Getting correct binary using gobin
 
-`cd _gobin/go.mod && go run golang.org/x/tools/cmd/goimports`
+`gobin get goimports` or just `gobin get` to install all tools specified in `.gobin` dir.
+
+### Makefile
+
+`gobin` automatically detects if your project is using Makefile. If it is detected, `.gobin/Makefile.binary-variables` file
+is generated and included in your makefile.
+
+Thanks to this you can invoke your pinned tools using simple veriables e.g `$(GOIMPORTS)` for `goimports` binary.
+### Invoking tool directly using go run
+
+From project's root, run:
+
+`go run -modfile=.gobin/goimports.mod golang.org/x/tools/cmd/goimports`
 
 Don't worry about compiling it all the time. Thanks to amazing Go Team, all is cached ❤️
-
-Not if you use Makefile it is as easy as:
-
-```Makefile
-GOIMPORTS ?= go run -modfile=_gobin/go.mod golang.org/x/tools/cmd/goimports
-
-.PHONY: format
-format: ## Formats Go code including imports.
-format:
-	@echo ">> formatting code"
-	@go fmt -s -w $(FILES_TO_FMT)
-	@$(GOIMPORTS) -w $(FILES_TO_FMT)
-```
-
-OR `GOIMPORTS         ?= gobin get golang.org/x/tools/cmd/goimports && $(GOBIN)/goimports`
-
-OR correct makefile
-
 
 ## Production Usage
 
 To see production example see:
 
- * [gobin tools](https://github.com/bwplotka/gobin/blob/298d2bf5dcc1c8543261279f0a7a22536782e2b3/_gobin/binaries.go#L19)
+ * [gobin's own tools](https://github.com/bwplotka/gobin/tree/master/.gobin)
  * [Thanos](WIP)
  * [go-grpc-middleware](WIP)
 
