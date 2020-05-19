@@ -18,33 +18,56 @@ import (
 
 const (
 	makefileBinVarsName = "Makefile.binary-variables"
-	makefileBinVarsTmpl = `# bwplotka/gobin {{ .Version }} generated tools helper. Every time 'gobin get' is ran, this helper will regenerate
-# if needed. Those generated variables ensure that every time a tool under each variable is invoked, the correct version
-# will be used (reinstall will happen transparently if needed). See more details: https://{{ .GobinPath }}
+	// TODO(bwplotka): We might want to play with better escaping to allow spaces in dir names.
+	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/gobin {{ .Version }}. DO NOT EDIT.
+# All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
+GO    ?= $(which go)
 
-GOBIN_TOOL ?= $(GOBIN)/{{ .GobinBinName }}
-$(GOBIN_TOOL): {{ .RelDir }}/{{ .GobinBinName }}.mod
-	@# Install gobin allowing to install all pinned binaries.
-	@go get -modfile={{ .RelDir }}/{{ .GobinBinName }}.mod
-{{ .GobinBinName }}.mod: ;
-
+# Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
+# will be used; reinstalling only if needed.
+# For example for {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }} variable:
+#
+# In your main Makefile:
+#
+#include .gobin/Makefile.binary-variables # (If not generated automatically by gobin).
+#
+#command: $({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }})
+#	@echo "Running {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }}"
+#	@$({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }}) <flags/args..>
+#
 {{- range .Binaries }}
 
 {{ .VarName }} ?= $(GOBIN)/{{ .BinName }}
 $({{ .VarName }}): {{ $.RelDir}}/{{ .BinName }}.mod
-{{ $.RelDir }}/{{ .BinName }}.mod: $(GOBIN_TOOL)
-	@# Install binary using separate go module with pinned dependency.
-	@$(GOBIN_TOOL) get {{ .BinName }}
+{{ $.RelDir }}/{{ .BinName }}.mod:
+	@# Install binary using Go 1.14+ build command. This is using bwplotka/gobin-controlled, separate go module with pinned dependencies.
+	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o=$({{ .BinName }}) "{{ .PackagePath }}"
 {{ .BinName }}.mod: ;
 {{- end}}
 `
 )
 
+type binary struct {
+	VarName     string
+	BinName     string
+	PackagePath string
+}
+
+// RemoveMakeHelper deletes Makefile.binary-variables from mod directory.
+func RemoveMakeHelper(modDir string) error {
+	// TODO(bwplotka): This will NOT remove include, detect this?
+	return os.RemoveAll(filepath.Join(modDir, makefileBinVarsName))
+}
+
 // GenMakeHelper generates helper Makefile variables to allows reliable binaries use. Regenerate if needed.
 // It is expected to have at least one mod file.
-func GenMakeHelperAndHook(makeFile, version, gobinInstallPath, gobinBinName string, modFiles ...string) error {
-	modDir := filepath.Dir(modFiles[0])
+func GenMakeHelperAndHook(modDir, makeFile, version string, modFiles ...string) error {
+	makefileBinVarsFile := filepath.Join(modDir, makefileBinVarsName)
+	if len(modFiles) == 0 {
+		return errors.New("no mod files")
+	}
+
 	tmpl, err := template.New(makefileBinVarsName).Parse(makefileBinVarsTmpl)
 	if err != nil {
 		return errors.Wrap(err, "parse makefile variables template")
@@ -52,33 +75,26 @@ func GenMakeHelperAndHook(makeFile, version, gobinInstallPath, gobinBinName stri
 
 	relDir, err := filepath.Rel(filepath.Dir(makeFile), modDir)
 	if err != nil {
-		return errors.Wrap(err, "rel")
+		return err
 	}
 
-	type binary struct {
-		VarName string
-		BinName string
-	}
 	data := struct {
 		Version string
 
-		RelDir       string
-		GobinBinName string
-		GobinPath    string
-		Binaries     []binary
+		RelDir    string
+		GobinPath string
+		Binaries  []binary
 	}{
-		Version:      version,
-		GobinBinName: gobinBinName,
-		GobinPath:    gobinInstallPath,
-		RelDir:       relDir,
+		Version: version,
+		RelDir:  relDir,
 	}
-
 	for _, m := range modFiles {
-		binName := strings.TrimSuffix(filepath.Base(m), ".mod")
-		if binName == gobinBinName {
-			continue
+		pkg, _, err := ModDirectPackage(m, nil)
+		if err != nil {
+			return err
 		}
 
+		binName := strings.TrimSuffix(filepath.Base(m), ".mod")
 		data.Binaries = append(data.Binaries, binary{
 			BinName: binName,
 			VarName: strings.ReplaceAll(
@@ -88,10 +104,10 @@ func GenMakeHelperAndHook(makeFile, version, gobinInstallPath, gobinBinName stri
 				),
 				"-", "_",
 			),
+			PackagePath: pkg,
 		})
 	}
 
-	makefileBinVarsFile := filepath.Join(modDir, makefileBinVarsName)
 	fb, err := os.Create(makefileBinVarsFile)
 	if err != nil {
 		return errors.Wrap(err, "create")
@@ -110,31 +126,27 @@ func GenMakeHelperAndHook(makeFile, version, gobinInstallPath, gobinBinName stri
 		return errors.Wrap(err, "tmpl exec")
 	}
 
-	makefileBinVarsFile, err = filepath.Rel(filepath.Dir(makeFile), makefileBinVarsFile)
-	if err != nil {
-		return errors.Wrap(err, "ref")
+	if makeFile == "" {
+		return nil
 	}
-
+	// Optionally include this file in given Makefile.
+	relMakefileBinVarsFile, err := filepath.Rel(filepath.Dir(makeFile), makefileBinVarsFile)
+	if err != nil {
+		return errors.Wrap(err, "getting relative path for makefileBinVarsFile")
+	}
 	b, err := ioutil.ReadFile(makeFile)
 	if err != nil {
 		return err
 	}
-
 	nodes, err := makefile.Parse(bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
-
 	for _, n := range nodes {
-		inc, ok := n.(makefile.Include)
-		if !ok {
-			continue
-		}
-
-		if inc.Value == makefileBinVarsFile {
+		if inc, ok := n.(makefile.Include); ok && inc.Value == relMakefileBinVarsFile {
 			// Nothing to do, include exists.
 			return nil
 		}
 	}
-	return ioutil.WriteFile(makeFile, append([]byte(fmt.Sprintf("include %s\n", makefileBinVarsFile)), b...), os.ModePerm)
+	return ioutil.WriteFile(makeFile, append([]byte(fmt.Sprintf("include %s\n", relMakefileBinVarsFile)), b...), os.ModePerm)
 }

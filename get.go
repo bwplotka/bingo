@@ -50,46 +50,45 @@ func binNameToPackagePath(binary string, modDir string) (string, error) {
 	// Get full import path from module file which has module and encoded sub path.
 	if _, err := os.Stat(currModFile); err != nil {
 		if os.IsNotExist(err) {
-			return "", errors.Errorf("Binary %s was not before installed. Use full package name to install it", binary)
+			return "", errors.Errorf("binary %q was not installed before. Use full package name to install it", binary)
 		}
 		return "", err
 	}
 
-	m, err := gobin.ModDirectPackage(currModFile, nil)
+	m, _, err := gobin.ModDirectPackage(currModFile, nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "Binary %s was installed, but go modules %s is malformed. Use full package name to reinstall it.", binary, currModFile)
-	}
-	if m == "" {
-		return "", errors.Errorf("Binary %s was not before installed. Use full package name to install it", binary)
+		return "", errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", binary, currModFile)
 	}
 	return m, nil
 }
 
-const modREADMEFmt = `# Development Dependencies.
+const modREADMEFmt = `# Project Development Dependencies.
 
-This is directory which stores Go modules for each tools that is used within this repository, managed by https://github.com/bwplotka/gobin.
+This is directory which stores Go modules with pinned buildable package that is used within this repository, managed by https://github.com/bwplotka/gobin.
+
+* Run ` + "`" + "gobin get" + "`" + ` to install all tools having each own module file in this directory.
+* Run ` + "`" + "gobin get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
+* If ` + "`" + "Makefile.binary-variables" + "`" + ` is present, use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
+* See https://github.com/bwplotka/gobin or -h on how to add, remove or change binaries dependencies.
 
 ## Requirements
 
-* Network (:
 * Go 1.14+
-
-## Usage
-
-Just run ` + "`" + "go get -modfile %s/<tool>.mod" + "`" + `to install tool in required version in your $(GOBIN).
-
-### Within Makefile
-
-Use $(<tool>) variable where <tool> is the %s/<tool>.mod.
-
-This directory is managed by gobin tool.
-
-* Run ` + "`" + "go get -modfile %s/gobin.mod" + "`" + ` if you did not before to install gobin.
-* Run ` + "`" + "gobin get" + "`" + ` to install all tools in this directory.
-* See https://github.com/bwplotka/gobin or -h on how to add, remove or change binaries dependencies.
 `
 
 func ensureModFileExists(r gomodcmd.Runnable, modFile string) error {
+	if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
+		return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
+	}
+
+	if err := ioutil.WriteFile(
+		filepath.Join(filepath.Dir(modFile), "README.md"),
+		[]byte(fmt.Sprintf(modREADMEFmt, filepath.Join("<root>", filepath.Base(filepath.Dir(modFile))))),
+		os.ModePerm,
+	); err != nil {
+		return err
+	}
+
 	_, err := os.Stat(modFile)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "stat module file %s", modFile)
@@ -97,26 +96,21 @@ func ensureModFileExists(r gomodcmd.Runnable, modFile string) error {
 	if err == nil {
 		return nil
 	}
+	// Module name does not matter.
+	return errors.Wrap(r.ModInit("_"), "mod init")
+}
 
-	// ModuleFile does not exists, ensure directory and README.md exists.
-	if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
-		return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
+func removeAllGlob(glob string) error {
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		return err
 	}
-
-	// Be nice to people.
-	readmePath := filepath.Join(filepath.Dir(modFile), "README.md")
-	if _, err := os.Stat(readmePath); err != nil {
-		if !os.IsNotExist(err) {
-			return errors.Wrapf(err, "stat readme %s", modFile)
-		}
-
-		relDir := filepath.Join("<root>", filepath.Base(filepath.Dir(modFile)))
-		if err := ioutil.WriteFile(readmePath, []byte(fmt.Sprintf(modREADMEFmt, relDir, relDir, relDir)), os.ModePerm); err != nil {
+	for _, f := range files {
+		if err := os.RemoveAll(f); err != nil {
 			return err
 		}
 	}
-	// Module name does not matter.
-	return errors.Wrap(r.ModInit("_"), "mod init")
+	return nil
 }
 
 func getOne(
@@ -124,58 +118,48 @@ func getOne(
 	r *gomodcmd.Runner,
 	modDir string,
 	update gomodcmd.GetUpdatePolicy,
-	binOrPackage string,
+	nameOrPackage string,
 	output string,
 ) (err error) {
 	modVer := ""
-	s := strings.Split(binOrPackage, "@")
+	s := strings.Split(nameOrPackage, "@")
 	if len(s) > 1 {
 		modVer = s[1]
 	}
-	binOrPackage = s[0]
 
-	pkgPath := binOrPackage
-	if !strings.Contains(binOrPackage, "/") {
-		pkgPath, err = binNameToPackagePath(binOrPackage, modDir)
+	nameOrPackage = s[0]
+	if modVer == "none" {
+		binary := path.Base(nameOrPackage)
+		if _, err := os.Stat(filepath.Join(modDir, binary+".mod")); err != nil {
+			if os.IsNotExist(err) {
+				return errors.Errorf("binary %q was not installed before, nothing to remove", binary)
+			}
+			return err
+		}
+		// none means we no longer want to version this package.
+		// NOTE: We don't remove binaries.
+		return removeAllGlob(filepath.Join(modDir, binary+".*"))
+	}
+
+	pkgPath := nameOrPackage
+	if !strings.Contains(nameOrPackage, "/") {
+		// Binary referenced by name, get full package name if module file exists.
+		pkgPath, err = binNameToPackagePath(nameOrPackage, modDir)
 		if err != nil {
 			return err
 		}
-		// At this point we know <binary>.mod exists.
-
-		if modVer == "none" {
-			// none means we no longer want to version this package.
-			return os.RemoveAll(filepath.Join(modDir, binOrPackage+"*"))
+		if output == "" {
+			output = nameOrPackage
+		} else if output != nameOrPackage {
+			// There might be case of rename. Remove old mod in this case, but only at the end.
+			defer func() { _ = removeAllGlob(filepath.Join(modDir, nameOrPackage+".*")) }()
 		}
-
-		// Record binary name used as long as rename was not expected. This is what it was configured with before.
-		// TODO(bwplotka): Test this logic, there are many cases.
-		if output != "" {
-			output = binOrPackage
-		}
-	} else {
-		if modVer == "none" {
-			// none means we no longer want to version this package.
-			return os.RemoveAll(filepath.Join(modDir, path.Base(pkgPath)+"*"))
-		}
-	}
-
-	if output == "" {
+	} else if output == "" {
 		output = path.Base(pkgPath)
-	}
-
-	if output != binOrPackage {
-		// There might be case of rename. Remove old mod in this case, but only at once all is successful here.
-		defer func() { _ = os.RemoveAll(filepath.Join(modDir, binOrPackage+".mod")) }()
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
-
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "gobin")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(modDir, output+".mod")
@@ -185,29 +169,19 @@ func getOne(
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-
 	if !outExists {
 		if err := os.RemoveAll(outModFile); err != nil {
 			return err
 		}
 	}
 
-	runnable := r.With(ctx, outModFile, tmpDir)
-
+	runnable := r.With(ctx, outModFile, modDir)
 	if err := ensureModFileExists(runnable, outModFile); err != nil {
 		return err
 	}
 
-	// Step 0: Copy existing module file to go.mod and create fake .go code file that imports package for Go Modules to work smoothly.
-	if err := ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), nil, os.ModePerm); err != nil {
-		return err
-	}
-	if err := gobin.CreateGoFileWithPackages(filepath.Join(tmpDir, output+".go"), pkgPath); err != nil {
-		return err
-	}
-
-	{
-		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on ou separate .mod file.
+	if modVer != "" || update != gomodcmd.NoUpdatePolicy {
+		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if modVer != "" {
 			targetWithVer = fmt.Sprintf("%s@%s", pkgPath, modVer)
@@ -217,13 +191,14 @@ func getOne(
 		}
 	}
 
-	// Check if path is pointing to non-buildable package, then fail.
-	pkgName, err := runnable.List("-f={{.Name}}", pkgPath)
+	// Check if path is pointing to non-buildable package. Fail it is non-buildable.
+	listOutput, err := runnable.List("-f={{.Name}}", pkgPath)
 	if err != nil {
 		return err
 	}
-	if pkgName != "main" {
-		return errors.Errorf("package %s is non-main (found %q), nothing to get and build", pkgPath, pkgName)
+	// Hacky.
+	if !strings.HasSuffix(listOutput, "main") {
+		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkgPath, listOutput)
 	}
 
 	// Step 3: Build and install.
@@ -231,11 +206,6 @@ func getOne(
 		return err
 	}
 	{
-		// Step 4: tidy.
-		if err := runnable.ModTidy(); err != nil {
-			return errors.Wrap(err, "mod tidy")
-		}
-
 		if !outExists {
 			// Add our metadata to pkgPath module file only if it did not exists before go get.
 			if err := gobin.AddMetaToMod(outModFile, pkgPath); err != nil {
@@ -244,22 +214,4 @@ func getOne(
 		}
 	}
 	return nil
-}
-
-func ensureGobinModFile(
-	ctx context.Context,
-	r *gomodcmd.Runner,
-	modDir string,
-) error {
-	_, err := os.Stat(filepath.Join(modDir, gobinBinName+".mod"))
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "stat module file %s", filepath.Join(modDir, gobinBinName))
-	}
-	if err == nil {
-		return nil
-	}
-
-	// Pin the latest version.
-	// TODO(bwplotka): Considering pinning the version that user use now?
-	return getOne(ctx, r, modDir, gomodcmd.UpdatePolicy, gobinInstallPath, gobinBinName)
 }

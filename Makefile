@@ -41,7 +41,7 @@ all: format build
 .PHONY: build
 build: ## Build gobin.
 	@echo ">> Building gobin"
-	@go install -v ./...
+	@go install github.com/bwplotka/gobin
 
 .PHONY: deps
 deps: ## Ensures fresh go.mod and go.sum.

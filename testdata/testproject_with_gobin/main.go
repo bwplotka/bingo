@@ -3,4 +3,7 @@
 
 package main
 
-const version = "v0.1.0.rc.4"
+import (
+	_ "github.com/oklog/run"
+	_ "github.com/pkg/errors"
+)

@@ -66,6 +66,10 @@ Read full story about this tool [here](WIP).
 * Linux or MacOS.
 * Tools have to be build in Go and have to be [Go Modules] compatible.
 
+## Contributing
+
+Any contributions are welcome! Just use GitHub Issues and Pull Requests as usual. We follow [Thanos Go coding style](https://thanos.io/contributing/coding-style-guide.md/) guide.
+
 ## Usage
 
 Usage is simple, because `gobin` is just automating various existing `go` commands like `go mod init`, `go mod tidy`, `go get`
