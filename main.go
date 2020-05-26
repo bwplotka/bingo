@@ -15,15 +15,13 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/bwplotka/gobin/pkg/gobin"
-	"github.com/bwplotka/gobin/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/bingo"
+	"github.com/bwplotka/bingo/pkg/gomodcmd"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 )
 
-const (
-	defaultMakefileName = "Makefile"
-)
+const defaultMakefileName = "Makefile"
 
 func exitOnUsageError(usage func(), v ...interface{}) {
 	fmt.Println(append([]interface{}{"Error:"}, v...)...)
@@ -36,17 +34,17 @@ func main() {
 	logger := log.New(os.Stderr, "", 0)
 
 	// Main flags.
-	flags := flag.NewFlagSet("gobin", flag.ExitOnError)
+	flags := flag.NewFlagSet("bingo", flag.ExitOnError)
 	verbose := flags.Bool("v", false, "Print more'")
 
 	// Get flags.
-	getFlags := flag.NewFlagSet("gobin get", flag.ExitOnError)
-	getModDir := getFlags.String("moddir", ".gobin", "Directory where separate modules for each binary will be "+
+	getFlags := flag.NewFlagSet("bingo get", flag.ExitOnError)
+	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
 		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If relative"+
 		"path is used, it is expected to be relative to project root module.")
 	output := getFlags.String("o", "", "The -o flag instructs to build with certain output name. Allowed characters [A-z0-9._-]. "+
 		"The given output will be then used to reference a binary later on. If empty the last element of package directory will be used "+
-		"If no package/binary is specified, gobin get will return error")
+		"If no package/binary is specified, bingo get will return error")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	update := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
@@ -58,8 +56,8 @@ func main() {
 	getVerbose := getFlags.Bool("v", false, "Print more'")
 
 	// List flags.
-	listFlags := flag.NewFlagSet("gobin list", flag.ExitOnError)
-	listModDir := listFlags.String("moddir", ".gobin", "Directory where separate modules for each binary will be "+
+	listFlags := flag.NewFlagSet("bingo list", flag.ExitOnError)
+	listModDir := listFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
 		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If relative"+
 		"path is used, it is expected to be relative to project root module.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `list` command.
@@ -73,9 +71,9 @@ func main() {
 		listFlagsHelp := &strings.Builder{}
 		listFlags.SetOutput(listFlagsHelp)
 		listFlags.PrintDefaults()
-		fmt.Printf(`gobin: Simple CLI that automates versioning of Go binaries (e.g required as tools by your project!) in a nested Go module, allowing reproducible dev environments.
+		fmt.Printf(`bingo: Simple CLI that automates versioning of Go binaries (e.g required as tools by your project!) in a nested Go module, allowing reproducible dev environments.
 
-For detailed examples see: https://github.com/bwplotka/gobin
+For detailed examples see: https://github.com/bwplotka/bingo
 
 Commands:
 
@@ -89,7 +87,7 @@ Commands:
 
 	version
 
-Prints gobin version.
+Prints bingo version.
 
 `, getFlagsHelp.String(), listFlagsHelp.String())
 	}
@@ -166,13 +164,13 @@ Prints gobin version.
 				return err
 			}
 			if len(modFiles) == 0 {
-				return gobin.RemoveMakeHelper(modDir)
+				return bingo.RemoveMakeHelper(modDir)
 			}
 
-			// Get through all modules and remove those without gobin metadata. This ensures we clean
-			// non-gobin maintained module files from this directory as well partial module files.
+			// Get through all modules and remove those without bingo metadata. This ensures we clean
+			// non-bingo maintained module files from this directory as well partial module files.
 			for _, f := range modFiles {
-				has, err := gobin.ModHasMeta(f, nil)
+				has, err := bingo.ModHasMeta(f, nil)
 				if err != nil {
 					return err
 				}
@@ -196,7 +194,7 @@ Prints gobin version.
 			}
 
 			// Create makefile helper.
-			return gobin.GenMakeHelperAndHook(modDir, *makefile, version, modFiles...)
+			return bingo.GenMakeHelperAndHook(modDir, *makefile, version, modFiles...)
 		}
 	case "list":
 		listFlags.SetOutput(os.Stdout)
@@ -235,7 +233,7 @@ Prints gobin version.
 
 			var targets []string
 			for _, f := range modFiles {
-				has, err := gobin.ModHasMeta(f, nil)
+				has, err := bingo.ModHasMeta(f, nil)
 				if err != nil {
 					return err
 				}
@@ -316,7 +314,7 @@ Prints gobin version.
 
 func list(modFiles []string) error {
 	for _, f := range modFiles {
-		pkg, ver, err := gobin.ModDirectPackage(f, nil)
+		pkg, ver, err := bingo.ModDirectPackage(f, nil)
 		if err != nil {
 			return errors.Wrapf(err, "module %q is malformed. 'get' full package name to re-pin it.", f)
 		}

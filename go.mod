@@ -1,4 +1,4 @@
-module github.com/bwplotka/gobin
+module github.com/bwplotka/bingo
 
 go 1.14
 

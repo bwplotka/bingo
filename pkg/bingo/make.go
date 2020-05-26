@@ -1,7 +1,7 @@
 // Copyright (c) Bartłomiej Płotka @bwplotka
 // Licensed under the Apache License 2.0.
 
-package gobin
+package bingo
 
 import (
 	"bytes"
@@ -12,14 +12,14 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/bwplotka/gobin/pkg/makefile"
+	"github.com/bwplotka/bingo/pkg/makefile"
 	"github.com/pkg/errors"
 )
 
 const (
 	makefileBinVarsName = "Makefile.binary-variables"
 	// TODO(bwplotka): We might want to play with better escaping to allow spaces in dir names.
-	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/gobin {{ .Version }}. DO NOT EDIT.
+	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO    ?= $(which go)
@@ -30,7 +30,7 @@ GO    ?= $(which go)
 #
 # In your main Makefile:
 #
-#include .gobin/Makefile.binary-variables # (If not generated automatically by gobin).
+#include .bingo/Makefile.binary-variables # (If not generated automatically by bingo).
 #
 #command: $({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }})
 #	@echo "Running {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }}"
@@ -41,7 +41,7 @@ GO    ?= $(which go)
 {{ .VarName }} ?= $(GOBIN)/{{ .BinName }}
 $({{ .VarName }}): {{ $.RelDir}}/{{ .BinName }}.mod
 {{ $.RelDir }}/{{ .BinName }}.mod:
-	@# Install binary using Go 1.14+ build command. This is using bwplotka/gobin-controlled, separate go module with pinned dependencies.
+	@# Install binary using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o=$({{ .BinName }}) "{{ .PackagePath }}"
 {{ .BinName }}.mod: ;
 {{- end}}

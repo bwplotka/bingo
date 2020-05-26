@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bwplotka/gobin/pkg/gobin"
-	"github.com/bwplotka/gobin/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/bingo"
+	"github.com/bwplotka/bingo/pkg/gomodcmd"
 	"github.com/pkg/errors"
 )
 
@@ -55,7 +55,7 @@ func binNameToPackagePath(binary string, modDir string) (string, error) {
 		return "", err
 	}
 
-	m, _, err := gobin.ModDirectPackage(currModFile, nil)
+	m, _, err := bingo.ModDirectPackage(currModFile, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", binary, currModFile)
 	}
@@ -64,12 +64,12 @@ func binNameToPackagePath(binary string, modDir string) (string, error) {
 
 const modREADMEFmt = `# Project Development Dependencies.
 
-This is directory which stores Go modules with pinned buildable package that is used within this repository, managed by https://github.com/bwplotka/gobin.
+This is directory which stores Go modules with pinned buildable package that is used within this repository, managed by https://github.com/bwplotka/bingo.
 
-* Run ` + "`" + "gobin get" + "`" + ` to install all tools having each own module file in this directory.
-* Run ` + "`" + "gobin get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
+* Run ` + "`" + "bingo get" + "`" + ` to install all tools having each own module file in this directory.
+* Run ` + "`" + "bingo get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
 * If ` + "`" + "Makefile.binary-variables" + "`" + ` is present, use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
-* See https://github.com/bwplotka/gobin or -h on how to add, remove or change binaries dependencies.
+* See https://github.com/bwplotka/bingo or -h on how to add, remove or change binaries dependencies.
 
 ## Requirements
 
@@ -164,8 +164,8 @@ func getOne(
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(modDir, output+".mod")
 
-	// Check if module exists and has gobin watermark, otherwise assume it's malformed and remove.
-	outExists, err := gobin.ModHasMeta(outModFile, nil)
+	// Check if module exists and has bingo watermark, otherwise assume it's malformed and remove.
+	outExists, err := bingo.ModHasMeta(outModFile, nil)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -208,7 +208,7 @@ func getOne(
 	{
 		if !outExists {
 			// Add our metadata to pkgPath module file only if it did not exists before go get.
-			if err := gobin.AddMetaToMod(outModFile, pkgPath); err != nil {
+			if err := bingo.AddMetaToMod(outModFile, pkgPath); err != nil {
 				return errors.Wrap(err, "adding meta")
 			}
 		}

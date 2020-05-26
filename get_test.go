@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bwplotka/gobin/pkg/testutil"
+	"github.com/bwplotka/bingo/pkg/testutil"
 	"github.com/pkg/errors"
 )
 
 const (
-	gobinBin      = "gobin"
-	defaultModDir = ".gobin"
+	bingoBin      = "bingo"
+	defaultModDir = ".bingo"
 )
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing version at each commit.
@@ -28,8 +28,8 @@ func TestGet_E2E(t *testing.T) {
 	g := newTmpGoEnv(t)
 	defer g.Close(t)
 
-	// We manually build gobin binary to make sure GOCACHE will not hit us.
-	goBinPath := filepath.Join(g.tmpDir, gobinBin)
+	// We manually build bingo binary to make sure GOCACHE will not hit us.
+	goBinPath := filepath.Join(g.tmpDir, bingoBin)
 	buildInitialGobin(t, goBinPath)
 
 	// Copy testproject at the beginning to temp dir.
@@ -161,12 +161,12 @@ func TestGet_WithPreExistingGobin_E2E(t *testing.T) {
 	g := newTmpGoEnv(t)
 	defer g.Close(t)
 
-	// We manually build gobin binary to make sure GOCACHE will not hit us.
-	goBinPath := filepath.Join(g.tmpDir, gobinBin)
+	// We manually build bingo binary to make sure GOCACHE will not hit us.
+	goBinPath := filepath.Join(g.tmpDir, bingoBin)
 	buildInitialGobin(t, goBinPath)
 
 	// Copy testproject at the beginning to temp dir.
-	p := newInitialGoProject(t, "testdata/testproject_with_gobin", filepath.Join(g.tmpDir, "testproject2"))
+	p := newInitialGoProject(t, "testdata/testproject_with_bingo", filepath.Join(g.tmpDir, "testproject2"))
 	p.assertProjectNotChanged(t)
 
 	g.assertBinaryNotInGoBin(t, "faillint")
@@ -174,7 +174,7 @@ func TestGet_WithPreExistingGobin_E2E(t *testing.T) {
 	g.assertBinaryNotInGoBin(t, "goimports2")
 	testutil.Equals(t, "faillint: github.com/fatih/faillint@v1.3.0\ngoimports: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\ngoimports2: golang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\n", g.ExecOutput(t, p.root, goBinPath, "list"))
 
-	// Get all binaries by doing 'gobin get'.
+	// Get all binaries by doing 'bingo get'.
 	defer p.assertProjectNotChanged(t, defaultModDir)
 
 	fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get"))
@@ -190,8 +190,8 @@ func TestGet__WithPreExistingGobin_NativeGoBuild(t *testing.T) {
 	defer g.Close(t)
 
 	// Copy testproject at the beginning to temp dir.
-	// NOTE: No gobin binary is required here.
-	p := newInitialGoProject(t, "testdata/testproject_with_gobin", filepath.Join(g.tmpDir, "testproject2"))
+	// NOTE: No bingo binary is required here.
+	p := newInitialGoProject(t, "testdata/testproject_with_bingo", filepath.Join(g.tmpDir, "testproject2"))
 	p.assertProjectNotChanged(t)
 
 	g.assertBinaryNotInGoBin(t, "faillint")
@@ -201,11 +201,11 @@ func TestGet__WithPreExistingGobin_NativeGoBuild(t *testing.T) {
 	// Get all binaries by doing native go build.
 	defer p.assertProjectNotChanged(t, defaultModDir)
 
-	_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.gobin, "goimports"), "golang.org/x/tools/cmd/goimports")
+	_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.bingo, "goimports"), "golang.org/x/tools/cmd/goimports")
 	testutil.Ok(t, err)
-	_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.gobin, "faillint"), "github.com/fatih/faillint")
+	_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.bingo, "faillint"), "github.com/fatih/faillint")
 	testutil.Ok(t, err)
-	_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.gobin, "goimports2"), "golang.org/x/tools/cmd/goimports")
+	_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.bingo, "goimports2"), "golang.org/x/tools/cmd/goimports")
 	testutil.Ok(t, err)
 
 	g.assertBinaryInGoBin(t, "faillint")
@@ -220,8 +220,8 @@ func TestGetWithMakefile_E2E(t *testing.T) {
 		g := newTmpGoEnv(t)
 		defer g.Close(t)
 
-		// We manually build gobin binary to make sure GOCACHE will not hit us.
-		goBinPath := filepath.Join(g.tmpDir, gobinBin)
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		goBinPath := filepath.Join(g.tmpDir, bingoBin)
 		buildInitialGobin(t, goBinPath)
 
 		// Copy testproject at the beginning to temp dir.
@@ -242,9 +242,9 @@ func TestGetWithMakefile_E2E(t *testing.T) {
 		testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
 
 		t.Run("modify binary file, expect reinstall", func(t *testing.T) {
-			_, err := execCmd(g.gobin, nil, "rm", "faillint")
+			_, err := execCmd(g.bingo, nil, "rm", "faillint")
 			testutil.Ok(t, err)
-			_, err = execCmd(g.gobin, nil, "touch", "faillint")
+			_, err = execCmd(g.bingo, nil, "touch", "faillint")
 			testutil.Ok(t, err)
 
 			testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
@@ -257,7 +257,7 @@ func TestGetWithMakefile_E2E(t *testing.T) {
 			fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports@none"))
 			fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
 
-			_, err := os.Stat(filepath.Join(p.root, ".gobin", "Makefile.binary-variables"))
+			_, err := os.Stat(filepath.Join(p.root, ".bingo", "Makefile.binary-variables"))
 			testutil.NotOk(t, err)
 		})
 	})
@@ -265,8 +265,8 @@ func TestGetWithMakefile_E2E(t *testing.T) {
 		g := newTmpGoEnv(t)
 		defer g.Close(t)
 
-		// We manually build gobin binary to make sure GOCACHE will not hit us.
-		goBinPath := filepath.Join(g.tmpDir, gobinBin)
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		goBinPath := filepath.Join(g.tmpDir, bingoBin)
 		buildInitialGobin(t, goBinPath)
 
 		// Copy testproject at the beginning to temp dir.
@@ -327,7 +327,7 @@ func buildInitialGobin(t *testing.T, targetDir string) {
 
 	_, err = execCmd(wd, nil, "make", "build")
 	testutil.Ok(t, err)
-	_, err = execCmd(wd, nil, "cp", filepath.Join(os.Getenv("GOBIN"), gobinBin), targetDir)
+	_, err = execCmd(wd, nil, "cp", filepath.Join(os.Getenv("GOBIN"), bingoBin), targetDir)
 	testutil.Ok(t, err)
 }
 
@@ -403,11 +403,11 @@ func (g *goProject) assertProjectRootIsClean(t testing.TB, extra ...string) *goP
 }
 
 type goEnv struct {
-	goroot, gopath, gobin, gocache, tmpDir string
+	goroot, gopath, bingo, gocache, tmpDir string
 }
 
 func newTmpGoEnv(t testing.TB) *goEnv {
-	tmpDir, err := ioutil.TempDir(".", "gobin-tmpgoenv")
+	tmpDir, err := ioutil.TempDir(".", "bingo-tmpgoenv")
 	testutil.Ok(t, err)
 
 	tmpDir, err = filepath.Abs(tmpDir)
@@ -421,7 +421,7 @@ func newTmpGoEnv(t testing.TB) *goEnv {
 		tmpDir:  tmpDir,
 		goroot:  filepath.Dir(goRoot),
 		gopath:  gopath,
-		gobin:   filepath.Join(gopath, "bin"),
+		bingo:   filepath.Join(gopath, "bin"),
 		gocache: filepath.Join(tmpDir, "gocache"),
 	}
 }
@@ -432,8 +432,8 @@ func (g *goEnv) TmpDir() string {
 
 func (g *goEnv) syntheticEnv() []string {
 	return []string{
-		fmt.Sprintf("PATH=%s:%s:%s", g.goroot, g.tmpDir, g.gobin),
-		fmt.Sprintf("GOBIN=%s", g.gobin),
+		fmt.Sprintf("PATH=%s:%s:%s", g.goroot, g.tmpDir, g.bingo),
+		fmt.Sprintf("GOBIN=%s", g.bingo),
 		fmt.Sprintf("GOPATH=%s", g.gopath),
 		fmt.Sprintf("GOCACHE=%s", g.gocache),
 	}
@@ -451,13 +451,13 @@ func (g *goEnv) ExectErr(dir string, command string, args ...string) error {
 }
 
 func (g *goEnv) binaryModTime(t testing.TB, bin string) time.Time {
-	i, err := os.Stat(filepath.Join(g.gobin, bin))
+	i, err := os.Stat(filepath.Join(g.bingo, bin))
 	testutil.Ok(t, err)
 	return i.ModTime()
 }
 
 func (g *goEnv) assertBinaryNotInGoBin(t testing.TB, bin string) {
-	_, err := os.Stat(filepath.Join(g.gobin, bin))
+	_, err := os.Stat(filepath.Join(g.bingo, bin))
 	testutil.Assert(t, os.IsNotExist(err), "binary exists? %v", err)
 }
 
