@@ -111,7 +111,7 @@ ModLoop:
 		if err != nil {
 			return err
 		}
-		name, oneOfMany := NameFromModFile(m)
+		name, _ := NameFromModFile(m)
 		varName := strings.ReplaceAll(
 			strings.ReplaceAll(
 				strings.ToUpper(name),
@@ -119,16 +119,14 @@ ModLoop:
 			),
 			"-", "_",
 		)
-		if oneOfMany {
-			varName = varName + "_ARRAY"
-			for i, b := range data.Binaries {
-				if b.Name == name {
-					data.Binaries[i].Versions = append(data.Binaries[i].Versions, binaryVersion{
-						BinName:    fmt.Sprintf("%s-%s", name, version),
-						RelModFile: filepath.Join(relDir, filepath.Base(m)),
-					})
-					continue ModLoop
-				}
+		for i, b := range data.Binaries {
+			if b.Name == name {
+				data.Binaries[i].VarName = varName + "_ARRAY"
+				data.Binaries[i].Versions = append(data.Binaries[i].Versions, binaryVersion{
+					BinName:    fmt.Sprintf("%s-%s", name, version),
+					RelModFile: filepath.Join(relDir, filepath.Base(m)),
+				})
+				continue ModLoop
 			}
 		}
 		data.Binaries = append(data.Binaries, binary{

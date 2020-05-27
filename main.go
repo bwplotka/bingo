@@ -159,6 +159,9 @@ Prints bingo version.
 			if err := removeAllGlob(filepath.Join(modDir, "*.sum")); err != nil {
 				return err
 			}
+			if err := removeAllGlob(filepath.Join(modDir, "*.tmp.*")); err != nil {
+				return err
+			}
 
 			modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
 			if err != nil {

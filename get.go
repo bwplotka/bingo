@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -135,38 +136,33 @@ func getOne(
 	if i > 0 {
 		outModFile = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i))
 	}
-
-	// Check if module exists and has bingo watermark, otherwise assume it's malformed and remove.
-	outExists, err := bingo.ModHasMeta(outModFile, nil)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if !outExists {
-		if err := os.RemoveAll(outModFile); err != nil {
-			return err
-		}
+	// Init outModFile if needed.
+	if err := ensureModFileExists(c.runner.With(ctx, outModFile, c.modDir), outModFile, pkgPath); err != nil {
+		return errors.Wrap(err, "ensure mod file")
 	}
 
-	runnable := c.runner.With(ctx, outModFile, c.modDir)
-	if err := ensureModFileExists(runnable, outModFile); err != nil {
-		return err
+	// Set up tmp file that we will work on for now.
+	tmpModFile := filepath.Join(c.modDir, name+".tmp.mod")
+	if err := os.RemoveAll(tmpModFile); err != nil {
+		return errors.Wrap(err, "rm")
+	}
+	if err := copyFile(outModFile, tmpModFile); err != nil {
+		return errors.Wrap(err, "copy")
 	}
 
-	if !outExists || version != "" || c.update != gomodcmd.NoUpdatePolicy {
+	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
+	if version != "" || c.update != gomodcmd.NoUpdatePolicy {
 		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if version != "" {
 			targetWithVer = fmt.Sprintf("%s@%s", pkgPath, version)
 		}
 		if err := runnable.GetD(c.update, targetWithVer); err != nil {
-			return err
+			return errors.Wrap(err, "go get -d")
 		}
 	}
-	if !outExists {
-		// Add our metadata to pkgPath module file only if it did not exists before go get.
-		if err := bingo.AddMetaToMod(outModFile, pkgPath); err != nil {
-			return errors.Wrap(err, "adding meta")
-		}
+	if err := bingo.EnsureModMeta(tmpModFile, pkgPath); err != nil {
+		return errors.Wrap(err, "ensuring meta")
 	}
 
 	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
@@ -177,12 +173,17 @@ func getOne(
 	}
 
 	// Refetch version to ensure we have correct one.
-	_, version, err = bingo.ModDirectPackage(outModFile, nil)
+	_, version, err = bingo.ModDirectPackage(tmpModFile, nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "get direct package")
+	}
+
+	// We were working on tmp file, do atomic rename.
+	if err := os.Rename(tmpModFile, outModFile); err != nil {
+		return errors.Wrap(err, "rename")
 	}
 	// Step 3: Build and install.
-	return runnable.Build(pkgPath, fmt.Sprintf("%s-%s", name, version))
+	return c.runner.With(ctx, outModFile, c.modDir).Build(pkgPath, fmt.Sprintf("%s-%s", name, version))
 }
 
 func binNameToPackagePath(binary string, modDir string) (string, error) {
@@ -226,9 +227,11 @@ const gitignore = `
 !*.mod
 !*.md
 !*.mk
+
+*tmp.mod
 `
 
-func ensureModFileExists(r gomodcmd.Runnable, modFile string) error {
+func ensureModFileExists(r gomodcmd.Runnable, modFile string, pkg string) error {
 	if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
 		return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
 	}
@@ -257,7 +260,6 @@ func ensureModFileExists(r gomodcmd.Runnable, modFile string) error {
 	if err == nil {
 		return nil
 	}
-	// Module name does not matter.
 	return errors.Wrap(r.ModInit("_"), "mod init")
 }
 
@@ -268,6 +270,36 @@ func removeAllGlob(glob string) error {
 	}
 	for _, f := range files {
 		if err := os.RemoveAll(f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	// TODO(bwplotka): Check those errors in defer.
+	defer source.Close()
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := source.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 0 {
+			break
+		}
+
+		if _, err := destination.Write(buf[:n]); err != nil {
 			return err
 		}
 	}
