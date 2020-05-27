@@ -44,13 +44,16 @@ Read full story about this tool [here](WIP).
     + [Changing Version of a Tool](#changing-version-of-a-tool)
     + [Removing a Tool](#removing-a-tool)
     + [Reliable Usage of a Tool](#reliable-usage-of-a-tool)
-    + [Getting correct binary using go (+ optionally Makefile!)](#getting-correct-binary-using-go----optionally-makefile--)
+    + [Getting correct binary using go (+ optionally Makefile!)](#getting-correct-binary-using-go--optionally-makefile)
     + [Getting correct binary using bingo](#getting-correct-binary-using-bingo)
   * [Production Usage](#production-usage)
-  * [Why your project need this?](#why-your-project-need-this-)
-  * [But hey, there is already some pattern for this!](#but-hey--there-is-already-some-pattern-for-this-)
-  * [How this tool is different to [myitcv/gobin](https://github.com/myitcv/gobin)?](#how-this-tool-is-different-to--myitcv-gobin--https---githubcom-myitcv-gobin--)
+  * [Why your project need this?](#why-your-project-need-this)
+  * [Why not a simple `_tools` go pattern?](#why-not-a-simple-_tools-go-pattern)
+  * [How this tool is different to [myitcv/gobin](https://github.com/myitcv/gobin)?](#how-this-tool-is-different-to-myitcvgobin)
   * [Initial Author](#initial-author)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -174,7 +177,7 @@ given project version was build against and expected to run with. This can lead 
 
 * There is currently no native and official way for pinning Go tools, especially without polluting your project's module.
 
-## But hey, there is already some pattern for this!
+## Why not a simple `_tools`.go pattern
 
 Yes, but it's not perfect. We are referring to [this recommendation](https://github.com/golang/go/issues/25922#issuecomment-590529870).
 There are a few downsides of the given recommendation (TL;DR: just `tools.go` inside your own module):
@@ -191,7 +194,9 @@ and project maintainability, especially in CIs or different platforms.
 
 * Manual addition the tool to "hacky" tools.go is prone to errors and just surprising for end contributors.
 
-That's why we thought of building dedicated tool for this, allowing to use standard Go mechanisms like `modules`, `go run`, and `go get`.
+That's why we thought of building dedicated tool for this, allowing to use standard Go mechanisms like `go build` and `go get`.
+
+* tools pattern does not allow to pin multiple different versions of the same package (or multiple version of differnet packages within the same module).
 
 In fact `bingo` is a little bit like extension of [this idea](https://github.com/golang/go/issues/25922#issuecomment-590529870).
 
