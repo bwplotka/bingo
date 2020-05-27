@@ -1,4 +1,4 @@
-include .gobin/Makefile.binary-variables
+include .bingo/Variables.mk
 FILES_TO_FMT      ?= $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 GO111MODULE       ?= on
@@ -39,9 +39,9 @@ help: ## Displays help.
 all: format build
 
 .PHONY: build
-build: ## Build gobin.
-	@echo ">> Building gobin"
-	@go install -v ./...
+build: ## Build bingo.
+	@echo ">> Building bingo"
+	@go install github.com/bwplotka/bingo
 
 .PHONY: deps
 deps: ## Ensures fresh go.mod and go.sum.

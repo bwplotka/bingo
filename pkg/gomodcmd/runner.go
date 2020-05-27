@@ -129,7 +129,7 @@ const (
 	UpdatePatchPolicy = GetUpdatePolicy("-u=patch")
 )
 
-// ModInit runs `go mod init` against separate go modules files if any.
+// ModInit runs `go mod init` against separate go modules files if any. REMOVE
 func (r *runnable) ModInit(moduleName string) error {
 	_, err := r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"mod", "init"}, moduleName)...)
 	return err
