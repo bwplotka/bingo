@@ -1,7 +1,7 @@
 # Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.1.0.rc.4. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
-GO    ?= $(which go)
+GO    ?= $(shell which go)
 
 # Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
@@ -9,7 +9,7 @@ GO    ?= $(which go)
 # 
 # In your main Makefile:
 # 
-#include .bingo/Makefile.binary-variables # (If not generated automatically by bingo).
+#include .bingo/Variables.mk # (If not generated automatically by bingo).
 # 
 #command: $(COPYRIGHT)
 #	@echo "Running copyright"
@@ -32,10 +32,10 @@ faillint.mod: ;
 
 GOIMPORTS ?= $(GOBIN)/goimports
 $(GOIMPORTS): .bingo/goimports.mod
-.bingo/goimports.mod:
 	@# Install binary using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "installing $(GO)"
 	@$(GO) build -modfile=.bingo/goimports.mod -o=$(goimports) "golang.org/x/tools/cmd/goimports"
-goimports.mod: ;
+.bingo/goimports.mod: ;
 
 GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
 $(GOLANGCI_LINT): .bingo/golangci-lint.mod

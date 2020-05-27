@@ -136,7 +136,7 @@ From project's root, run:
 
 ### Makefile
 
-`bingo` automatically detects if your project is using Makefile. If it is detected, `.bingo/Makefile.binary-variables` file
+`bingo` automatically detects if your project is using Makefile. If it is detected, `.bingo/Variables.mk` file
 is generated and included in your makefile.
 
 Thanks to this you can invoke your pinned tools using simple veriables e.g `$(GOIMPORTS)` for `goimports` binary.

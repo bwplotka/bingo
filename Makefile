@@ -1,4 +1,4 @@
-include .bingo/Makefile.binary-variables
+include .bingo/Variables.mk
 FILES_TO_FMT      ?= $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 GO111MODULE       ?= on

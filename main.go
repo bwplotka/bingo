@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -42,9 +41,9 @@ func main() {
 	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
 		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If relative"+
 		"path is used, it is expected to be relative to project root module.")
-	output := getFlags.String("o", "", "The -o flag instructs to build with certain output name. Allowed characters [A-z0-9._-]. "+
-		"The given output will be then used to reference a binary later on. If empty the last element of package directory will be used "+
-		"If no package/binary is specified, bingo get will return error")
+	getName := getFlags.String("n", "", "The -n flag instructs to get binary and name it with given name instead of default,"+
+		" so the last element of package directory Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
+		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	update := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
@@ -52,6 +51,7 @@ func main() {
 	makefile := getFlags.String("makefile", defaultMakefileName, "Makefile to link the the generated helper for make when `-m` options is specified with."+
 		"Specify empty to disable including the helper.")
 	genMakefileHelper := getFlags.Bool("m", false, "Generate makefile helper with all binaries as variables.")
+	noVersionSuffix := getFlags.Bool("no-version-suffix", false, "Do not append version suffix for improved reliability to each built binary.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
 
@@ -77,7 +77,7 @@ For detailed examples see: https://github.com/bwplotka/bingo
 
 Commands:
 
-	get <flags> [<package or binary>[@version or none]]
+	get <flags> [<package or binary>[@version1 or none,version2,version3...]]
 
 %s
 
@@ -130,12 +130,8 @@ Prints bingo version.
 		}
 
 		target := getFlags.Arg(0)
-		if *output != "" && target == "" {
-			exitOnUsageError(flags.Usage, "Cannot set output -o with no package/binary specified")
-		}
-
-		if *output != "" && !regexp.MustCompile(`[a-zA-Z0-9.-_]+`).MatchString(*output) {
-			exitOnUsageError(flags.Usage, *output, " present as -o contains not allowed characters")
+		if *getName != "" && !regexp.MustCompile(`[a-zA-Z0-9.-_]+`).MatchString(*getName) {
+			exitOnUsageError(flags.Usage, *getName, "-n name contains not allowed characters")
 		}
 
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
@@ -150,7 +146,14 @@ Prints bingo version.
 			}
 
 			// Like go get, but package aware and without go source files.
-			if err := get(ctx, r, modDir, upPolicy, target, *output); err != nil {
+			if err := get(ctx, getConfig{
+				runner:          r,
+				modDir:          modDir,
+				update:          upPolicy,
+				noVersionSuffix: *noVersionSuffix,
+				name:            *getName,
+				rawTarget:       target,
+			}); err != nil {
 				return err
 			}
 
@@ -269,24 +272,9 @@ Prints bingo version.
 	}
 
 	g := &run.Group{}
-	// Listen for signal interrupts.
-	{
-		cancel := make(chan struct{})
-		g.Add(func() error {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-			select {
-			case s := <-c:
-				return errors.Errorf("caught signal %q; exiting. ", s)
-			case <-cancel:
-				return nil
-			}
-		}, func(error) {
-			close(cancel)
-		})
-	}
+	g.Add(run.SignalHandler(context.Background(), syscall.SIGINT, syscall.SIGTERM))
 
-	// Run command.
+	// Command run actor.
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		g.Add(func() error {

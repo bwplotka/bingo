@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	makefileBinVarsName = "Makefile.binary-variables"
+	MakefileBinVarsName = "Variables.mk"
 	// TODO(bwplotka): We might want to play with better escaping to allow spaces in dir names.
 	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
-GO    ?= $(which go)
+GO    ?= $(shell which go)
 
 # Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
@@ -30,7 +30,7 @@ GO    ?= $(which go)
 #
 # In your main Makefile:
 #
-#include .bingo/Makefile.binary-variables # (If not generated automatically by bingo).
+#include .bingo/Variables.mk # (If not generated automatically by bingo).
 #
 #command: $({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }})
 #	@echo "Running {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }}"
@@ -40,10 +40,11 @@ GO    ?= $(which go)
 
 {{ .VarName }} ?= $(GOBIN)/{{ .BinName }}
 $({{ .VarName }}): {{ $.RelDir}}/{{ .BinName }}.mod
-{{ $.RelDir }}/{{ .BinName }}.mod:
+	@echo "(re)installing $(GOBIN)/{{ .BinName }}"
 	@# Install binary using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o=$({{ .BinName }}) "{{ .PackagePath }}"
-{{ .BinName }}.mod: ;
+	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o=$({{ .VarName }}) "{{ .PackagePath }}"
+	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o={{ $.RelDir}}/{{ .BinName }} "{{ .PackagePath }}"
+{{ $.RelDir }}/{{ .BinName }}.mod: ;
 {{- end}}
 `
 )
@@ -54,21 +55,21 @@ type binary struct {
 	PackagePath string
 }
 
-// RemoveMakeHelper deletes Makefile.binary-variables from mod directory.
+// RemoveMakeHelper deletes Variables.mk from mod directory.
 func RemoveMakeHelper(modDir string) error {
 	// TODO(bwplotka): This will NOT remove include, detect this?
-	return os.RemoveAll(filepath.Join(modDir, makefileBinVarsName))
+	return os.RemoveAll(filepath.Join(modDir, MakefileBinVarsName))
 }
 
 // GenMakeHelper generates helper Makefile variables to allows reliable binaries use. Regenerate if needed.
 // It is expected to have at least one mod file.
 func GenMakeHelperAndHook(modDir, makeFile, version string, modFiles ...string) error {
-	makefileBinVarsFile := filepath.Join(modDir, makefileBinVarsName)
+	makefileBinVarsFile := filepath.Join(modDir, MakefileBinVarsName)
 	if len(modFiles) == 0 {
 		return errors.New("no mod files")
 	}
 
-	tmpl, err := template.New(makefileBinVarsName).Parse(makefileBinVarsTmpl)
+	tmpl, err := template.New(MakefileBinVarsName).Parse(makefileBinVarsTmpl)
 	if err != nil {
 		return errors.Wrap(err, "parse makefile variables template")
 	}
