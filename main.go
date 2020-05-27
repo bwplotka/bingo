@@ -51,7 +51,6 @@ func main() {
 	makefile := getFlags.String("makefile", defaultMakefileName, "Makefile to link the the generated helper for make when `-m` options is specified with."+
 		"Specify empty to disable including the helper.")
 	genMakefileHelper := getFlags.Bool("m", false, "Generate makefile helper with all binaries as variables.")
-	noVersionSuffix := getFlags.Bool("no-version-suffix", false, "Do not append version suffix for improved reliability to each built binary.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
 
@@ -147,12 +146,11 @@ Prints bingo version.
 
 			// Like go get, but package aware and without go source files.
 			if err := get(ctx, getConfig{
-				runner:          r,
-				modDir:          modDir,
-				update:          upPolicy,
-				noVersionSuffix: *noVersionSuffix,
-				name:            *getName,
-				rawTarget:       target,
+				runner:    r,
+				modDir:    modDir,
+				update:    upPolicy,
+				name:      *getName,
+				rawTarget: target,
 			}); err != nil {
 				return err
 			}
@@ -306,7 +304,9 @@ func list(modFiles []string) error {
 		if err != nil {
 			return errors.Wrapf(err, "module %q is malformed. 'get' full package name to re-pin it.", f)
 		}
-		fmt.Printf("%s: %s@%s\n", filepath.Base(strings.TrimSuffix(f, ".mod")), pkg, ver)
+		name := filepath.Base(strings.TrimSuffix(f, ".mod"))
+		// TODO(bwplotka): Add $GOPATH?
+		fmt.Printf("%s<%s-%s>: %s@%s\n", name, name, ver, pkg, ver)
 	}
 	return nil
 }

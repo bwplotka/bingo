@@ -19,6 +19,7 @@ import (
 const (
 	MakefileBinVarsName = "Variables.mk"
 	// TODO(bwplotka): We might want to play with better escaping to allow spaces in dir names.
+	// TODO(bwplotka): We get first binary as an example. It does not work if first one is array..
 	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
@@ -26,39 +27,56 @@ GO    ?= $(shell which go)
 
 # Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
-# For example for {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }} variable:
+# For example for {{ with (index .Binaries 0) }}{{ .Name }}{{ end }} variable:
 #
-# In your main Makefile:
+# In your main Makefile (for non array binaries):
 #
 #include .bingo/Variables.mk # (If not generated automatically by bingo).
 #
 #command: $({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }})
-#	@echo "Running {{ with (index .Binaries 0) }}{{ .BinName }}{{ end }}"
+#	@echo "Running {{ with (index .Binaries 0) }}{{ .Name }}{{ end }}"
 #	@$({{ with (index .Binaries 0) }}{{ .VarName }}{{ end }}) <flags/args..>
 #
-{{- range .Binaries }}
-
-{{ .VarName }} ?= $(GOBIN)/{{ .BinName }}
-$({{ .VarName }}): {{ $.RelDir}}/{{ .BinName }}.mod
+{{- range $b := .Binaries }}
+{{ $b.VarName }} ?={{- range $b.Versions }} $(GOBIN)/{{ .BinName }}{{- end }}
+$({{ $b.VarName }}):{{- range $b.Versions }} {{ .RelModFile }}{{- end }}
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+{{- range $b.Versions }}
 	@echo "(re)installing $(GOBIN)/{{ .BinName }}"
-	@# Install binary using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o=$({{ .VarName }}) "{{ .PackagePath }}"
-	@$(GO) build -modfile={{ $.RelDir}}/{{ .BinName }}.mod -o={{ $.RelDir}}/{{ .BinName }} "{{ .PackagePath }}"
-{{ $.RelDir }}/{{ .BinName }}.mod: ;
-{{- end}}
+	@$(GO) build -modfile={{ .RelModFile }} -o=$(GOBIN)/{{ .BinName }} "{{ $b.PackagePath }}"
+{{- end }}
+{{- range $b.Versions }}
+{{ .RelModFile }}: ;
+{{- end }}
+{{ end}}
 `
 )
 
+type binaryVersion struct {
+	BinName    string
+	RelModFile string
+}
+
 type binary struct {
+	Name        string
 	VarName     string
-	BinName     string
 	PackagePath string
+	Versions    []binaryVersion
 }
 
 // RemoveMakeHelper deletes Variables.mk from mod directory.
 func RemoveMakeHelper(modDir string) error {
 	// TODO(bwplotka): This will NOT remove include, detect this?
 	return os.RemoveAll(filepath.Join(modDir, MakefileBinVarsName))
+}
+
+// NameFromModFile returns binary name from module file path.
+func NameFromModFile(modFile string) (name string, oneOfMany bool) {
+	n := strings.Split(strings.TrimSuffix(filepath.Base(modFile), ".mod"), ".")
+	if len(n) > 1 {
+		oneOfMany = true
+	}
+	return n[0], oneOfMany
 }
 
 // GenMakeHelper generates helper Makefile variables to allows reliable binaries use. Regenerate if needed.
@@ -80,31 +98,48 @@ func GenMakeHelperAndHook(modDir, makeFile, version string, modFiles ...string) 
 	}
 
 	data := struct {
-		Version string
-
-		RelDir    string
+		Version   string
 		GobinPath string
 		Binaries  []binary
 	}{
 		Version: version,
-		RelDir:  relDir,
 	}
+
+ModLoop:
 	for _, m := range modFiles {
-		pkg, _, err := ModDirectPackage(m, nil)
+		pkg, version, err := ModDirectPackage(m, nil)
 		if err != nil {
 			return err
 		}
-
-		binName := strings.TrimSuffix(filepath.Base(m), ".mod")
-		data.Binaries = append(data.Binaries, binary{
-			BinName: binName,
-			VarName: strings.ReplaceAll(
-				strings.ReplaceAll(
-					strings.ToUpper(binName),
-					".", "_",
-				),
-				"-", "_",
+		name, oneOfMany := NameFromModFile(m)
+		varName := strings.ReplaceAll(
+			strings.ReplaceAll(
+				strings.ToUpper(name),
+				".", "_",
 			),
+			"-", "_",
+		)
+		if oneOfMany {
+			varName = varName + "_ARRAY"
+			for i, b := range data.Binaries {
+				if b.Name == name {
+					data.Binaries[i].Versions = append(data.Binaries[i].Versions, binaryVersion{
+						BinName:    fmt.Sprintf("%s-%s", name, version),
+						RelModFile: filepath.Join(relDir, filepath.Base(m)),
+					})
+					continue ModLoop
+				}
+			}
+		}
+		data.Binaries = append(data.Binaries, binary{
+			Name: name,
+			Versions: []binaryVersion{
+				{
+					BinName:    fmt.Sprintf("%s-%s", name, version),
+					RelModFile: filepath.Join(relDir, filepath.Base(m)),
+				},
+			},
+			VarName:     varName,
 			PackagePath: pkg,
 		})
 	}

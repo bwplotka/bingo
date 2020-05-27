@@ -15,16 +15,14 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/gomodcmd"
-	"github.com/oklog/run"
 	"github.com/pkg/errors"
 )
 
 type getConfig struct {
-	runner          *gomodcmd.Runner
-	modDir          string
-	update          gomodcmd.GetUpdatePolicy
-	noVersionSuffix bool
-	name            string
+	runner *gomodcmd.Runner
+	modDir string
+	update gomodcmd.GetUpdatePolicy
+	name   string
 
 	// target name or target package path, optionally with version(s).
 	rawTarget string
@@ -45,7 +43,7 @@ func get(
 		}
 		for _, m := range modules {
 			mc := c
-			mc.rawTarget = strings.TrimSuffix(filepath.Base(m), ".mod")
+			mc.rawTarget, _ = bingo.NameFromModFile(m)
 			if err := get(ctx, mc); err != nil {
 				return err
 			}
@@ -67,17 +65,9 @@ func get(
 			}
 		}
 	}
-	if len(modVersions) == 1 && modVersions[0] == "none" {
-		binary := path.Base(nameOrPackage)
-		if _, err := os.Stat(filepath.Join(c.modDir, binary+".mod")); err != nil {
-			if os.IsNotExist(err) {
-				return errors.Errorf("binary %q was not installed before or it was referenced with different name, nothing to remove", binary)
-			}
-			return err
-		}
-		// none means we no longer want to version this package.
-		// NOTE: We don't remove binaries.
-		return removeAllGlob(filepath.Join(c.modDir, binary+".*"))
+
+	if len(modVersions) == 0 {
+		modVersions = append(modVersions, "")
 	}
 
 	pkgPath := nameOrPackage
@@ -106,14 +96,18 @@ func get(
 	if err != nil {
 		return err
 	}
+	binModFiles = append([]string{filepath.Join(c.modDir, name+".mod")}, binModFiles...)
 
-	g := &run.Group{}
-	for i, v := range modVersions {
-		ctx, cancel := context.WithCancel(ctx)
-		g.Add(func() error { return getOne(ctx, c, i, v, pkgPath, name) }, func(error) { cancel() })
+	if modVersions[0] == "none" {
+		// none means we no longer want to version this package.
+		// NOTE: We don't remove binaries.
+		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
-	if err := g.Run(); err != nil {
-		return err
+
+	for i, v := range modVersions {
+		if err := getOne(ctx, c, i, v, pkgPath, name); err != nil {
+			return errors.Wrapf(err, "%d: getting %s", i, v)
+		}
 	}
 
 	// Remove unused mod files.
@@ -133,7 +127,6 @@ func getOne(
 	pkgPath string,
 	name string,
 ) (err error) {
-
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
@@ -155,18 +148,11 @@ func getOne(
 	}
 
 	runnable := c.runner.With(ctx, outModFile, c.modDir)
-	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
-	if listOutput, err := runnable.List("-f={{.Name}}", pkgPath); err != nil {
-		return err
-	} else if !strings.HasSuffix(listOutput, "main") {
-		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkgPath, listOutput)
-	}
-
 	if err := ensureModFileExists(runnable, outModFile); err != nil {
 		return err
 	}
 
-	if version != "" || c.update != gomodcmd.NoUpdatePolicy {
+	if !outExists || version != "" || c.update != gomodcmd.NoUpdatePolicy {
 		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if version != "" {
@@ -176,7 +162,6 @@ func getOne(
 			return err
 		}
 	}
-
 	if !outExists {
 		// Add our metadata to pkgPath module file only if it did not exists before go get.
 		if err := bingo.AddMetaToMod(outModFile, pkgPath); err != nil {
@@ -184,16 +169,20 @@ func getOne(
 		}
 	}
 
-	// Step 3: Build and install.
-	output := name
-	if !c.noVersionSuffix {
-		_, ver, err := bingo.ModDirectPackage(outModFile, nil)
-		if err != nil {
-			return err
-		}
-		output = fmt.Sprintf("%s-%s", output, ver)
+	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
+	if listOutput, err := runnable.List("-f={{.Name}}", pkgPath); err != nil {
+		return err
+	} else if !strings.HasSuffix(listOutput, "main") {
+		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkgPath, listOutput)
 	}
-	return runnable.Build(pkgPath, output)
+
+	// Refetch version to ensure we have correct one.
+	_, version, err = bingo.ModDirectPackage(outModFile, nil)
+	if err != nil {
+		return err
+	}
+	// Step 3: Build and install.
+	return runnable.Build(pkgPath, fmt.Sprintf("%s-%s", name, version))
 }
 
 func binNameToPackagePath(binary string, modDir string) (string, error) {
