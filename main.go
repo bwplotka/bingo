@@ -39,8 +39,8 @@ func main() {
 	// Get flags.
 	getFlags := flag.NewFlagSet("bingo get", flag.ExitOnError)
 	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
-		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If relative"+
-		"path is used, it is expected to be relative to project root module.")
+		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory"+
+		"does not exist bingo logs and assumes a fresh project.")
 	getName := getFlags.String("n", "", "The -n flag instructs to get binary and name it with given name instead of default,"+
 		" so the last element of package directory Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
 		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
@@ -56,9 +56,8 @@ func main() {
 
 	// List flags.
 	listFlags := flag.NewFlagSet("bingo list", flag.ExitOnError)
-	listModDir := listFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
-		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If relative"+
-		"path is used, it is expected to be relative to project root module.")
+	listModDir := listFlags.String("moddir", ".bingo", "Directory where separate modules for each binary is"+
+		"maintained. If does not exists, bingo list will fail.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `list` command.
 	listVerbose := listFlags.Bool("v", false, "Print more'")
 
@@ -134,32 +133,20 @@ Prints bingo version.
 		}
 
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
-			rootDir, err := r.With(ctx, "", "").List("-m", "-f={{ .Dir }}")
+			modDir, err := filepath.Abs(*getModDir)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "abs")
 			}
-
-			modDir := *getModDir
-			if !filepath.IsAbs(modDir) {
-				modDir = filepath.Join(rootDir, modDir)
-			}
+			defer func() { _ = cleanGoGetTmpFiles(modDir) }()
 
 			// Like go get, but package aware and without go source files.
-			if err := get(ctx, getConfig{
+			if err := get(ctx, logger, getConfig{
 				runner:    r,
 				modDir:    modDir,
 				update:    upPolicy,
 				name:      *getName,
 				rawTarget: target,
 			}); err != nil {
-				return err
-			}
-
-			// Remove all sum files. This is garbage for us.
-			if err := removeAllGlob(filepath.Join(modDir, "*.sum")); err != nil {
-				return err
-			}
-			if err := removeAllGlob(filepath.Join(modDir, "*.tmp.*")); err != nil {
 				return err
 			}
 
@@ -185,16 +172,8 @@ Prints bingo version.
 					}
 				}
 			}
-
 			if !*genMakefileHelper {
 				return nil
-			}
-
-			if *makefile != "" {
-				if filepath.IsAbs(*makefile) {
-					return errors.Errorf("makefile has to be a relative path, got: %v", *makefile)
-				}
-				*makefile = filepath.Join(rootDir, *makefile)
 			}
 
 			// Create makefile helper.
@@ -220,16 +199,10 @@ Prints bingo version.
 
 		target := listFlags.Arg(0)
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
-			rootDir, err := r.With(ctx, "", "").List("-m", "-f={{ .Dir }}")
+			modDir, err := filepath.Abs(*listModDir)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "abs")
 			}
-
-			modDir := *listModDir
-			if !filepath.IsAbs(modDir) {
-				modDir = filepath.Join(rootDir, modDir)
-			}
-
 			modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
 			if err != nil {
 				return err

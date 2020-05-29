@@ -92,6 +92,10 @@ func GenMakeHelperAndHook(modDir, makeFile, version string, modFiles ...string) 
 		return errors.Wrap(err, "parse makefile variables template")
 	}
 
+	makeFile, err = filepath.Abs(makeFile)
+	if err != nil {
+		return errors.Wrap(err, "abs")
+	}
 	relDir, err := filepath.Rel(filepath.Dir(makeFile), modDir)
 	if err != nil {
 		return err
