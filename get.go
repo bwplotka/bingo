@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,6 +32,7 @@ type getConfig struct {
 
 func get(
 	ctx context.Context,
+	logger *log.Logger,
 	c getConfig,
 ) (err error) {
 	if c.rawTarget == "" {
@@ -45,7 +47,7 @@ func get(
 		for _, m := range modules {
 			mc := c
 			mc.rawTarget, _ = bingo.NameFromModFile(m)
-			if err := get(ctx, mc); err != nil {
+			if err := get(ctx, logger, mc); err != nil {
 				return err
 			}
 		}
@@ -106,7 +108,7 @@ func get(
 	}
 
 	for i, v := range modVersions {
-		if err := getOne(ctx, c, i, v, pkgPath, name); err != nil {
+		if err := getOne(ctx, logger, c, i, v, pkgPath, name); err != nil {
 			return errors.Wrapf(err, "%d: getting %s", i, v)
 		}
 	}
@@ -120,8 +122,17 @@ func get(
 	return nil
 }
 
+func cleanGoGetTmpFiles(modDir string) error {
+	// Remove all sum and tmp files
+	if err := removeAllGlob(filepath.Join(modDir, "*.sum")); err != nil {
+		return err
+	}
+	return removeAllGlob(filepath.Join(modDir, "*.tmp.*"))
+}
+
 func getOne(
 	ctx context.Context,
+	logger *log.Logger,
 	c getConfig,
 	i int,
 	version string,
@@ -137,8 +148,12 @@ func getOne(
 		outModFile = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i))
 	}
 	// Init outModFile if needed.
-	if err := ensureModFileExists(c.runner.With(ctx, outModFile, c.modDir), outModFile, pkgPath); err != nil {
+	if err := ensureModFileExists(logger, c.runner.With(ctx, outModFile, c.modDir), outModFile); err != nil {
 		return errors.Wrap(err, "ensure mod file")
+	}
+	// Cleanup all for fresh start.
+	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
+		return err
 	}
 
 	// Set up tmp file that we will work on for now.
@@ -157,6 +172,7 @@ func getOne(
 		if version != "" {
 			targetWithVer = fmt.Sprintf("%s@%s", pkgPath, version)
 		}
+
 		if err := runnable.GetD(c.update, targetWithVer); err != nil {
 			return errors.Wrap(err, "go get -d")
 		}
@@ -231,9 +247,17 @@ const gitignore = `
 *tmp.mod
 `
 
-func ensureModFileExists(r gomodcmd.Runnable, modFile string, pkg string) error {
-	if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
-		return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
+func ensureModFileExists(logger *log.Logger, r gomodcmd.Runnable, modFile string) error {
+	_, err := os.Stat(filepath.Dir(modFile))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrapf(err, "stat bingo module dir %s", filepath.Dir(modFile))
+		}
+
+		logger.Printf("Bingo not used before here, creating directory for pinned modules for you at %s\n", filepath.Dir(modFile))
+		if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
+			return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
+		}
 	}
 
 	// README.
@@ -253,7 +277,7 @@ func ensureModFileExists(r gomodcmd.Runnable, modFile string, pkg string) error 
 		return err
 	}
 
-	_, err := os.Stat(modFile)
+	_, err = os.Stat(modFile)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "stat module file %s", modFile)
 	}

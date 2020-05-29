@@ -7,3 +7,5 @@
 !*.mod
 !*.md
 !*.mk
+
+*tmp.mod
