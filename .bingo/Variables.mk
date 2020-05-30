@@ -1,4 +1,4 @@
-# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.1.0.rc.4. DO NOT EDIT.
+# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.1.0. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO    ?= $(shell which go)
@@ -21,6 +21,13 @@ $(COPYRIGHT): .bingo/copyright.mod
 	@echo "(re)installing $(GOBIN)/copyright-v0.9.0"
 	@$(GO) build -modfile=.bingo/copyright.mod -o=$(GOBIN)/copyright-v0.9.0 "github.com/bwplotka/flagarize/scripts/copyright"
 .bingo/copyright.mod: ;
+
+EMBEDMD ?= $(GOBIN)/embedmd-v1.0.0
+$(EMBEDMD): .bingo/embedmd.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/embedmd-v1.0.0"
+	@$(GO) build -modfile=.bingo/embedmd.mod -o=$(GOBIN)/embedmd-v1.0.0 "github.com/campoy/embedmd"
+.bingo/embedmd.mod: ;
 
 FAILLINT ?= $(GOBIN)/faillint-v1.5.0
 $(FAILLINT): .bingo/faillint.mod
