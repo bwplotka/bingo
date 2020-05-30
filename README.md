@@ -6,6 +6,8 @@
 
 Simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!) built on top of `go` command modules, allowing reproducible dev environments.
 
+[![Demo](examples/bingo-demo.gif)](examples/)
+
 ## Problem Statement
 
 From our experience all repositories and projects require some tools and binaries to be present on the machine to be able to perform various development
@@ -192,7 +194,7 @@ To see production example see:
 
  * [bingo's own tools](https://github.com/bwplotka/bingo/tree/master/.bingo)
  * [Thanos's tools](https://github.com/thanos-io/thanos/tree/master/.bingo)
- * [go-grpc-middleware's tools](WIP)
+ * [go-grpc-middleware's tools](https://github.com/grpc-ecosystem/go-grpc-middleware/tree/5b83c99199db53d4258b05646007b48e4658b3af/.bingo)
 
 ## Why your project need this?
 

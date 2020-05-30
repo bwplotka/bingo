@@ -7,8 +7,14 @@
 # The speed to "type" the text (Default: 0 so no typing view).
 # TYPE_SPEED=40
 #
-# If false next command will be shown only after enter (Default: false)
+# If false next command will be shown only after enter (Default: false).
 # IMMEDIATE_REVEAL=true
+#
+# If true prefix line with number; easier to navigate (Default: false).
+# NUMS=true
+#
+# If NUMS = false this prefix will be used (Default: '').
+# PREFIX="CustomPrefix"
 #
 # Color vars for pretty prompts.
 # Feel free to use those colors in registered commands.
@@ -120,12 +126,16 @@ function navigate() {
         print=${CMDS[${curr}]}
     fi
 
+    prefix="${PREFIX}"
+    if ${NUMS}; then
+        prefix="${curr}) "
+    fi
     # Make sure input will not break the print.
     stty -echo
     if [[ -z $TYPE_SPEED ]]; then
-      echo -en "${curr}) ${YELLOW}$print${COLOR_RESET}"
+      echo -en "${prefix}${YELLOW}$print${COLOR_RESET}"
     else
-      echo -en "${curr}) ${YELLOW}$print${COLOR_RESET}" | pv -qL $[$TYPE_SPEED+(-2 + RANDOM%5)];
+      echo -en "${prefix}${YELLOW}$print${COLOR_RESET}" | pv -qL $[$TYPE_SPEED+(-2 + RANDOM%5)];
     fi
     stty echo
 
@@ -165,7 +175,7 @@ function navigate() {
       eval "${CMDS[${curr}]}"
       ((curr++))
 
-      if [[ -z ${IMMEDIATE_REVEAL} ]]; then
+      if ${IMMEDIATE_REVEAL}; then
          # Wait for enter at the end.
       read -rst 0.3 -n 10000 discard
       read -rsn1 input
