@@ -147,26 +147,23 @@ func getOne(
 	if i > 0 {
 		outModFile = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i))
 	}
-	// Init outModFile if needed.
-	if err := ensureModFileExists(logger, c.runner.With(ctx, outModFile, c.modDir), outModFile); err != nil {
-		return errors.Wrap(err, "ensure mod file")
-	}
 	// Cleanup all for fresh start.
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
-
-	// Set up tmp file that we will work on for now.
-	tmpModFile := filepath.Join(c.modDir, name+".tmp.mod")
-	if err := os.RemoveAll(tmpModFile); err != nil {
-		return errors.Wrap(err, "rm")
+	if err := ensureModDirExists(logger, c.modDir); err != nil {
+		return errors.Wrap(err, "ensure mod dir")
 	}
-	if err := copyFile(outModFile, tmpModFile); err != nil {
-		return errors.Wrap(err, "copy")
+	// Set up tmp file that we will work on for now.
+	// This is to avoid partial updates.
+	tmpModFile := filepath.Join(c.modDir, name+".tmp.mod")
+	emptyModFile, err := createTmpModFileFromExisting(ctx, c.runner, outModFile, tmpModFile)
+	if err != nil {
+		return errors.Wrap(err, "create tmp mod file")
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
-	if version != "" || c.update != gomodcmd.NoUpdatePolicy {
+	if version != "" || emptyModFile || c.update != gomodcmd.NoUpdatePolicy {
 		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if version != "" {
@@ -247,57 +244,48 @@ const gitignore = `
 *tmp.mod
 `
 
-func ensureModFileExists(logger *log.Logger, r gomodcmd.Runnable, modFile string) error {
-	_, err := os.Stat(filepath.Dir(modFile))
+func ensureModDirExists(logger *log.Logger, modDir string) error {
+	_, err := os.Stat(modDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return errors.Wrapf(err, "stat bingo module dir %s", filepath.Dir(modFile))
+			return errors.Wrapf(err, "stat bingo module dir %s", modDir)
 		}
 
-		logger.Printf("Bingo not used before here, creating directory for pinned modules for you at %s\n", filepath.Dir(modFile))
-		if err := os.MkdirAll(filepath.Dir(modFile), os.ModePerm); err != nil {
-			return errors.Wrapf(err, "create moddir %s", filepath.Dir(modFile))
+		logger.Printf("Bingo not used before here, creating directory for pinned modules for you at %s\n", modDir)
+		if err := os.MkdirAll(modDir, os.ModePerm); err != nil {
+			return errors.Wrapf(err, "create moddir %s", modDir)
 		}
 	}
 
 	// README.
 	if err := ioutil.WriteFile(
-		filepath.Join(filepath.Dir(modFile), "README.md"),
-		[]byte(fmt.Sprintf(modREADMEFmt, filepath.Join("<root>", filepath.Base(filepath.Dir(modFile))))),
+		filepath.Join(modDir, "README.md"),
+		[]byte(fmt.Sprintf(modREADMEFmt, filepath.Join("<root>", filepath.Base(modDir)))),
 		os.ModePerm,
 	); err != nil {
 		return err
 	}
 	// gitignore.
-	if err := ioutil.WriteFile(
-		filepath.Join(filepath.Dir(modFile), ".gitignore"),
+	return ioutil.WriteFile(
+		filepath.Join(modDir, ".gitignore"),
 		[]byte(gitignore),
 		os.ModePerm,
-	); err != nil {
-		return err
-	}
-
-	_, err = os.Stat(modFile)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "stat module file %s", modFile)
-	}
-	if err == nil {
-		return nil
-	}
-	return errors.Wrap(r.ModInit("_"), "mod init")
+	)
 }
 
-func removeAllGlob(glob string) error {
-	files, err := filepath.Glob(glob)
-	if err != nil {
-		return err
+func createTmpModFileFromExisting(ctx context.Context, r *gomodcmd.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
+	if err := os.RemoveAll(tmpModFile); err != nil {
+		return false, errors.Wrap(err, "rm")
 	}
-	for _, f := range files {
-		if err := os.RemoveAll(f); err != nil {
-			return err
-		}
+
+	_, err := os.Stat(modFile)
+	if err != nil && !os.IsNotExist(err) {
+		return false, errors.Wrapf(err, "stat module file %s", modFile)
 	}
-	return nil
+	if err == nil {
+		return false, copyFile(modFile, tmpModFile)
+	}
+	return true, errors.Wrap(r.With(ctx, tmpModFile, filepath.Dir(modFile)).ModInit("_"), "mod init")
 }
 
 func copyFile(src, dst string) error {
@@ -324,6 +312,19 @@ func copyFile(src, dst string) error {
 		}
 
 		if _, err := destination.Write(buf[:n]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeAllGlob(glob string) error {
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if err := os.RemoveAll(f); err != nil {
 			return err
 		}
 	}
