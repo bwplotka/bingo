@@ -3,4 +3,4 @@
 
 package main
 
-const version = "v0.1.0.rc.4"
+const version = "v0.1.0"

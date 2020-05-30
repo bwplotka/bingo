@@ -252,7 +252,7 @@ Prints bingo version.
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		g.Add(func() error {
-			r, err := gomodcmd.NewRunner(ctx, *insecure, *goCmd)
+			r, err := gomodcmd.NewRunner(ctx, logger, *insecure, *goCmd)
 			if err != nil {
 				return err
 			}

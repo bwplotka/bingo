@@ -29,33 +29,37 @@ While maintaining larger projects like [Thanos](http://thanos.io/), [Prometheus]
 * Most of the tools we require was written in Go, usually as sub package (not necessarily a module!). It's very easy to write, efficient robust and cross-platform tools in this language.
 * Go versioning is not suited for building such tools, however with some clean strategy and couple of Go commands you can version required tools.
 
-This is how `bingo` tool was born. Just run `bingo get <github.com/toolorg/tool/cmd/tool@versionIWant>` to start! Also make sure
-to use `-m` option if your projects uses `Makefile` to generate useful variables.
+This is how `bingo` tool was born. Just run (similar to `go get`):
+
+```bash
+bingo get <github.com/toolorg/tool/cmd/tool@versionYouWant>
+```
+
+Also, make sure to use `-m` option if your projects uses `Makefile` to generate useful helper variables 💖 that makes it super easy to install pinned
+binaries without even installing `bingo`.
 
 Read full story about this tool [here](WIP).
 
-  * [Problem Statement](#problem-statement)
-  * [Goals](#goals)
-  * [Requirements](#requirements)
-  * [Contributing](#contributing)
-  * [Usage](#usage)
-    + [Installing bingo](#installing-bingo)
-    + [Adding a Go Tool](#adding-a-go-tool)
-    + [Changing Version of a Tool](#changing-version-of-a-tool)
-    + [Removing a Tool](#removing-a-tool)
-    + [Reliable Usage of a Tool](#reliable-usage-of-a-tool)
-    + [Getting correct binary using go (+ optionally Makefile!)](#getting-correct-binary-using-go--optionally-makefile)
-    + [Getting correct binary using bingo](#getting-correct-binary-using-bingo)
-  * [Production Usage](#production-usage)
-  * [Why your project need this?](#why-your-project-need-this)
-  * [Why not a simple `_tools` go pattern?](#why-not-a-simple-_tools-go-pattern)
-  * [How this tool is different to [myitcv/gobin](https://github.com/myitcv/gobin)?](#how-this-tool-is-different-to-myitcvgobin)
-  * [Initial Author](#initial-author)
+## Table of Content
 
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
-
-
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+- [bingo](#bingo)
+  - [Problem Statement](#problem-statement)
+  - [Goals](#goals)
+  - [Requirements](#requirements)
+  - [Contributing](#contributing)
+  - [Usage](#usage)
+      - [Installing bingo](#installing-bingo)
+      - [Adding a Go Tool](#adding-a-go-tool)
+      - [Changing Version of a Tool](#changing-version-of-a-tool)
+      - [Removing a Tool](#removing-a-tool)
+      - [Reliable Usage of a Tool](#reliable-usage-of-a-tool)
+      - [Getting a Correct Binary Using Go (+ Optionally Makefile Integration!)](#getting-a-correct-binary-using-go--optionally-makefile-integration)
+    - [Getting a Correct Binary Using Bingo](#getting-a-correct-binary-using-bingo)
+  - [Production Usage](#production-usage)
+  - [Why your project need this?](#why-your-project-need-this)
+  - [Why not a simple `_tools`.go pattern](#why-not-a-simple-toolsgo-pattern)
+  - [How this tool is different to [myitcv/gobin](https://github.com/myitcv/gobin)?](#how-this-tool-is-different-to-myitcvgobinhttpsgithubcommyitcvgobin)
+  - [Initial Author](#initial-author)
 
 ## Goals
 
@@ -89,48 +93,58 @@ This allows to solve our [goals](#Goals) without polluting main go module. Your 
 For example purposes, let's imagine our project requires a nice import formatting via external [`goimports`](https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=doc)
 binary (Actually it is recommend for all projects 🤓).
 
-### Installing bingo
+#### Installing bingo
 
-`go get github.com/bwplotka/bingo`
+```bash
+go get github.com/bwplotka/bingo
+```
 
-### Adding a Go Tool
+#### Adding a Go Tool
 
 On repo without `bingo` used before, or with already existing `.bingo` directory, you can start by
 adding a binary (tool). Similar to official way of adding dependencies, like `go get`, do:
 
-`bingo get golang.org/x/tools/cmd/goimports`
+```bash
+bingo get golang.org/x/tools/cmd/goimports
+```
 
 If you don't pin the version it will use the latest available and pin that version in separate `.bingo/goimports.mod` module.
 
 This will also install the **immutable tool** under `${GOBIN}/goimports-<version>`. Binaries are versions to make sure
 proper one is used when needed, which does not require tooling to verify checksums etc.
 
-### Changing Version of a Tool
+#### Changing Version of a Tool
 
 If you want to update to the latest add `-u`, the same as `go get`:
 
-`bingo get -u golang.org/x/tools/cmd/goimports`
+```bash
+bingo get -u golang.org/x/tools/cmd/goimports
+```
 
 If you want to pin to certain version, do as well same as `go get`:
 
-`bingo get golang.org/x/tools/cmd/goimports@v0.0.0-20200502202811-ed308ab3e770`
+```bash
+bingo get golang.org/x/tools/cmd/goimports@v0.0.0-20200502202811-ed308ab3e770
+```
 
 This will produce `${GOBIN}/goimports-v0.0.0-20200502202811-ed308ab3e770`
 
 Use `-n` option to change binary base (reference) name. For example:
 
-`bingo get -n goimports2 golang.org/x/tools/cmd/goimports@v0.0.0-20200502202811-ed308ab3e770`
+```bash
+bingo get -n goimports2 golang.org/x/tools/cmd/goimports@v0.0.0-20200502202811-ed308ab3e770
+```
 
 Will produce `${GOBIN}/goimports2-v0.0.0-20200502202811-ed308ab3e770`
 
-### Removing a Tool
+#### Removing a Tool
 
 Exactly the same as native `go get`, just add `@none` and run `go get`:
 
 `bingo get golang.org/x/tools/cmd/goimports@none` or simply `bingo get goimports@none` if `-n` was `goimports` or `-n` was not specified,
 when you were installing the tool the first time.
 
-### Reliable Usage of a Tool
+#### Reliable Usage of a Tool
 
 `gobin get` automatically installs tools in pinned version into the ${GOBIN}.
 
@@ -143,11 +157,13 @@ users of your projects, as well as CI can install pinned tools.
 
 You can ensure correct version of the binaries are used using following patterns:
 
-### Getting correct binary using go (+ optionally Makefile!)
+#### Getting a Correct Binary Using Go (+ Optionally Makefile Integration!)
 
 From project's root, run:
 
-`go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>`
+```bash
+go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>
+```
 
 This is quite amazing, as you can use / install those binaries without `bingo`. This makes `bingo` only necessary if
 you want to update / downgrade / remove or add the tool.
@@ -158,17 +174,25 @@ When using `bingo get`, add `-m`. This will create `.bingo/Variables.mk` and att
 
 Thanks to that you can refer to the binary using `$(TOOL)` variable which will install correct version if missing.
 
-### Getting correct binary using bingo
+### Getting a Correct Binary Using Bingo
 
-`bingo get goimports` or just `bingo get` to install all tools specified in `.bingo` dir.
+Use `bingo get` to install all tools specified in `.bingo` dir.
+
+Alternatively use:
+
+```bash
+bingo get goimports
+```
+
+to install previously pinned `goimprts`
 
 ## Production Usage
 
 To see production example see:
 
  * [bingo's own tools](https://github.com/bwplotka/bingo/tree/master/.bingo)
- * [Thanos](WIP)
- * [go-grpc-middleware](WIP)
+ * [Thanos's tools](https://github.com/thanos-io/thanos/tree/master/.bingo)
+ * [go-grpc-middleware's tools](WIP)
 
 ## Why your project need this?
 
@@ -196,7 +220,7 @@ and project maintainability, especially in CIs or different platforms.
 
 That's why we thought of building dedicated tool for this, allowing to use standard Go mechanisms like `go build` and `go get`.
 
-* tools pattern does not allow to pin multiple different versions of the same package (or multiple version of differnet packages within the same module).
+* `_tools` pattern does not allow to pin multiple different versions of the same package (or multiple version of different packages within the same module).
 
 In fact `bingo` is a little bit like extension of [this idea](https://github.com/golang/go/issues/25922#issuecomment-590529870).
 

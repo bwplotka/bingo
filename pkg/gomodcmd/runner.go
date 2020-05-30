@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 
 // Runner allows to run certain commands against module aware Go CLI.
 type Runner struct {
+	logger *log.Logger
+
 	goCmd    string
 	insecure bool
 
@@ -24,8 +27,9 @@ type Runner struct {
 }
 
 // NewRunner checks Go version compatibility then returns Runner.
-func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error) {
+func NewRunner(ctx context.Context, logging *log.Logger, insecure bool, goCmd string) (*Runner, error) {
 	r := &Runner{
+		logger:   logging,
 		goCmd:    goCmd,
 		insecure: insecure,
 	}
@@ -99,7 +103,6 @@ type Runnable interface {
 	List(args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) error
 	Build(pkg, out string) error
-	ModTidy() error
 }
 
 type runnable struct {
@@ -149,32 +152,28 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) error {
 	if update != NoUpdatePolicy {
 		args = append(args, string(update))
 	}
-	_, err := r.r.execGo(r.ctx, r.dir, r.modFile, append(args, packages...)...)
+	out, err := r.r.execGo(r.ctx, r.dir, r.modFile, append(args, packages...)...)
+	r.r.logger.Print(out)
 	return err
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
-func (r *runnable) Build(pkg, out string) error {
+func (r *runnable) Build(pkg, outPath string) error {
 	binPath := os.Getenv("GOBIN")
 	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
 		binPath = filepath.Join(gpath, "bin")
 	}
-	out = filepath.Join(binPath, out)
+	outPath = filepath.Join(binPath, outPath)
 
 	// go install does not define -o so we mimic go install with go build instead.
-	_, err := r.r.execGo(
+	out, err := r.r.execGo(
 		r.ctx,
 		r.dir,
 		r.modFile,
 		append(
-			[]string{"build", "-i", "-o=" + out}, pkg,
+			[]string{"build", "-i", "-o=" + outPath}, pkg,
 		)...,
 	)
-	return err
-}
-
-// ModTidy runs 'go mod tidy' against separate go modules file.
-func (r *runnable) ModTidy() error {
-	_, err := r.r.execGo(r.ctx, r.dir, r.modFile, "mod", "tidy")
+	r.r.logger.Print(out)
 	return err
 }
