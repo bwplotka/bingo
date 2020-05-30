@@ -59,8 +59,8 @@ Read full story about this tool [here](WIP).
     - [Getting a Correct Binary Using Bingo](#getting-a-correct-binary-using-bingo)
   - [Production Usage](#production-usage)
   - [Why your project need this?](#why-your-project-need-this)
-  - [Why not a simple `_tools`.go pattern](#why-not-a-simple-toolsgo-pattern)
-  - [How this tool is different to [myitcv/gobin](https://github.com/myitcv/gobin)?](#how-this-tool-is-different-to-myitcvgobinhttpsgithubcommyitcvgobin)
+  - [Why not a simple `_tools`.go pattern](#why-not-a-simple-_toolsgo-pattern)
+  - [How this tool is different to myitcv/gobin](#how-this-tool-is-different-to-myitcvgobin)
   - [Initial Author](#initial-author)
 
 ## Goals
