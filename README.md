@@ -220,4 +220,4 @@ We follow [Thanos Go coding style](https://thanos.io/contributing/coding-style-g
 
 ## Initial Author
 
-[@bwplotka](https://bwplotka.dev)
+[@bwplotka](https://bwplotka.dev) inspired by [Paul's](https://github.com/myitcv) research and with a bit of help from [Duco](https://github.com/Helcaraxan) (: 
