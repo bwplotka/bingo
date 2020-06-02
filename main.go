@@ -33,11 +33,12 @@ func main() {
 	logger := log.New(os.Stderr, "", 0)
 
 	// Main flags.
-	flags := flag.NewFlagSet("bingo", flag.ExitOnError)
+	flags := flag.NewFlagSet("bingo", flag.ContinueOnError)
 	verbose := flags.Bool("v", false, "Print more'")
+	help := flags.Bool("h", false, "Print usage and exit.")
 
 	// Get flags.
-	getFlags := flag.NewFlagSet("bingo get", flag.ExitOnError)
+	getFlags := flag.NewFlagSet("bingo get", flag.ContinueOnError)
 	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
 		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory"+
 		"does not exist bingo logs and assumes a fresh project.")
@@ -55,7 +56,7 @@ func main() {
 	getVerbose := getFlags.Bool("v", false, "Print more'")
 
 	// List flags.
-	listFlags := flag.NewFlagSet("bingo list", flag.ExitOnError)
+	listFlags := flag.NewFlagSet("bingo list", flag.ContinueOnError)
 	listModDir := listFlags.String("moddir", ".bingo", "Directory where separate modules for each binary is"+
 		"maintained. If does not exists, bingo list will fail.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `list` command.
@@ -69,29 +70,17 @@ func main() {
 		listFlagsHelp := &strings.Builder{}
 		listFlags.SetOutput(listFlagsHelp)
 		listFlags.PrintDefaults()
-		fmt.Printf(`bingo: Simple CLI that automates versioning of Go binaries (e.g required as tools by your project!) in a nested Go module, allowing reproducible dev environments.
-
-For detailed examples see: https://github.com/bwplotka/bingo
-
-Commands:
-
-	get <flags> [<package or binary>[@version1 or none,version2,version3...]]
-
-%s
-
-	list <flags> [<package or binary>]
-
-%s
-
-	version
-
-Prints bingo version.
-
-`, getFlagsHelp.String(), listFlagsHelp.String())
+		fmt.Printf(bingoHelpFmt, getFlagsHelp.String(), listFlagsHelp.String())
 	}
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		exitOnUsageError(flags.Usage, "Failed to parse flags:", err)
 	}
+
+	if *help {
+		flags.Usage()
+		os.Exit(0)
+	}
+
 	if flags.NArg() == 0 {
 		exitOnUsageError(flags.Usage, "No command specified")
 	}
@@ -286,3 +275,56 @@ func list(modFiles []string) error {
 	}
 	return nil
 }
+
+const bingoHelpFmt = `bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
+built on top of Go Modules, allowing reproducible dev environments.
+
+The key idea is that 'bingo' allows to easily maintain a separate, nested Go Module for each binary. By default, it will keep it '.bingo/<tool>.mod'
+This allows to correctly pin the tool without polluting the main go module or other's tool module.
+
+For detailed examples see: https://github.com/bwplotka/bingo
+
+'bingo' supports following commands:
+
+Commands:
+
+  get <flags> [<package or binary>[@version1 or none,version2,version3...]]
+
+Similar to 'go get' you can pull, install and pin required 'main' (buildable Go) package as your tool in your project.
+
+'bingo get <repo/org/tool>' will resolve given main package path, download it using 'go get -d', then will produce directory (controlled by -moddir flag) and put
+separate, specially commented module called <tool>.mod. After that, it installs given package as '$GOBIN/<tool>-<version>'.
+
+Once installed at least once, 'get' allows to reference the tool via it's name (without version) to install, downgrade, upgrade or remove.
+Similar to 'go get' you can get binary with given version: a git commit, git tag or Go Modules pseudo version after @:
+
+'bingo get <repo/org/tool>@<version>' or 'bingo get <tool>@<version>'
+
+'get' without any argument will download and get ALL the tools in the moddir directory.
+'get' also allows bulk pinning and install. Just specify multiple versions after '@':
+
+'bingo get <tool>@<version1,version2,tag3>'
+
+Similar to 'go get' you can use -u and -u=patch to control update logic and '@none' to remove binary.
+
+Once pinned apart of 'bingo get', you can also use 'go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>' to install
+correct version of a tool.
+
+'-m' option creates '<moddir>/Variables.mk' and attempts to include this in your own 'Makefile'.
+
+Thanks to that you can refer to the binary using '$(TOOL)' variable which will install correct version if missing.
+
+
+%s
+
+  list <flags> [<package or binary>]
+
+List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, version and immutable output.
+
+%s
+
+  version
+
+Prints bingo version.
+
+`

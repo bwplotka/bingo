@@ -43,15 +43,21 @@ build: ## Build bingo.
 	@echo ">> Building bingo"
 	@go install github.com/bwplotka/bingo
 
+.PHONY: check-comments
+check-comments: ## Checks Go code comments if they have trailing period (excludes protobuffers and vendor files). Comments with more than 3 spaces at beginning are omitted from the check, example: '//    - foo'.
+	@echo ">> checking Go comments trailing periods\n\n\n"
+	@./scripts/build-check-comments.sh
+
 .PHONY: deps
 deps: ## Ensures fresh go.mod and go.sum.
 	@go mod tidy
 	@go mod verify
 
-.PHONY: check-comments
-check-comments: ## Checks Go code comments if they have trailing period (excludes protobuffers and vendor files). Comments with more than 3 spaces at beginning are omitted from the check, example: '//    - foo'.
-	@echo ">> checking Go comments trailing periods\n\n\n"
-	@./scripts/build-check-comments.sh
+.PHONY: docs
+docs: build $(EMBEDMD) ## Generates docs from flags.
+	@$(GOBIN)/bingo -h > bingo-help.txt
+	@$(EMBEDMD) -w *.md
+	@rm -f bingo-help.txt
 
 .PHONY: format
 format: ## Formats Go code including imports and cleans up white noise.
@@ -80,7 +86,7 @@ endif
 #      --mem-profile-path string   Path to memory profile output file
 # to debug big allocations during linting.
 lint: ## Runs various static analysis against our code.
-lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format check-git deps
+lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format docs check-git deps
 	$(call require_clean_work_tree,"detected not clean master before running lint")
 	@echo ">> verifying modules being imported"
 	@$(FAILLINT) -paths "errors=github.com/pkg/errors" ./...
