@@ -22,8 +22,9 @@ const (
 	// TODO(bwplotka): We get first binary as an example. It does not work if first one is array..
 	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
-GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
-GO    ?= $(shell which go)
+GOPATH ?= $(shell go env GOPATH)
+GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
+GO     ?= $(shell which go)
 
 # Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
