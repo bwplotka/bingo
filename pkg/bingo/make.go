@@ -40,30 +40,18 @@ GO     ?= $(shell which go)
 #
 {{- range $b := .Binaries }}
 {{ $b.VarName }} ?={{- range $b.Versions }} $(GOBIN)/{{ .BinName }}{{- end }}
-$({{ $b.VarName }}):{{- range $b.Versions }} {{ .RelModFile }}{{- end }}
+$({{ $b.VarName }}):{{- range $b.Versions }} {{ $.RelModDir }}/{{ .ModFile }}{{- end }}
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 {{- range $b.Versions }}
 	@echo "(re)installing $(GOBIN)/{{ .BinName }}"
-	@$(GO) build -modfile={{ .RelModFile }} -o=$(GOBIN)/{{ .BinName }} "{{ $b.PackagePath }}"
+	@cd {{ $.RelModDir }} && $(GO) build -modfile={{ .ModFile }} -o=$(GOBIN)/{{ .BinName }} "{{ $b.PackagePath }}"
 {{- end }}
 {{- range $b.Versions }}
-{{ .RelModFile }}: ;
+{{ $.RelModDir }}/{{ .ModFile }}: ;
 {{- end }}
 {{ end}}
 `
 )
-
-type binaryVersion struct {
-	BinName    string
-	RelModFile string
-}
-
-type binary struct {
-	Name        string
-	VarName     string
-	PackagePath string
-	Versions    []binaryVersion
-}
 
 // RemoveMakeHelper deletes Variables.mk from mod directory.
 func RemoveMakeHelper(modDir string) error {
@@ -78,6 +66,18 @@ func NameFromModFile(modFile string) (name string, oneOfMany bool) {
 		oneOfMany = true
 	}
 	return n[0], oneOfMany
+}
+
+type binaryVersion struct {
+	BinName string
+	ModFile string
+}
+
+type binary struct {
+	Name        string
+	VarName     string
+	PackagePath string
+	Versions    []binaryVersion
 }
 
 // GenMakeHelper generates helper Makefile variables to allows reliable binaries use. Regenerate if needed.
@@ -106,8 +106,10 @@ func GenMakeHelperAndHook(modDir, makeFile, version string, modFiles ...string) 
 		Version   string
 		GobinPath string
 		Binaries  []binary
+		RelModDir string
 	}{
-		Version: version,
+		Version:   version,
+		RelModDir: relDir,
 	}
 
 ModLoop:
@@ -128,8 +130,8 @@ ModLoop:
 			if b.Name == name {
 				data.Binaries[i].VarName = varName + "_ARRAY"
 				data.Binaries[i].Versions = append(data.Binaries[i].Versions, binaryVersion{
-					BinName:    fmt.Sprintf("%s-%s", name, version),
-					RelModFile: filepath.Join(relDir, filepath.Base(m)),
+					BinName: fmt.Sprintf("%s-%s", name, version),
+					ModFile: filepath.Base(m),
 				})
 				continue ModLoop
 			}
@@ -138,8 +140,8 @@ ModLoop:
 			Name: name,
 			Versions: []binaryVersion{
 				{
-					BinName:    fmt.Sprintf("%s-%s", name, version),
-					RelModFile: filepath.Join(relDir, filepath.Base(m)),
+					BinName: fmt.Sprintf("%s-%s", name, version),
+					ModFile: filepath.Base(m),
 				},
 			},
 			VarName:     varName,

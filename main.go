@@ -20,7 +20,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultMakefileName = "Makefile"
+const (
+	defaultMakefileName = "Makefile"
+	// fake go.mod that we have to maintain, until https://github.com/bwplotka/bingo/issues/20 is fixed.
+	fakeRootModFileName = "go.mod"
+)
 
 func exitOnUsageError(usage func(), v ...interface{}) {
 	fmt.Println(append([]interface{}{"Error:"}, v...)...)
@@ -39,9 +43,9 @@ func main() {
 
 	// Get flags.
 	getFlags := flag.NewFlagSet("bingo get", flag.ContinueOnError)
-	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be "+
-		"maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory"+
-		"does not exist bingo logs and assumes a fresh project.")
+	getModDir := getFlags.String("moddir", ".bingo", "Directory where separate modules for each binary will be"+
+		" maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory"+
+		" does not exist bingo logs and assumes a fresh project.")
 	getName := getFlags.String("n", "", "The -n flag instructs to get binary and name it with given name instead of default,"+
 		" so the last element of package directory Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
 		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
@@ -50,7 +54,7 @@ func main() {
 	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
 	insecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
 	makefile := getFlags.String("makefile", defaultMakefileName, "Makefile to link the the generated helper for make when `-m` options is specified with."+
-		"Specify empty to disable including the helper.")
+		" Specify empty to disable including the helper.")
 	genMakefileHelper := getFlags.Bool("m", false, "Generate makefile helper with all binaries as variables.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
@@ -58,7 +62,7 @@ func main() {
 	// List flags.
 	listFlags := flag.NewFlagSet("bingo list", flag.ContinueOnError)
 	listModDir := listFlags.String("moddir", ".bingo", "Directory where separate modules for each binary is"+
-		"maintained. If does not exists, bingo list will fail.")
+		" maintained. If does not exists, bingo list will fail.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `list` command.
 	listVerbose := listFlags.Bool("v", false, "Print more'")
 
@@ -139,7 +143,7 @@ func main() {
 				return err
 			}
 
-			modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
+			modFiles, err := bingoModFiles(modDir)
 			if err != nil {
 				return err
 			}
@@ -152,7 +156,7 @@ func main() {
 			for _, f := range modFiles {
 				has, err := bingo.ModHasMeta(f, nil)
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "modFile: %s", f)
 				}
 				if !has {
 					logger.Println("found malformed module file, removing:", f)
@@ -192,16 +196,15 @@ func main() {
 			if err != nil {
 				return errors.Wrap(err, "abs")
 			}
-			modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
+			modFiles, err := bingoModFiles(modDir)
 			if err != nil {
 				return err
 			}
-
 			var targets []string
 			for _, f := range modFiles {
 				has, err := bingo.ModHasMeta(f, nil)
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "modFile: %s", f)
 				}
 				if !has {
 					continue
@@ -263,6 +266,20 @@ func main() {
 	}
 }
 
+func bingoModFiles(modDir string) (ret []string, _ error) {
+	modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range modFiles {
+		if filepath.Base(f) == fakeRootModFileName {
+			continue
+		}
+		ret = append(ret, f)
+	}
+	return ret, nil
+}
+
 func list(modFiles []string) error {
 	for _, f := range modFiles {
 		pkg, ver, err := bingo.ModDirectPackage(f, nil)
@@ -314,7 +331,6 @@ correct version of a tool.
 
 Thanks to that you can refer to the binary using '$(TOOL)' variable which will install correct version if missing.
 
-
 %s
 
   list <flags> [<package or binary>]
@@ -326,5 +342,4 @@ List enumerates all or one binary that are/is currently pinned in this project. 
   version
 
 Prints bingo version.
-
 `

@@ -9,6 +9,15 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
+## [v0.1.1](https://github.com/bwplotka/bingo/releases/tag/v0.1.1) - 2020.06.03
+
+Fixed
+
+```
+`Error: get command failed: 0: getting : go get -d: go: cannot find main module, but -modfile was set.
+	-modfile cannot be used to set the module root directory.
+```
+
 ## [v0.1.0](https://github.com/bwplotka/bingo/releases/tag/v0.1.0) - 2020.05.30
 
 Initial release.

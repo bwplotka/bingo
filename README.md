@@ -117,16 +117,15 @@ correct version of a tool.
 
 Thanks to that you can refer to the binary using '$(TOOL)' variable which will install correct version if missing.
 
-
   -go string
     	Path to the go command. (default "go")
   -insecure
     	Use -insecure flag when using 'go get'
   -m	Generate makefile helper with all binaries as variables.
   -makefile -m
-    	Makefile to link the the generated helper for make when -m options is specified with.Specify empty to disable including the helper. (default "Makefile")
+    	Makefile to link the the generated helper for make when -m options is specified with. Specify empty to disable including the helper. (default "Makefile")
   -moddir string
-    	Directory where separate modules for each binary will be maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directorydoes not exist bingo logs and assumes a fresh project. (default ".bingo")
+    	Directory where separate modules for each binary will be maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
   -n string
     	The -n flag instructs to get binary and name it with given name instead of default, so the last element of package directory Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified, bingo get will return error. If -n is used with existing binary name, rename will be done.
   -u	The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.
@@ -140,14 +139,13 @@ Thanks to that you can refer to the binary using '$(TOOL)' variable which will i
 List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, version and immutable output.
 
   -moddir string
-    	Directory where separate modules for each binary ismaintained. If does not exists, bingo list will fail. (default ".bingo")
+    	Directory where separate modules for each binary is maintained. If does not exists, bingo list will fail. (default ".bingo")
   -v	Print more'
 
 
   version
 
 Prints bingo version.
-
 ```
 
 ## Examples:
@@ -220,4 +218,4 @@ We follow [Thanos Go coding style](https://thanos.io/contributing/coding-style-g
 
 ## Initial Author
 
-[@bwplotka](https://bwplotka.dev) inspired by [Paul's](https://github.com/myitcv) research and with a bit of help from [Duco](https://github.com/Helcaraxan) (: 
+[@bwplotka](https://bwplotka.dev) inspired by [Paul's](https://github.com/myitcv) research and with a bit of help from [Duco](https://github.com/Helcaraxan) (:

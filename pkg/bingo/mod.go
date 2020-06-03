@@ -65,6 +65,15 @@ func ModHasMeta(modFile string, r io.Reader) (bool, error) {
 		return false, errors.Wrap(err, "failed to parse")
 	}
 
+	if m.Module == nil {
+		return false, errors.New("failed to parse; no module")
+	}
+	if m.Module.Syntax == nil {
+		return false, errors.New("failed to parse; no module's syntax")
+	}
+	if m.Module.Syntax.Comment() == nil {
+		return false, err
+	}
 	for _, c := range m.Module.Syntax.Comment().Suffix {
 		if c.Token == metaComment {
 			return true, nil
