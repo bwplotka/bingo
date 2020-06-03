@@ -126,6 +126,11 @@ func TestGet_EmptyProject(t *testing.T) {
 				testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
 				testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
 			})
+			t.Run("Install package with go name should fail.", func(t *testing.T) {
+				defer p.assertNotChanged(t, defaultModDir)
+
+				testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "github.com/something/go"))
+			})
 			t.Run("Remove goimports2 by name", func(t *testing.T) {
 				defer p.assertNotChanged(t, defaultModDir)
 
@@ -213,11 +218,19 @@ func TestGet_ProjectWithBingo_NativeGoBuild(t *testing.T) {
 			// Get all binaries by doing native go build.
 			defer p.assertNotChanged(t, defaultModDir)
 
-			_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
+			if isGoProject {
+				_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
+				testutil.Ok(t, err)
+				_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
+				testutil.Ok(t, err)
+				_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
+				testutil.Ok(t, err)
+			}
+			_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports.mod", "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
 			testutil.Ok(t, err)
-			_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
+			_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod", "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 			testutil.Ok(t, err)
-			_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
+			_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports2.mod", "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
 			testutil.Ok(t, err)
 
 			testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
@@ -439,7 +452,7 @@ type goEnv struct {
 }
 
 func newTmpGoEnv(t testing.TB) *goEnv {
-	tmpDir, err := ioutil.TempDir(".", "bingo-tmpgoenv")
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "bingo-tmpgoenv")
 	testutil.Ok(t, err)
 
 	tmpDir, err = filepath.Abs(tmpDir)

@@ -40,11 +40,11 @@ func get(
 		if c.name != "" {
 			return errors.New("name cannot by specified if no target was given")
 		}
-		modules, err := filepath.Glob(filepath.Join(c.modDir, "*.mod"))
+		modFiles, err := bingoModFiles(c.modDir)
 		if err != nil {
 			return err
 		}
-		for _, m := range modules {
+		for _, m := range modFiles {
 			mc := c
 			mc.rawTarget, _ = bingo.NameFromModFile(m)
 			if err := get(ctx, logger, mc); err != nil {
@@ -77,7 +77,7 @@ func get(
 	name := nameOrPackage
 	if !strings.Contains(nameOrPackage, "/") {
 		// Binary referenced by name, get full package name if module file exists.
-		pkgPath, err = binNameToPackagePath(nameOrPackage, c.modDir)
+		pkgPath, err = packagePathFromBinaryName(nameOrPackage, c.modDir)
 		if err != nil {
 			return err
 		}
@@ -93,6 +93,10 @@ func get(
 
 	if c.name != "" {
 		name = c.name
+	}
+
+	if name == strings.TrimSuffix(fakeRootModFileName, ".mod") {
+		return errors.New("requested binary with name `go`. This is impossible, choose different name using -name flag.")
 	}
 
 	binModFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".*.mod"))
@@ -199,7 +203,7 @@ func getOne(
 	return c.runner.With(ctx, outModFile, c.modDir).Build(pkgPath, fmt.Sprintf("%s-%s", name, version))
 }
 
-func binNameToPackagePath(binary string, modDir string) (string, error) {
+func packagePathFromBinaryName(binary string, modDir string) (string, error) {
 	currModFile := filepath.Join(modDir, binary+".mod")
 
 	// Get full import path from module file which has module and encoded sub path.
@@ -255,6 +259,18 @@ func ensureModDirExists(logger *log.Logger, modDir string) error {
 		if err := os.MkdirAll(modDir, os.ModePerm); err != nil {
 			return errors.Wrapf(err, "create moddir %s", modDir)
 		}
+	}
+
+	// Hack against:
+	// "A file named go.mod must still be present in order to determine the module root directory, but it is not accessed."
+	// Ref: https://golang.org/doc/go1.14#go-flags
+	// TODO(bwplotka): Remove it: https://github.com/bwplotka/bingo/issues/20
+	if err := ioutil.WriteFile(
+		filepath.Join(modDir, fakeRootModFileName),
+		[]byte("module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files."),
+		os.ModePerm,
+	); err != nil {
+		return err
 	}
 
 	// README.
