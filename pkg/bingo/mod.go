@@ -15,6 +15,15 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+// NameFromModFile returns binary name from module file path.
+func NameFromModFile(modFile string) (name string, oneOfMany bool) {
+	n := strings.Split(strings.TrimSuffix(filepath.Base(modFile), ".mod"), ".")
+	if len(n) > 1 {
+		oneOfMany = true
+	}
+	return n[0], oneOfMany
+}
+
 func readAllFileOrReader(modFile string, r io.Reader) (b []byte, err error) {
 	if r != nil {
 		return ioutil.ReadAll(r)

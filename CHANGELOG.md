@@ -9,9 +9,19 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
+## [v0.2.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.0) - 2020.06.04
+
+### Changed
+
+* Added `.variables.env` file to bingo moddir for easy export of all environment variables to the current shell. Removed `-m` and `-makefile` flags.
+Bingo now always creates makefile and env file and never generate `include` to avoid many corner cases. It's now documented how to add `include` in the documentation.
+
 ## [v0.1.1](https://github.com/bwplotka/bingo/releases/tag/v0.1.1) - 2020.06.03
 
-Fixed
+### Fixed
+
+* [#22](https://github.com/bwplotka/bingo/pull/22) Fixed problem with running bingo in non-Go project. From now on it also maintains
+fake go.mod to resolve issues like:
 
 ```
 `Error: get command failed: 0: getting : go get -d: go: cannot find main module, but -modfile was set.
