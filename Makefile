@@ -69,8 +69,8 @@ format: $(GOIMPORTS)
 .PHONY: test
 test: ## Runs all Go unit tests.
 test:
-	@echo ">> running unit tests"
-	@go test $(shell go list ./... | grep -v /vendor/);
+	@echo ">> running unit tests (without cache)"
+	@go test -count=1 $(shell go list ./... | grep -v /vendor/);
 
 .PHONY: check-git
 check-git:
