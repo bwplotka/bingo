@@ -21,12 +21,13 @@ import (
 )
 
 type getConfig struct {
-	runner *gomodcmd.Runner
-	modDir string
-	update gomodcmd.GetUpdatePolicy
-	name   string
+	runner    *gomodcmd.Runner
+	modDir    string
+	relModDir string
+	update    gomodcmd.GetUpdatePolicy
+	name      string
 
-	// target name or target package path, optionally with version(s).
+	// target name or target package path, optionally with Version(s).
 	rawTarget string
 }
 
@@ -64,7 +65,7 @@ func get(
 	if len(modVersions) > 1 {
 		for _, v := range modVersions {
 			if v == "none" {
-				return errors.Errorf("none is not allowed when there are more than one specified version, got: %v", modVersions)
+				return errors.Errorf("none is not allowed when there are more than one specified Version, got: %v", modVersions)
 			}
 		}
 	}
@@ -106,7 +107,7 @@ func get(
 	binModFiles = append([]string{filepath.Join(c.modDir, name+".mod")}, binModFiles...)
 
 	if modVersions[0] == "none" {
-		// none means we no longer want to version this package.
+		// none means we no longer want to Version this package.
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
@@ -155,7 +156,7 @@ func getOne(
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
-	if err := ensureModDirExists(logger, c.modDir); err != nil {
+	if err := ensureModDirExists(logger, c.relModDir); err != nil {
 		return errors.Wrap(err, "ensure mod dir")
 	}
 	// Set up tmp file that we will work on for now.
@@ -189,7 +190,7 @@ func getOne(
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkgPath, listOutput)
 	}
 
-	// Refetch version to ensure we have correct one.
+	// Refetch Version to ensure we have correct one.
 	_, version, err = bingo.ModDirectPackage(tmpModFile, nil)
 	if err != nil {
 		return errors.Wrap(err, "get direct package")
@@ -227,7 +228,8 @@ This is directory which stores Go modules with pinned buildable package that is 
 
 * Run ` + "`" + "bingo get" + "`" + ` to install all tools having each own module file in this directory.
 * Run ` + "`" + "bingo get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
-* If ` + "`" + bingo.MakefileBinVarsName + "`" + ` is present, use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
+* For Makefile: Make sure to put ` + "`" + "include %s/" + bingo.MakefileBinVarsName + "`" + ` in your Makefile, then use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
+* For shell: Run ` + "`" + "source %s/" + bingo.EnvBinVarsName + "`" + ` to source all environment variable for each tool
 * See https://github.com/bwplotka/bingo or -h on how to add, remove or change binaries dependencies.
 
 ## Requirements
@@ -242,22 +244,23 @@ const gitignore = `
 # But not these files:
 !.gitignore
 !*.mod
-!*.md
-!*.mk
+!README.md
+!Variables.mk
+!variables.env
 
 *tmp.mod
 `
 
-func ensureModDirExists(logger *log.Logger, modDir string) error {
-	_, err := os.Stat(modDir)
+func ensureModDirExists(logger *log.Logger, relModDir string) error {
+	_, err := os.Stat(relModDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return errors.Wrapf(err, "stat bingo module dir %s", modDir)
+			return errors.Wrapf(err, "stat bingo module dir %s", relModDir)
 		}
 
-		logger.Printf("Bingo not used before here, creating directory for pinned modules for you at %s\n", modDir)
-		if err := os.MkdirAll(modDir, os.ModePerm); err != nil {
-			return errors.Wrapf(err, "create moddir %s", modDir)
+		logger.Printf("Bingo not used before here, creating directory for pinned modules for you at %s\n", relModDir)
+		if err := os.MkdirAll(relModDir, os.ModePerm); err != nil {
+			return errors.Wrapf(err, "create moddir %s", relModDir)
 		}
 	}
 
@@ -266,7 +269,7 @@ func ensureModDirExists(logger *log.Logger, modDir string) error {
 	// Ref: https://golang.org/doc/go1.14#go-flags
 	// TODO(bwplotka): Remove it: https://github.com/bwplotka/bingo/issues/20
 	if err := ioutil.WriteFile(
-		filepath.Join(modDir, fakeRootModFileName),
+		filepath.Join(relModDir, fakeRootModFileName),
 		[]byte("module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files."),
 		os.ModePerm,
 	); err != nil {
@@ -275,15 +278,15 @@ func ensureModDirExists(logger *log.Logger, modDir string) error {
 
 	// README.
 	if err := ioutil.WriteFile(
-		filepath.Join(modDir, "README.md"),
-		[]byte(fmt.Sprintf(modREADMEFmt, filepath.Join("<root>", filepath.Base(modDir)))),
+		filepath.Join(relModDir, "README.md"),
+		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir)),
 		os.ModePerm,
 	); err != nil {
 		return err
 	}
 	// gitignore.
 	return ioutil.WriteFile(
-		filepath.Join(modDir, ".gitignore"),
+		filepath.Join(relModDir, ".gitignore"),
 		[]byte(gitignore),
 		os.ModePerm,
 	)

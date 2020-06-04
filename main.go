@@ -16,12 +16,12 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 )
 
 const (
-	defaultMakefileName = "Makefile"
 	// fake go.mod that we have to maintain, until https://github.com/bwplotka/bingo/issues/20 is fixed.
 	fakeRootModFileName = "go.mod"
 )
@@ -47,15 +47,13 @@ func main() {
 		" maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory"+
 		" does not exist bingo logs and assumes a fresh project.")
 	getName := getFlags.String("n", "", "The -n flag instructs to get binary and name it with given name instead of default,"+
-		" so the last element of package directory Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
+		" so the last element of package directory. Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
 		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	update := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
 	insecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
-	makefile := getFlags.String("makefile", defaultMakefileName, "Makefile to link the the generated helper for make when `-m` options is specified with."+
-		" Specify empty to disable including the helper.")
-	genMakefileHelper := getFlags.Bool("m", false, "Generate makefile helper with all binaries as variables.")
+
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
 
@@ -126,7 +124,8 @@ func main() {
 		}
 
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
-			modDir, err := filepath.Abs(*getModDir)
+			relModDir := *getModDir
+			modDir, err := filepath.Abs(relModDir)
 			if err != nil {
 				return errors.Wrap(err, "abs")
 			}
@@ -136,6 +135,7 @@ func main() {
 			if err := get(ctx, logger, getConfig{
 				runner:    r,
 				modDir:    modDir,
+				relModDir: relModDir,
 				update:    upPolicy,
 				name:      *getName,
 				rawTarget: target,
@@ -147,10 +147,6 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if len(modFiles) == 0 {
-				return bingo.RemoveMakeHelper(modDir)
-			}
-
 			// Get through all modules and remove those without bingo metadata. This ensures we clean
 			// non-bingo maintained module files from this directory as well partial module files.
 			for _, f := range modFiles {
@@ -165,12 +161,17 @@ func main() {
 					}
 				}
 			}
-			if !*genMakefileHelper {
-				return nil
+
+			// Re-scan.
+			modFiles, err = bingoModFiles(modDir)
+			if err != nil {
+				return err
+			}
+			if len(modFiles) == 0 {
+				return bingo.RemoveHelpers(modDir)
 			}
 
-			// Create makefile helper.
-			return bingo.GenMakeHelperAndHook(modDir, *makefile, version, modFiles...)
+			return bingo.GenHelpers(relModDir, version.Version, modFiles...)
 		}
 	case "list":
 		listFlags.SetOutput(os.Stdout)
@@ -228,9 +229,9 @@ func main() {
 			}
 			return list(targets)
 		}
-	case "version":
+	case "Version":
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
-			_, err := fmt.Fprintln(os.Stdout, version)
+			_, err := fmt.Fprintln(os.Stdout, version.Version)
 			return err
 		}
 	default:
@@ -310,12 +311,12 @@ Commands:
 Similar to 'go get' you can pull, install and pin required 'main' (buildable Go) package as your tool in your project.
 
 'bingo get <repo/org/tool>' will resolve given main package path, download it using 'go get -d', then will produce directory (controlled by -moddir flag) and put
-separate, specially commented module called <tool>.mod. After that, it installs given package as '$GOBIN/<tool>-<version>'.
+separate, specially commented module called <tool>.mod. After that, it installs given package as '$GOBIN/<tool>-<Version>'.
 
-Once installed at least once, 'get' allows to reference the tool via it's name (without version) to install, downgrade, upgrade or remove.
-Similar to 'go get' you can get binary with given version: a git commit, git tag or Go Modules pseudo version after @:
+Once installed at least once, 'get' allows to reference the tool via it's name (without Version) to install, downgrade, upgrade or remove.
+Similar to 'go get' you can get binary with given Version: a git commit, git tag or Go Modules pseudo Version after @:
 
-'bingo get <repo/org/tool>@<version>' or 'bingo get <tool>@<version>'
+'bingo get <repo/org/tool>@<Version>' or 'bingo get <tool>@<Version>'
 
 'get' without any argument will download and get ALL the tools in the moddir directory.
 'get' also allows bulk pinning and install. Just specify multiple versions after '@':
@@ -325,21 +326,24 @@ Similar to 'go get' you can get binary with given version: a git commit, git tag
 Similar to 'go get' you can use -u and -u=patch to control update logic and '@none' to remove binary.
 
 Once pinned apart of 'bingo get', you can also use 'go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>' to install
-correct version of a tool.
+correct Version of a tool.
 
-'-m' option creates '<moddir>/Variables.mk' and attempts to include this in your own 'Makefile'.
+Note that 'bingo' creates additional useful files inside -moddir:
 
-Thanks to that you can refer to the binary using '$(TOOL)' variable which will install correct version if missing.
+* '<moddir>/Variables.mk': When included in your Makefile ('include <moddir>/Variables.mk'), you can refer to each binary
+using '$(TOOL)' variable. It will also  install correct Version if missing.
+* '<moddir>/variables.env': When sourced ('source <moddir>/variables.env') you can refer to each binary using '$(TOOL)' variable.
+It will NOT install correct Version if missing.
 
 %s
 
   list <flags> [<package or binary>]
 
-List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, version and immutable output.
+List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, Version and immutable output.
 
 %s
 
-  version
+  Version
 
-Prints bingo version.
+Prints bingo Version.
 `

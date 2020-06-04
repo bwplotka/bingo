@@ -1,4 +1,4 @@
-
+include .bingo/Variables.mk
 
 faillint-exists: $(FAILLINT)
 	@echo "checking faillint"
