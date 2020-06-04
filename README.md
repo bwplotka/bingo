@@ -72,7 +72,7 @@ bingo get <tool>
 `bingo` allows to easily maintain a separate, nested Go Module for each binary. By default, it will keep it `.bingo/<tool>.mod`
 This allows to correctly pin the binary without polluting the main go module or other's tool module.
 
-Also, make sure to check out the generated `.bingo/Variables.mk` if your project uses `Makefile`. It has useful helper variables 💖that makes it super easy to install pinned
+Also, make sure to check out the generated `.bingo/Variables.mk` if your project uses `Makefile`. It has useful helper variables 💖 that makes it super easy to install pinned
 binaries without even installing `bingo` (it will use just `go build`!). For `shell` users, you can invoke `source .bingo/variables.env` to source those variables.
 
 See an extensive and up-to-date description of the `bingo` usage below:
@@ -192,23 +192,25 @@ Let's show a few examples on popular `goimports` tool (which formats Go code inc
     bingo get
     ```
 
-1. Makefile mode! If you use `Makefile` , bingo allows you to generate a very simple helper with nice variables. Just run the same commands as above, but with
-`-m` option e.g:
-
+1. Bonus: Makefile mode! If you use `Makefile` , `bingo` generates a very simple helper with nice variables. After running any `bingo get` command,
+you will notice`.bingo/Variables.mk` file. Feel free to include this in your Makefile (`include .bingo/Variables.mk` on the top of your Makefile).
+    
+    From now in your Makefile you can use, e.g. `$(GOIMPORTS)` variable which reliably ensures a correct version is used and installed.
+    
+1. Bonus number 2! Using immutable names might be hard to maintain for your other scripts so `bingo` also produces environment variables you can source to you shell. It's as easy as:
+ 
     ```shell
-    bingo get -m goimports
+    source .bingo/variables.env
     ```
-
-    This will produce `.bingo/Variables.mk` and attempt to `include` that in your main `Makefile`.
-
-    From now on you can use `$(GOIMPORTS)` variable which reliably ensures a correct version is used and installed.
+   
+    From now on you can use, e.g. `$(GOIMPORTS)` variable which holds currently pinned binary name of the goimports tool.
 
 ## Production Usage
 
 To see production example see:
 
  * [bingo's own tools](https://github.com/bwplotka/bingo/tree/master/.bingo)
- * [Thanos's tools](https://github.com/thanos-io/thanos/tree/master/.bingo)
+ * [Thanos's tools](https://github.com/thanos-io/thanos/tree/7bf3b0f8f3af57ac3aef033f6efb58860f273c78/.bingo)
  * [go-grpc-middleware's tools](https://github.com/grpc-ecosystem/go-grpc-middleware/tree/5b83c99199db53d4258b05646007b48e4658b3af/.bingo)
 
 ## Contributing
