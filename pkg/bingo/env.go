@@ -11,12 +11,12 @@ const (
 # Those variables will work only until 'bingo get' was invoked, or if tools were installed via Makefile's Variables.mk.
 local gobin=$(go env GOBIN)
 
-if [ -z "$var" ]; then
+if [ -z "$gobin" ]; then
 	gobin="$(go env GOPATH)/bin"
 fi
 
 {{range $b := .Binaries }}
-{{ $b.VarName }}="{{- range $b.Versions }}${gobin}/{{ .BinName }} "{{- end }}
+{{ $b.VarName }}="{{- range $i, $v := $b.Versions }}{{- if ne $i 0}} {{- end }}${gobin}/{{ $v.BinName }}{{- end }}"
 {{ end}}
 `
 )
