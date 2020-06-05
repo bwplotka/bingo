@@ -13,17 +13,13 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/gomodcmd"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
-)
-
-const (
-	// fake go.mod that we have to maintain, until https://github.com/bwplotka/bingo/issues/20 is fixed.
-	fakeRootModFileName = "go.mod"
 )
 
 func exitOnUsageError(usage func(), v ...interface{}) {
@@ -143,35 +139,14 @@ func main() {
 				return err
 			}
 
-			modFiles, err := bingoModFiles(modDir)
+			pkgs, err := bingo.ListPinnedMainPackages(logger, modDir, true)
 			if err != nil {
 				return err
 			}
-			// Get through all modules and remove those without bingo metadata. This ensures we clean
-			// non-bingo maintained module files from this directory as well partial module files.
-			for _, f := range modFiles {
-				has, err := bingo.ModHasMeta(f, nil)
-				if err != nil {
-					return errors.Wrapf(err, "modFile: %s", f)
-				}
-				if !has {
-					logger.Println("found malformed module file, removing:", f)
-					if err := os.RemoveAll(strings.TrimSuffix(f, ".") + "*"); err != nil {
-						return err
-					}
-				}
-			}
-
-			// Re-scan.
-			modFiles, err = bingoModFiles(modDir)
-			if err != nil {
-				return err
-			}
-			if len(modFiles) == 0 {
+			if len(pkgs) == 0 {
 				return bingo.RemoveHelpers(modDir)
 			}
-
-			return bingo.GenHelpers(relModDir, version.Version, modFiles...)
+			return bingo.GenHelpers(relModDir, version.Version, pkgs)
 		}
 	case "list":
 		listFlags.SetOutput(os.Stdout)
@@ -197,37 +172,33 @@ func main() {
 			if err != nil {
 				return errors.Wrap(err, "abs")
 			}
-			modFiles, err := bingoModFiles(modDir)
+			pkgs, err := bingo.ListPinnedMainPackages(logger, modDir, false)
 			if err != nil {
 				return err
 			}
-			var targets []string
-			for _, f := range modFiles {
-				has, err := bingo.ModHasMeta(f, nil)
-				if err != nil {
-					return errors.Wrapf(err, "modFile: %s", f)
-				}
-				if !has {
+
+			w := new(tabwriter.Writer)
+			w.Init(os.Stdout, 4, 5, 1, '\t', 0)
+			defer func() { _ = w.Flush() }()
+
+			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version\t")
+			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------\t")
+			for _, p := range pkgs {
+				if target != "" && p.Name != target {
 					continue
+				}
+				for _, v := range p.Versions {
+					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s\t", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
 				}
 				if target != "" {
-					// TODO(bwplotka): Allow per packages?
-					if target+".mod" == filepath.Base(f) {
-						targets = append(targets, f)
-						break
-					}
-					continue
-				}
-				targets = append(targets, f)
-			}
-
-			if len(targets) == 0 {
-				if target == "" {
 					return nil
 				}
-				exitOnUsageError(flags.Usage, "No binaries found for", target)
 			}
-			return list(targets)
+
+			if target != "" {
+				return errors.Errorf("Pinned tool %s not found", target)
+			}
+			return nil
 		}
 	case "Version":
 		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
@@ -265,33 +236,6 @@ func main() {
 		}
 		logger.Fatalf("Error: %v", errors.Wrapf(err, "%s command failed", flags.Arg(0)))
 	}
-}
-
-func bingoModFiles(modDir string) (ret []string, _ error) {
-	modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range modFiles {
-		if filepath.Base(f) == fakeRootModFileName {
-			continue
-		}
-		ret = append(ret, f)
-	}
-	return ret, nil
-}
-
-func list(modFiles []string) error {
-	for _, f := range modFiles {
-		pkg, ver, err := bingo.ModDirectPackage(f, nil)
-		if err != nil {
-			return errors.Wrapf(err, "module %q is malformed. 'get' full package name to re-pin it.", f)
-		}
-		name := filepath.Base(strings.TrimSuffix(f, ".mod"))
-		// TODO(bwplotka): Add $GOPATH?
-		fmt.Printf("%s<%s-%s>: %s@%s\n", name, name, ver, pkg, ver)
-	}
-	return nil
 }
 
 const bingoHelpFmt = `bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)

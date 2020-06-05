@@ -34,8 +34,8 @@ You can read full a story behind `bingo` [in this blog post](https://deploy-prev
 ## Requirements
 
 * Go 1.14+
-* Linux or MacOS.
-* All tools that you wish to "pin" have to be build in Go and use [Go Modules].
+* Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26), should be trivial!)
+* All tools that you wish to "pin" have to be build in Go (they don't need to use Go modules at all).
 
 ## Installing
 
@@ -194,15 +194,15 @@ Let's show a few examples on popular `goimports` tool (which formats Go code inc
 
 1. Bonus: Makefile mode! If you use `Makefile` , `bingo` generates a very simple helper with nice variables. After running any `bingo get` command,
 you will notice`.bingo/Variables.mk` file. Feel free to include this in your Makefile (`include .bingo/Variables.mk` on the top of your Makefile).
-    
+
     From now in your Makefile you can use, e.g. `$(GOIMPORTS)` variable which reliably ensures a correct version is used and installed.
-    
+
 1. Bonus number 2! Using immutable names might be hard to maintain for your other scripts so `bingo` also produces environment variables you can source to you shell. It's as easy as:
- 
+
     ```shell
     source .bingo/variables.env
     ```
-   
+
     From now on you can use, e.g. `$(GOIMPORTS)` variable which holds currently pinned binary name of the goimports tool.
 
 ## Production Usage

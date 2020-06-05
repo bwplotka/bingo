@@ -15,8 +15,8 @@ if [ -z "$gobin" ]; then
 	gobin="$(go env GOPATH)/bin"
 fi
 
-{{range $b := .Binaries }}
-{{ $b.VarName }}="{{- range $i, $v := $b.Versions }}{{- if ne $i 0}} {{- end }}${gobin}/{{ $v.BinName }}{{- end }}"
+{{range $p := .MainPackages }}
+{{ $p.EnvVarName }}="{{- range $i, $v := $p.Versions }}{{- if ne $i 0}} {{- end }}${gobin}/{{ $p.Name }}-{{ $v.Version }}{{- end }}"
 {{ end}}
 `
 )

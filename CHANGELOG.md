@@ -13,6 +13,18 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ### Fixed
 
+* [#25](https://github.com/bwplotka/bingo/issues/25) Fixed support of `bingo get` for arrays.
+* Fixed versioning binaries with `+incompatible` version (wrong templating used).
+* Fixed support `bingo list` for arrays.
+
+### Changed
+
+* `bingo list` output format. (table `\t`-delimited now)
+
+## [v0.2.1](https://github.com/bwplotka/bingo/releases/tag/v0.2.1) - 2020.06.04
+
+### Fixed
+
 *  Fixed extra whitespace in variables.env.
 
 ## [v0.2.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.0) - 2020.06.04
