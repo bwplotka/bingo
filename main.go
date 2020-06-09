@@ -16,7 +16,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
-	"github.com/bwplotka/bingo/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
@@ -46,9 +46,9 @@ func main() {
 		" so the last element of package directory. Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
 		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
-	update := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
-	updatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
-	insecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
+	getUpdate := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
+	getUpdatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
+	getInsecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
 
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
@@ -82,7 +82,7 @@ func main() {
 	if flags.NArg() == 0 {
 		exitOnUsageError(flags.Usage, "No command specified")
 	}
-	var cmdFunc func(ctx context.Context, r *gomodcmd.Runner) error
+	var cmdFunc func(ctx context.Context, r *runner.Runner) error
 	switch flags.Arg(0) {
 	case "get":
 		getFlags.SetOutput(os.Stdout)
@@ -102,12 +102,12 @@ func main() {
 			exitOnUsageError(flags.Usage, "'go' flag cannot be empty")
 		}
 
-		upPolicy := gomodcmd.NoUpdatePolicy
-		if *update {
-			upPolicy = gomodcmd.UpdatePolicy
+		upPolicy := runner.NoUpdatePolicy
+		if *getUpdate {
+			upPolicy = runner.UpdatePolicy
 		}
-		if *updatePatch {
-			upPolicy = gomodcmd.UpdatePatchPolicy
+		if *getUpdatePatch {
+			upPolicy = runner.UpdatePatchPolicy
 		}
 
 		if getFlags.NArg() > 1 {
@@ -119,7 +119,7 @@ func main() {
 			exitOnUsageError(flags.Usage, *getName, "-n name contains not allowed characters")
 		}
 
-		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
+		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
 			relModDir := *getModDir
 			modDir, err := filepath.Abs(relModDir)
 			if err != nil {
@@ -167,7 +167,7 @@ func main() {
 		}
 
 		target := listFlags.Arg(0)
-		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
+		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
 			modDir, err := filepath.Abs(*listModDir)
 			if err != nil {
 				return errors.Wrap(err, "abs")
@@ -201,7 +201,7 @@ func main() {
 			return nil
 		}
 	case "Version":
-		cmdFunc = func(ctx context.Context, r *gomodcmd.Runner) error {
+		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
 			_, err := fmt.Fprintln(os.Stdout, version.Version)
 			return err
 		}
@@ -216,7 +216,7 @@ func main() {
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		g.Add(func() error {
-			r, err := gomodcmd.NewRunner(ctx, logger, *insecure, *goCmd)
+			r, err := runner.NewRunner(ctx, logger, *getInsecure, *goCmd)
 			if err != nil {
 				return err
 			}

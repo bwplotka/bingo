@@ -16,15 +16,15 @@ import (
 	"time"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
-	"github.com/bwplotka/bingo/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/pkg/errors"
 )
 
 type getConfig struct {
-	runner    *gomodcmd.Runner
+	runner    *runner.Runner
 	modDir    string
 	relModDir string
-	update    gomodcmd.GetUpdatePolicy
+	update    runner.GetUpdatePolicy
 	name      string
 
 	// target name or target package path, optionally with Version(s).
@@ -190,7 +190,7 @@ func getOne(
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
-	if version != "" || emptyModFile || c.update != gomodcmd.NoUpdatePolicy {
+	if version != "" || emptyModFile || c.update != runner.NoUpdatePolicy {
 		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if version != "" {
@@ -314,7 +314,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	)
 }
 
-func createTmpModFileFromExisting(ctx context.Context, r *gomodcmd.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
+func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
 	if err := os.RemoveAll(tmpModFile); err != nil {
 		return false, errors.Wrap(err, "rm")
 	}

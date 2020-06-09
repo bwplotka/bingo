@@ -564,6 +564,8 @@ func (g *goEnv) TmpDir() string {
 
 func (g *goEnv) syntheticEnv() []string {
 	return []string{
+		// Make sure we don't require clang to build etc.
+		fmt.Sprintf("CGO_ENABLED=0"),
 		fmt.Sprintf("PATH=%s:%s:%s", g.goroot, g.tmpDir, g.gobin),
 		fmt.Sprintf("GO=%s", filepath.Join(g.goroot, "go")),
 		fmt.Sprintf("GOBIN=%s", g.gobin),
