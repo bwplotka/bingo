@@ -16,15 +16,15 @@ import (
 	"time"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
-	"github.com/bwplotka/bingo/pkg/gomodcmd"
+	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/pkg/errors"
 )
 
 type getConfig struct {
-	runner    *gomodcmd.Runner
+	runner    *runner.Runner
 	modDir    string
 	relModDir string
-	update    gomodcmd.GetUpdatePolicy
+	update    runner.GetUpdatePolicy
 	name      string
 
 	// target name or target package path, optionally with Version(s).
@@ -41,13 +41,22 @@ func get(
 		if c.name != "" {
 			return errors.New("name cannot by specified if no target was given")
 		}
-		modFiles, err := bingoModFiles(c.modDir)
+
+		pkgs, err := bingo.ListPinnedMainPackages(logger, c.relModDir, false)
 		if err != nil {
 			return err
 		}
-		for _, m := range modFiles {
+		for _, p := range pkgs {
 			mc := c
-			mc.rawTarget, _ = bingo.NameFromModFile(m)
+			mc.rawTarget = p.Name
+			if len(p.Versions) > 1 {
+				// Compose array target. Order of versions matter.
+				var versions []string
+				for _, v := range p.Versions {
+					versions = append(versions, v.Version)
+				}
+				mc.rawTarget += "@" + strings.Join(versions, ",")
+			}
 			if err := get(ctx, logger, mc); err != nil {
 				return err
 			}
@@ -63,15 +72,17 @@ func get(
 	}
 
 	if len(modVersions) > 1 {
+		dup := map[string]struct{}{}
 		for _, v := range modVersions {
+			if _, ok := dup[v]; ok {
+				return errors.Errorf("version duplicates are not allowed, got: %v", modVersions)
+			}
+			dup[v] = struct{}{}
+
 			if v == "none" {
 				return errors.Errorf("none is not allowed when there are more than one specified Version, got: %v", modVersions)
 			}
 		}
-	}
-
-	if len(modVersions) == 0 {
-		modVersions = append(modVersions, "")
 	}
 
 	pkgPath := nameOrPackage
@@ -90,13 +101,18 @@ func get(
 	} else {
 		// Binary referenced by path, get default name from package path.
 		name = path.Base(pkgPath)
+
+		if c.name == "" && name == "cmd" {
+			return errors.Errorf("package %s would be installed with ambiguous name %s. This is a common, but slightly annoying package layout. "+
+				"It's advised to choose unique name with -n flag", pkgPath, name)
+		}
 	}
 
 	if c.name != "" {
 		name = c.name
 	}
 
-	if name == strings.TrimSuffix(fakeRootModFileName, ".mod") {
+	if name == strings.TrimSuffix(bingo.FakeRootModFileName, ".mod") {
 		return errors.New("requested binary with name `go`. This is impossible, choose different name using -name flag.")
 	}
 
@@ -106,7 +122,13 @@ func get(
 	}
 	binModFiles = append([]string{filepath.Join(c.modDir, name+".mod")}, binModFiles...)
 
-	if modVersions[0] == "none" {
+	if len(modVersions) == 0 {
+		// No version was specified. This means user want to install what was pinned before. By specifying empty string,
+		// go get with figure out the version from existing module file under this index.
+		for range binModFiles {
+			modVersions = append(modVersions, "")
+		}
+	} else if modVersions[0] == "none" {
 		// none means we no longer want to Version this package.
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
@@ -168,7 +190,7 @@ func getOne(
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
-	if version != "" || emptyModFile || c.update != gomodcmd.NoUpdatePolicy {
+	if version != "" || emptyModFile || c.update != runner.NoUpdatePolicy {
 		// Steps 1 & 2: Resolve and download (if needed) thanks to 'go get' on our separate .mod file.
 		targetWithVer := pkgPath
 		if version != "" {
@@ -269,7 +291,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	// Ref: https://golang.org/doc/go1.14#go-flags
 	// TODO(bwplotka): Remove it: https://github.com/bwplotka/bingo/issues/20
 	if err := ioutil.WriteFile(
-		filepath.Join(relModDir, fakeRootModFileName),
+		filepath.Join(relModDir, bingo.FakeRootModFileName),
 		[]byte("module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files."),
 		os.ModePerm,
 	); err != nil {
@@ -292,7 +314,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	)
 }
 
-func createTmpModFileFromExisting(ctx context.Context, r *gomodcmd.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
+func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
 	if err := os.RemoveAll(tmpModFile); err != nil {
 		return false, errors.Wrap(err, "rm")
 	}

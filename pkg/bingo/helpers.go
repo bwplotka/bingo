@@ -4,11 +4,9 @@
 package bingo
 
 import (
-	"fmt"
-	"html/template"
 	"os"
 	"path/filepath"
-	"strings"
+	"text/template"
 
 	"github.com/pkg/errors"
 )
@@ -21,92 +19,38 @@ func RemoveHelpers(modDir string) error {
 	return os.RemoveAll(filepath.Join(modDir, EnvBinVarsName))
 }
 
-type binaryVersion struct {
-	BinName string
-	ModFile string
-}
-
-type binary struct {
-	Name        string
-	VarName     string
-	PackagePath string
-	Versions    []binaryVersion
-}
-
-type templateData struct {
-	Version   string
-	GobinPath string
-	Binaries  []binary
-	RelModDir string
-}
-
 // GenHelpers generates helpers to allows reliable binaries use. Regenerate if needed.
 // It is expected to have at least one mod file.
-func GenHelpers(relModDir, version string, modFiles ...string) error {
-	// TODO(bwplotka): Print fmt.Sprintf("include %s\n", relMakefileBinVarsFile)
-	if err := genHelper(MakefileBinVarsName, makefileBinVarsTmpl, relModDir, version, modFiles...); err != nil {
+func GenHelpers(relModDir, version string, pkgs []MainPackage) error {
+	if err := genHelper(MakefileBinVarsName, makefileBinVarsTmpl, relModDir, version, pkgs); err != nil {
 		return errors.Wrap(err, MakefileBinVarsName)
 	}
-	if err := genHelper(EnvBinVarsName, envBinVarsTmpl, relModDir, version, modFiles...); err != nil {
+	if err := genHelper(EnvBinVarsName, envBinVarsTmpl, relModDir, version, pkgs); err != nil {
 		return errors.Wrap(err, EnvBinVarsName)
 	}
 	return nil
 }
 
-func genHelper(f, tmpl, relModDir, version string, modFiles ...string) error {
-	file := filepath.Join(relModDir, f)
-	if len(modFiles) == 0 {
-		return errors.New("no mod files")
-	}
+type templateData struct {
+	Version      string
+	GobinPath    string
+	MainPackages []MainPackage
+	RelModDir    string
+}
 
+func genHelper(f, tmpl, relModDir, version string, pkgs []MainPackage) error {
 	t, err := template.New(f).Parse(tmpl)
 	if err != nil {
 		return errors.Wrap(err, "parse template")
 	}
 
 	data := templateData{
-		Version:   version,
-		RelModDir: relModDir,
+		Version:      version,
+		RelModDir:    relModDir,
+		MainPackages: pkgs,
 	}
 
-ModLoop:
-	for _, m := range modFiles {
-		pkg, version, err := ModDirectPackage(m, nil)
-		if err != nil {
-			return err
-		}
-		name, _ := NameFromModFile(m)
-		varName := strings.ReplaceAll(
-			strings.ReplaceAll(
-				strings.ToUpper(name),
-				".", "_",
-			),
-			"-", "_",
-		)
-		for i, b := range data.Binaries {
-			if b.Name == name {
-				data.Binaries[i].VarName = varName + "_ARRAY"
-				data.Binaries[i].Versions = append(data.Binaries[i].Versions, binaryVersion{
-					BinName: fmt.Sprintf("%s-%s", name, version),
-					ModFile: filepath.Base(m),
-				})
-				continue ModLoop
-			}
-		}
-		data.Binaries = append(data.Binaries, binary{
-			Name: name,
-			Versions: []binaryVersion{
-				{
-					BinName: fmt.Sprintf("%s-%s", name, version),
-					ModFile: filepath.Base(m),
-				},
-			},
-			VarName:     varName,
-			PackagePath: pkg,
-		})
-	}
-
-	fb, err := os.Create(file)
+	fb, err := os.Create(filepath.Join(relModDir, f))
 	if err != nil {
 		return errors.Wrap(err, "create")
 	}

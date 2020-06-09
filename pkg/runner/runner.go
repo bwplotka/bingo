@@ -1,7 +1,7 @@
 // Copyright (c) Bartłomiej Płotka @bwplotka
 // Licensed under the Apache License 2.0.
 
-package gomodcmd
+package runner
 
 import (
 	"bytes"
@@ -113,7 +113,7 @@ type runnable struct {
 	dir     string
 }
 
-// With returns runnable that will be ran against give modFile (if any) and in given directory (if any).
+// With returns runner that will be ran against give modFile (if any) and in given directory (if any).
 func (r *Runner) With(ctx context.Context, modFile string, dir string) Runnable {
 	ru := &runnable{
 		r:       r,

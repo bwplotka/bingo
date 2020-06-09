@@ -43,139 +43,218 @@ func TestGet(t *testing.T) {
 				p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), isGoProject)
 				p.assertNotChanged(t)
 
-				testutil.Assert(t, !g.binaryExists("faillint-v1.3.0"), "binary exists")
-				testutil.Assert(t, !g.binaryExists("faillint-v1.4.0"), "binary exists")
-				testutil.Assert(t, !g.binaryExists("faillint-v1.5.0"), "binary exists")
+				for _, tcase := range []struct {
+					name string
+					do   func(t *testing.T)
 
-				testutil.Assert(t, !g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary exists")
-				testutil.Assert(t, !g.binaryExists("goimports-v0.0.0-20200521211927-2b542361a4fc"), "binary exists")
+					existingBinaries []string
+				}{
+					{
+						name: "Get faillint v1.4.0 and pin for our module; clean module",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/fatih/faillint@v1.4.0"))
+							testutil.Equals(t, "Name\t\tBinary Name\t\tPackage @ Version\t\n----\t\t-----------\t\t-----------------\t\nfaillint\tfaillint-v1.4.0\tgithub.com/fatih/faillint@v1.4.0", g.ExecOutput(t, p.root, goBinPath, "list", "faillint"))
+							testutil.Equals(t, g.ExecOutput(t, p.root, goBinPath, "list", "faillint"), g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0"},
+					},
+					{
+						name: "Get goimports from commit",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
+							testutil.Equals(t, "Name\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\n----\t\t-----------\t\t\t\t\t\t\t-----------------\t\t\t\t\nfaillint\tfaillint-v1.4.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.4.0\t\ngoimports\tgoimports-v0.0.0-20200521211927-2b542361a4fc\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200521211927-2b542361a4fc", g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0", "goimports-v0.0.0-20200521211927-2b542361a4fc"},
+					},
+					{
+						name: "Get goimports from same commit should be noop",
+						do: func(t *testing.T) {
+							// TODO(bwplotka): Assert if actually noop.
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0", "goimports-v0.0.0-20200521211927-2b542361a4fc"},
+					},
+					{
+						name: "Update goimports by path",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@cb1345f3a375367f8439bba882e90348348288d9"))
+							testutil.Equals(t, "Name\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\n----\t\t-----------\t\t\t\t\t\t\t-----------------\t\t\t\t\nfaillint\tfaillint-v1.4.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.4.0\t\ngoimports\tgoimports-v0.0.0-20200522201501-cb1345f3a375\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375", g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375"},
+					},
+					{
+						name: "Update faillint by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.5.0"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0", "faillint-v1.5.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375"},
+					},
+					{
+						name: "Downgrade faillint by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.3.0"))
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375"},
+					},
+					{
+						name: "Get another goimports from commit, name it goimports2",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=goimports2", "golang.org/x/tools/cmd/goimports@7d3b6ebf133df879df3e448a8625b7029daa8954"))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200515010526-7d3b6ebf133d\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200515010526-7d3b6ebf133d", g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d"},
+					},
+					{
+						name: "Upgrade goimports2 from commit",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@7521f6f4253398df2cb300c64dd7fba383ccdfa6"))
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+					},
+					{
+						name: "Get go bindata (non Go Module project).",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/go-bindata/go-bindata/go-bindata@v3.1.1"))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533", g.ExecOutput(t, p.root, goBinPath, "list"))
 
-				testutil.Assert(t, !g.binaryExists("goimports2-v0.0.0-20200522201501-cb1345f3a375"), "binary exists")
-				testutil.Assert(t, !g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary exists")
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+					},
+					{
+						name: "Installing package with `cmd` name fails - different name is suggested.",
+						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+					},
+					{
+						name: "Get array versions of 3 versions of promu, some non Go Module supported",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/prometheus/promu@v0.3.0,v0.5.0,v0.2.0"))
+							testutil.Equals(t, "Name\t\tBinary Name\tPackage @ Version\t\t\t\t\n----\t\t-----------\t-----------------\t\t\t\t\npromu\tpromu-v0.3.0\tgithub.com/prometheus/promu@v0.3.0\t\npromu\tpromu-v0.5.0\tgithub.com/prometheus/promu@v0.5.0\t\npromu\tpromu-v0.2.0\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list", "promu"))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\t\npromu\t\tpromu-v0.3.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.3.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.5.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.5.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.2.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list"))
 
-				t.Run("Get faillint v1.4.0 and pin for our module; clean module", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
+						},
+						existingBinaries: []string{"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Get array of 4 versions of faillint under f2 name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n", "f2", "github.com/fatih/faillint@v1.5.0,v1.1.0,v1.2.0,v1.0.0"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Install package with go name should fail.",
+						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "github.com/something/go"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "<Special> Persist current state, to use for compatibility testing. ",
+						do: func(t *testing.T) {
+							if isGoProject {
+								return
+							}
+							// Generate current Version test case for further tests. This should be committed as well if changed.
+							testutil.Ok(t, os.RemoveAll(currTestCaseDir))
+							testutil.Ok(t, os.MkdirAll(filepath.Join(currTestCaseDir, ".bingo"), os.ModePerm))
+							_, err := execCmd("", nil, "cp", "-r", filepath.Join(p.root, ".bingo"), currTestCaseDir)
+							testutil.Ok(t, err)
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Get array of 2 versions of normal faillint, despite being non array before, should work",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.1.0,v1.0.0"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Updating f2 to different version should work",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@v1.3.0,v1.4.0"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Updating f2 to same multiple versions should fail",
+						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "f2@v1.1.0,v1.4.0,v1.1.0"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Updating f2 to multiple versions with none should fail",
+						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "f2@v1.4.0,v1.1.0,none"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Updating f2 to non array version should work",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@v1.1.0"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					// TODO(bwplotka): Test Rename, different paths, empty paths, gopath
+					{
+						name: "Remove goimports2 by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.1.0\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.1.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.0.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\npromu\t\tpromu-v0.3.0\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.3.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.5.0\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.5.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.2.0\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Remove goimports by path",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@none"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Remove faillint by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Remove f2 by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@none"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Remove promu by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "promu@none"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+					{
+						name: "Remove go-bindata by name",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
+							testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\t\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
+						},
+						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"},
+					},
+				} {
+					if ok := t.Run(tcase.name, func(t *testing.T) {
+						defer p.assertNotChanged(t, defaultModDir)
 
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/fatih/faillint@v1.4.0"))
-					testutil.Equals(t, "faillint<faillint-v1.4.0>: github.com/fatih/faillint@v1.4.0\n", g.ExecOutput(t, p.root, goBinPath, "list", "faillint"))
-					testutil.Equals(t, "faillint<faillint-v1.4.0>: github.com/fatih/faillint@v1.4.0\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.4.0"), "binary does not exists")
-				})
-				t.Run("Get goimports from commit", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
-					testutil.Equals(t, "goimports<goimports-v0.0.0-20200521211927-2b542361a4fc>: golang.org/x/tools/cmd/goimports@v0.0.0-20200521211927-2b542361a4fc\n", g.ExecOutput(t, p.root, goBinPath, "list", "goimports"))
-					testutil.Equals(t, "faillint<faillint-v1.4.0>: github.com/fatih/faillint@v1.4.0\ngoimports<goimports-v0.0.0-20200521211927-2b542361a4fc>: golang.org/x/tools/cmd/goimports@v0.0.0-20200521211927-2b542361a4fc\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.4.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200521211927-2b542361a4fc"), "binary does not exists")
-
-				})
-				t.Run("Get goimports from same commit should be noop", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					// TODO(bwplotka): Assert if actually noop.
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
-					testutil.Equals(t, "faillint<faillint-v1.4.0>: github.com/fatih/faillint@v1.4.0\ngoimports<goimports-v0.0.0-20200521211927-2b542361a4fc>: golang.org/x/tools/cmd/goimports@v0.0.0-20200521211927-2b542361a4fc\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.4.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200521211927-2b542361a4fc"), "binary does not exists")
-				})
-				t.Run("Update goimports by path", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@cb1345f3a375367f8439bba882e90348348288d9"))
-					testutil.Equals(t, "faillint<faillint-v1.4.0>: github.com/fatih/faillint@v1.4.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.4.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-				})
-				t.Run("Update faillint by name", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.5.0"))
-					testutil.Equals(t, "faillint<faillint-v1.5.0>: github.com/fatih/faillint@v1.5.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.5.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-				})
-				t.Run("Downgrade faillint by name", func(t *testing.T) {
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.3.0"))
-					testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-				})
-				t.Run("Get another goimports from commit, name it goimports2", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=goimports2", "golang.org/x/tools/cmd/goimports@7d3b6ebf133df879df3e448a8625b7029daa8954"))
-					testutil.Equals(t, "goimports2<goimports2-v0.0.0-20200515010526-7d3b6ebf133d>: golang.org/x/tools/cmd/goimports@v0.0.0-20200515010526-7d3b6ebf133d\n", g.ExecOutput(t, p.root, goBinPath, "list", "goimports2"))
-					testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\ngoimports2<goimports2-v0.0.0-20200515010526-7d3b6ebf133d>: golang.org/x/tools/cmd/goimports@v0.0.0-20200515010526-7d3b6ebf133d\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200515010526-7d3b6ebf133d"), "binary does not exists")
-				})
-				t.Run("Upgrade goimports2 from commit", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@7521f6f4253398df2cb300c64dd7fba383ccdfa6"))
-					testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\ngoimports2<goimports2-v0.0.0-20200519175826-7521f6f42533>: golang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
-				})
-				t.Run("Install package with go name should fail.", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "github.com/something/go"))
-				})
-
-				if !isGoProject {
-					// Generate current Version test case for further tests. This should be committed as well if changed.
-					testutil.Ok(t, os.RemoveAll(currTestCaseDir))
-					testutil.Ok(t, os.MkdirAll(filepath.Join(currTestCaseDir, ".bingo"), os.ModePerm))
-					_, err := execCmd("", nil, "cp", "-r", filepath.Join(p.root, ".bingo"), currTestCaseDir)
-					testutil.Ok(t, err)
+						tcase.do(t)
+						testutil.Equals(t, tcase.existingBinaries, g.existingBinaries(t))
+					}); !ok {
+						return
+					}
 				}
-
-				t.Run("Remove goimports2 by name", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
-					testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					// We don't remove binaries.
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
-				})
-				t.Run("Remove goimports by path", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@none"))
-					testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\n", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					// We don't remove binaries.
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
-				})
-				t.Run("Remove faillint by name", func(t *testing.T) {
-					defer p.assertNotChanged(t, defaultModDir)
-
-					fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
-					testutil.Equals(t, "", g.ExecOutput(t, p.root, goBinPath, "list"))
-
-					// We don't remove binaries.
-					testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-					testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
-				})
 			})
 		}
 	})
@@ -186,7 +265,7 @@ func TestGet(t *testing.T) {
 			t.Run(dir, func(t *testing.T) {
 				for _, isGoProject := range []bool{false, true} {
 					t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
-						t.Run("Via bingo", func(t *testing.T) {
+						t.Run("Via bingo get all", func(t *testing.T) {
 							g := newTmpGoEnv(t)
 							defer g.Close(t)
 
@@ -198,20 +277,42 @@ func TestGet(t *testing.T) {
 							p := newTestProject(t, dir, filepath.Join(g.tmpDir, "testproject1"), isGoProject)
 							p.assertNotChanged(t, defaultModDir)
 
-							testutil.Assert(t, !g.binaryExists("faillint-v1.3.0"), "binary exists")
-							testutil.Assert(t, !g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary exists")
-							testutil.Assert(t, !g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary exists")
-							testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\ngoimports2<goimports2-v0.0.0-20200519175826-7521f6f42533>: golang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\n", g.ExecOutput(t, p.root, goBinPath, "list"))
+							testutil.Equals(t, []string{}, g.existingBinaries(t))
 
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.5.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.5.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.1.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.2.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.2.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.0.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\t\npromu\t\tpromu-v0.3.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.3.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.5.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.5.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.2.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list"))
 							defer p.assertNotChanged(t, defaultModDir)
 
 							// Get all binaries by doing 'bingo get'.
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get"))
+							testutil.Equals(t, []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"}, g.existingBinaries(t))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.5.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.5.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.1.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.2.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.2.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.0.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\t\npromu\t\tpromu-v0.3.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.3.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.5.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.5.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.2.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list"))
 
-							testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-							testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-							testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
-							testutil.Equals(t, "faillint<faillint-v1.3.0>: github.com/fatih/faillint@v1.3.0\ngoimports<goimports-v0.0.0-20200522201501-cb1345f3a375>: golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\ngoimports2<goimports2-v0.0.0-20200519175826-7521f6f42533>: golang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\n", g.ExecOutput(t, p.root, goBinPath, "list"))
+						})
+						t.Run("Via bingo get one by one", func(t *testing.T) {
+							g := newTmpGoEnv(t)
+							defer g.Close(t)
+
+							// We manually build bingo binary to make sure GOCACHE will not hit us.
+							goBinPath := filepath.Join(g.tmpDir, bingoBin)
+							buildInitialGobin(t, goBinPath)
+
+							// Copy testproject at the beginning to temp dir.
+							p := newTestProject(t, dir, filepath.Join(g.tmpDir, "testproject1"), isGoProject)
+							p.assertNotChanged(t, defaultModDir)
+
+							testutil.Equals(t, []string{}, g.existingBinaries(t))
+							defer p.assertNotChanged(t, defaultModDir)
+
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint"))
+							testutil.Equals(t, []string{"faillint-v1.3.0"}, g.existingBinaries(t))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports"))
+							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375"}, g.existingBinaries(t))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2"))
+							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+							// Get array version with one go.
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "promu"))
+							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533", "promu-v0.2.0", "promu-v0.3.0", "promu-v0.5.0"}, g.existingBinaries(t))
+							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.5.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.5.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.1.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.2.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.2.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.0.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533\t\npromu\t\tpromu-v0.3.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.3.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.5.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.5.0\t\t\t\t\t\t\t\t\npromu\t\tpromu-v0.2.0\t\t\t\t\t\t\t\tgithub.com/prometheus/promu@v0.2.0", g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
 						t.Run("Via go", func(t *testing.T) {
 							g := newTmpGoEnv(t)
@@ -222,31 +323,28 @@ func TestGet(t *testing.T) {
 							p := newTestProject(t, dir, filepath.Join(g.tmpDir, "testproject2"), isGoProject)
 							p.assertNotChanged(t, defaultModDir)
 
-							testutil.Assert(t, !g.binaryExists("faillint-v1.3.0"), "binary exists")
-							testutil.Assert(t, !g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary exists")
-							testutil.Assert(t, !g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary exists")
-
-							// Get all binaries by doing native go build.
+							testutil.Equals(t, []string{}, g.existingBinaries(t))
 							defer p.assertNotChanged(t, defaultModDir)
 
+							// Get all binaries by doing native go build.
 							if isGoProject {
+								// This should work without cd even.
 								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
 								testutil.Ok(t, err)
 								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 								testutil.Ok(t, err)
 								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
 								testutil.Ok(t, err)
+							} else {
+								// For no go projects we have this "bug" that requires go.mod to be present.
+								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports.mod", "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
+								testutil.Ok(t, err)
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod", "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
+								testutil.Ok(t, err)
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports2.mod", "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
+								testutil.Ok(t, err)
 							}
-							_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports.mod", "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
-							testutil.Ok(t, err)
-							_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod", "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
-							testutil.Ok(t, err)
-							_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports2.mod", "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
-							testutil.Ok(t, err)
-
-							testutil.Assert(t, g.binaryExists("faillint-v1.3.0"), "binary does not exists")
-							testutil.Assert(t, g.binaryExists("goimports-v0.0.0-20200522201501-cb1345f3a375"), "binary does not exists")
-							testutil.Assert(t, g.binaryExists("goimports2-v0.0.0-20200519175826-7521f6f42533"), "binary does not exists")
+							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
 						})
 						// TODO(bwplotka): Test variables.env as well.
 						t.Run("Makefile", func(t *testing.T) {
@@ -265,6 +363,7 @@ func TestGet(t *testing.T) {
 							p := newTestProject(t, dir, prjRoot, isGoProject)
 							p.assertNotChanged(t, defaultModDir)
 
+							testutil.Equals(t, []string{}, g.existingBinaries(t))
 							testutil.Equals(t, "(re)installing "+g.gobin+"/faillint-v1.3.0\ngo: downloading github.com/fatih/faillint v1.3.0\ngo: downloading golang.org/x/tools v0.0.0-20200207224406-61798d64f025\nchecking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 							testutil.Equals(t, "(re)installing "+g.gobin+"/goimports-v0.0.0-20200522201501-cb1345f3a375\ngo: downloading golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375\ngo: downloading golang.org/x/mod v0.2.0\ngo: downloading golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543\nchecking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
 							testutil.Equals(t, "(re)installing "+g.gobin+"/goimports2-v0.0.0-20200519175826-7521f6f42533\ngo: downloading golang.org/x/tools v0.0.0-20200519175826-7521f6f42533\nchecking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
@@ -273,19 +372,27 @@ func TestGet(t *testing.T) {
 							testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
 							testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
 
+							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
 							t.Run("Delete binary file, expect reinstall", func(t *testing.T) {
 								_, err := execCmd(g.gobin, nil, "rm", "faillint-v1.3.0")
 								testutil.Ok(t, err)
+								testutil.Equals(t, []string{"goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
 
 								testutil.Equals(t, "(re)installing "+g.gobin+"/faillint-v1.3.0\nchecking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 								testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 								testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
 								testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
+								testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
 							})
 							t.Run("Delete makefile", func(t *testing.T) {
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "promu@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
+
+								testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\t\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
 
 								_, err := os.Stat(filepath.Join(p.root, ".bingo", "Variables.mk"))
 								testutil.NotOk(t, err)
@@ -457,6 +564,8 @@ func (g *goEnv) TmpDir() string {
 
 func (g *goEnv) syntheticEnv() []string {
 	return []string{
+		// Make sure we don't require clang to build etc.
+		fmt.Sprintf("CGO_ENABLED=0"),
 		fmt.Sprintf("PATH=%s:%s:%s", g.goroot, g.tmpDir, g.gobin),
 		fmt.Sprintf("GO=%s", filepath.Join(g.goroot, "go")),
 		fmt.Sprintf("GOBIN=%s", g.gobin),
@@ -476,9 +585,21 @@ func (g *goEnv) ExectErr(dir string, command string, args ...string) error {
 	return err
 }
 
-func (g *goEnv) binaryExists(bin string) bool {
-	_, err := os.Stat(filepath.Join(g.gobin, bin))
-	return err == nil
+func (g *goEnv) existingBinaries(t *testing.T) []string {
+	var filenames []string
+	files, err := ioutil.ReadDir(g.gobin)
+	if os.IsNotExist(err) {
+		return []string{}
+	}
+	testutil.Ok(t, err)
+
+	for _, f := range files {
+		if f.IsDir() {
+			t.Fatal("Did not expect directory in gobin", g.gobin)
+		}
+		filenames = append(filenames, f.Name())
+	}
+	return filenames
 }
 
 func (g *goEnv) Close(t testing.TB) {
