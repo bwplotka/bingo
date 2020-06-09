@@ -16,6 +16,8 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 * [#25](https://github.com/bwplotka/bingo/issues/25) Fixed support of `bingo get` for arrays.
 * Fixed versioning binaries with `+incompatible` version (wrong templating used).
 * Fixed support `bingo list` for arrays.
+* Added rename / clone logic
+* Always print to stdout no matter of verbose level.
 
 ### Changed
 

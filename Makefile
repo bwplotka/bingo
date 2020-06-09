@@ -102,3 +102,8 @@ lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format docs check-gi
 	@echo ">> ensuring Copyright headers"
 	@$(COPYRIGHT)
 	$(call require_clean_work_tree,"detected white noise or/and files without copyright; run 'make lint' file and commit changes.")
+
+.PHONY: run-go-mod-cache
+run-go-mod-cache: $(ATHENS_PROXY)
+	@echo ">> starting athens on address :3000"
+	@$(ATHENS_PROXY)

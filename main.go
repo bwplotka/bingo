@@ -44,7 +44,10 @@ func main() {
 		" does not exist bingo logs and assumes a fresh project.")
 	getName := getFlags.String("n", "", "The -n flag instructs to get binary and name it with given name instead of default,"+
 		" so the last element of package directory. Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified,"+
-		" bingo get will return error. If -n is used with existing binary name, rename will be done.")
+		" bingo get will return error. If -n is used with existing binary name, copy of this binary will be done. Cannot be used with -r")
+	getRename := getFlags.String("r", "", "The -r flag instructs to get existing binary and rename it with given name."+
+		" Allowed characters [A-z0-9._-]. If -r is used and no package/binary is specified or non existing binary name is used, bingo"+
+		" will return error. Cannot be used with -n.")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	getUpdate := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	getUpdatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
@@ -115,8 +118,14 @@ func main() {
 		}
 
 		target := getFlags.Arg(0)
+		if *getRename != "" && *getName != "" {
+			exitOnUsageError(flags.Usage, "Both -n and -r were specified. You can either rename or create new one.")
+		}
 		if *getName != "" && !regexp.MustCompile(`[a-zA-Z0-9.-_]+`).MatchString(*getName) {
 			exitOnUsageError(flags.Usage, *getName, "-n name contains not allowed characters")
+		}
+		if *getRename != "" && !regexp.MustCompile(`[a-zA-Z0-9.-_]+`).MatchString(*getRename) {
+			exitOnUsageError(flags.Usage, *getRename, "-r name contains not allowed characters")
 		}
 
 		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
@@ -134,6 +143,7 @@ func main() {
 				relModDir: relModDir,
 				update:    upPolicy,
 				name:      *getName,
+				rename:    *getRename,
 				rawTarget: target,
 			}); err != nil {
 				return err
@@ -216,7 +226,7 @@ func main() {
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		g.Add(func() error {
-			r, err := runner.NewRunner(ctx, logger, *getInsecure, *goCmd)
+			r, err := runner.NewRunner(ctx, *getInsecure, *goCmd)
 			if err != nil {
 				return err
 			}
