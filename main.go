@@ -188,7 +188,7 @@ func main() {
 			}
 
 			w := new(tabwriter.Writer)
-			w.Init(os.Stdout, 4, 5, 1, '\t', 0)
+			w.Init(os.Stdout, 4, 4, 1, '\t', 0)
 			defer func() { _ = w.Flush() }()
 
 			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version\t")
