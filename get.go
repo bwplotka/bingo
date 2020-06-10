@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,9 +27,74 @@ type getConfig struct {
 	relModDir string
 	update    runner.GetUpdatePolicy
 	name      string
+	rename    string
 
 	// target name or target package path, optionally with Version(s).
 	rawTarget string
+}
+
+func getAll(
+	ctx context.Context,
+	logger *log.Logger,
+	c getConfig,
+) (err error) {
+	if c.name != "" {
+		return errors.New("name cannot by specified if no target was given")
+	}
+	if c.rename != "" {
+		return errors.New("rename cannot by specified if no target was given")
+	}
+
+	pkgs, err := bingo.ListPinnedMainPackages(logger, c.relModDir, false)
+	if err != nil {
+		return err
+	}
+	for _, p := range pkgs {
+		mc := c
+		mc.rawTarget = p.Name
+		if len(p.Versions) > 1 {
+			// Compose array target. Order of versions matter.
+			var versions []string
+			for _, v := range p.Versions {
+				versions = append(versions, v.Version)
+			}
+			mc.rawTarget += "@" + strings.Join(versions, ",")
+		}
+		if err := get(ctx, logger, mc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
+	s := strings.Split(rawTarget, "@")
+	nameOrPackage := s[0]
+	if len(s) > 1 {
+		versions = strings.Split(s[1], ",")
+	}
+
+	if len(versions) > 1 {
+		// Check for duplicates or/and none.
+		dup := map[string]struct{}{}
+		for _, v := range versions {
+			if _, ok := dup[v]; ok {
+				return "", "", nil, errors.Errorf("version duplicates are not allowed, got: %v", versions)
+			}
+			dup[v] = struct{}{}
+			if v == "none" {
+				return "", "", nil, errors.Errorf("none is not allowed when there are more than one specified Version, got: %v", versions)
+			}
+		}
+	}
+
+	name = nameOrPackage
+	if strings.Contains(nameOrPackage, "/") {
+		// Binary referenced by path, get default name from package path.
+		pkgPath = nameOrPackage
+		name = path.Base(pkgPath)
+	}
+	return name, pkgPath, versions, nil
 }
 
 func get(
@@ -37,113 +103,89 @@ func get(
 	c getConfig,
 ) (err error) {
 	if c.rawTarget == "" {
-		// Empty means all.
-		if c.name != "" {
-			return errors.New("name cannot by specified if no target was given")
-		}
-
-		pkgs, err := bingo.ListPinnedMainPackages(logger, c.relModDir, false)
-		if err != nil {
-			return err
-		}
-		for _, p := range pkgs {
-			mc := c
-			mc.rawTarget = p.Name
-			if len(p.Versions) > 1 {
-				// Compose array target. Order of versions matter.
-				var versions []string
-				for _, v := range p.Versions {
-					versions = append(versions, v.Version)
-				}
-				mc.rawTarget += "@" + strings.Join(versions, ",")
-			}
-			if err := get(ctx, logger, mc); err != nil {
-				return err
-			}
-		}
-		return nil
+		// Empty means get all. It recursively invokes get for each existing binary.
+		return getAll(ctx, logger, c)
+	}
+	name, pkgPath, versions, err := parseTarget(c.rawTarget)
+	if err != nil {
+		return errors.Wrapf(err, "parse %v", c.rawTarget)
 	}
 
-	var modVersions []string
-	s := strings.Split(c.rawTarget, "@")
-	nameOrPackage := s[0]
-	if len(s) > 1 {
-		modVersions = strings.Split(s[1], ",")
-	}
-
-	if len(modVersions) > 1 {
-		dup := map[string]struct{}{}
-		for _, v := range modVersions {
-			if _, ok := dup[v]; ok {
-				return errors.Errorf("version duplicates are not allowed, got: %v", modVersions)
-			}
-			dup[v] = struct{}{}
-
-			if v == "none" {
-				return errors.Errorf("none is not allowed when there are more than one specified Version, got: %v", modVersions)
-			}
-		}
-	}
-
-	pkgPath := nameOrPackage
-	name := nameOrPackage
-	if !strings.Contains(nameOrPackage, "/") {
-		// Binary referenced by name, get full package name if module file exists.
-		pkgPath, err = packagePathFromBinaryName(nameOrPackage, c.modDir)
-		if err != nil {
-			return err
-		}
-
-		if c.name != "" && c.name != name {
-			// Rename requested. Remove old mod(s) in this case, but only at the end.
-			defer func() { _ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
-		}
-	} else {
-		// Binary referenced by path, get default name from package path.
-		name = path.Base(pkgPath)
-
-		if c.name == "" && name == "cmd" {
-			return errors.Errorf("package %s would be installed with ambiguous name %s. This is a common, but slightly annoying package layout. "+
-				"It's advised to choose unique name with -n flag", pkgPath, name)
-		}
-	}
-
-	if c.name != "" {
-		name = c.name
-	}
-
-	if name == strings.TrimSuffix(bingo.FakeRootModFileName, ".mod") {
-		return errors.New("requested binary with name `go`. This is impossible, choose different name using -name flag.")
-	}
-
-	binModFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".*.mod"))
+	existingModFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".mod"))
 	if err != nil {
 		return err
 	}
-	binModFiles = append([]string{filepath.Join(c.modDir, name+".mod")}, binModFiles...)
+	existingModArrFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".*.mod"))
+	if err != nil {
+		return err
+	}
+	existingModFiles = append(existingModFiles, existingModArrFiles...)
+	if pkgPath == "" {
+		// Binary referenced by name, get full package name if module file exists.
 
-	if len(modVersions) == 0 {
-		// No version was specified. This means user want to install what was pinned before. By specifying empty string,
-		// go get with figure out the version from existing module file under this index.
-		for range binModFiles {
-			modVersions = append(modVersions, "")
+		// Get full import path from any existing module file for this name.
+		if len(existingModFiles) == 0 {
+			return errors.Errorf("binary %q was not installed before. Use full package name to install it", name)
 		}
-	} else if modVersions[0] == "none" {
+		pkgPath, _, err = bingo.ModDirectPackage(existingModFiles[0], nil)
+		if err != nil {
+			return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", name, existingModFiles[0])
+		}
+	}
+
+	// Handle new name/rename.
+	targetName := name
+	if c.name != "" {
+		targetName = c.name
+	}
+	if c.rename != "" {
+		targetName = c.rename
+	}
+
+	if targetName == "cmd" {
+		return errors.Errorf("package %s would be installed with ambiguous name %s. This is a common, but slightly annoying package layout"+
+			"It's advised to choose unique name with -n flag", pkgPath, targetName)
+	}
+	if targetName == strings.TrimSuffix(bingo.FakeRootModFileName, ".mod") {
+		return errors.Errorf("requested binary with name %q`. This is impossible, choose different name using -n flag", strings.TrimSuffix(bingo.FakeRootModFileName, ".mod"))
+	}
+
+	if len(versions) == 0 {
+		for _, f := range existingModFiles {
+			_, version, err := bingo.ModDirectPackage(f, nil)
+			if err != nil {
+				return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", name, existingModFiles[0])
+			}
+			versions = append(versions, version)
+		}
+	} else if versions[0] == "none" {
 		// none means we no longer want to Version this package.
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
 
-	for i, v := range modVersions {
-		if err := getOne(ctx, logger, c, i, v, pkgPath, name); err != nil {
-			return errors.Wrapf(err, "%d: getting %s", i, v)
+	for i, version := range versions {
+		if err := getOne(ctx, logger, c, i, pkgPath, targetName, version); err != nil {
+			return errors.Wrapf(err, "%d: getting %s", i, version)
 		}
 	}
 
-	// Remove unused mod files.
-	for i := len(binModFiles); i > 0 && i > len(modVersions); i-- {
-		if err := os.RemoveAll(filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i-1))); err != nil {
-			return err
+	if c.rename != "" && targetName != name {
+		// Rename requested. Remove old mod(s) in this case, but only at the end.
+		defer func() { _ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
+	}
+
+	// Remove target unused arr mod files.
+	existingTargetModArrFiles, err := filepath.Glob(filepath.Join(c.modDir, targetName+".*.mod"))
+	if err != nil {
+		return err
+	}
+	for _, f := range existingTargetModArrFiles {
+		i, err := strconv.ParseInt(strings.Split(filepath.Base(f), ".")[1], 10, 64)
+		if err != nil || int(i) >= len(versions) {
+			if err := os.RemoveAll(f); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -162,9 +204,9 @@ func getOne(
 	logger *log.Logger,
 	c getConfig,
 	i int,
-	version string,
 	pkgPath string,
 	name string,
+	version string,
 ) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
@@ -224,24 +266,6 @@ func getOne(
 	}
 	// Step 3: Build and install.
 	return c.runner.With(ctx, outModFile, c.modDir).Build(pkgPath, fmt.Sprintf("%s-%s", name, version))
-}
-
-func packagePathFromBinaryName(binary string, modDir string) (string, error) {
-	currModFile := filepath.Join(modDir, binary+".mod")
-
-	// Get full import path from module file which has module and encoded sub path.
-	if _, err := os.Stat(currModFile); err != nil {
-		if os.IsNotExist(err) {
-			return "", errors.Errorf("binary %q was not installed before. Use full package name to install it", binary)
-		}
-		return "", err
-	}
-
-	m, _, err := bingo.ModDirectPackage(currModFile, nil)
-	if err != nil {
-		return "", errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", binary, currModFile)
-	}
-	return m, nil
 }
 
 const modREADMEFmt = `# Project Development Dependencies.

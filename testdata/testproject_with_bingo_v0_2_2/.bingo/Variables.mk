@@ -52,13 +52,3 @@ $(GOIMPORTS2): .bingo/goimports2.mod
 	@echo "(re)installing $(GOBIN)/goimports2-v0.0.0-20200519175826-7521f6f42533"
 	@cd .bingo && $(GO) build -modfile=goimports2.mod -o=$(GOBIN)/goimports2-v0.0.0-20200519175826-7521f6f42533 "golang.org/x/tools/cmd/goimports"
 
-PROMU_ARRAY := $(GOBIN)/promu-v0.3.0 $(GOBIN)/promu-v0.5.0 $(GOBIN)/promu-v0.2.0
-$(PROMU_ARRAY): .bingo/promu.mod .bingo/promu.1.mod .bingo/promu.2.mod
-	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/promu-v0.3.0"
-	@cd .bingo && $(GO) build -modfile=promu.mod -o=$(GOBIN)/promu-v0.3.0 "github.com/prometheus/promu"
-	@echo "(re)installing $(GOBIN)/promu-v0.5.0"
-	@cd .bingo && $(GO) build -modfile=promu.1.mod -o=$(GOBIN)/promu-v0.5.0 "github.com/prometheus/promu"
-	@echo "(re)installing $(GOBIN)/promu-v0.2.0"
-	@cd .bingo && $(GO) build -modfile=promu.2.mod -o=$(GOBIN)/promu-v0.2.0 "github.com/prometheus/promu"
-
