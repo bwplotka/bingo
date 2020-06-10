@@ -6,22 +6,16 @@ GO     ?= $(shell which go)
 
 # Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
-# For example for athens-proxy variable:
+# For example for copyright variable:
 #
 # In your main Makefile (for non array binaries):
 #
 #include .bingo/Variables.mk # Assuming -dir was set to .bingo .
 #
-#command: $(ATHENS_PROXY)
-#	@echo "Running athens-proxy"
-#	@$(ATHENS_PROXY) <flags/args..>
+#command: $(COPYRIGHT)
+#	@echo "Running copyright"
+#	@$(COPYRIGHT) <flags/args..>
 #
-ATHENS_PROXY := $(GOBIN)/athens-proxy-v0.9.0
-$(ATHENS_PROXY): .bingo/athens-proxy.mod
-	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/athens-proxy-v0.9.0"
-	@cd .bingo && $(GO) build -modfile=athens-proxy.mod -o=$(GOBIN)/athens-proxy-v0.9.0 "github.com/gomods/athens/cmd/proxy"
-
 COPYRIGHT := $(GOBIN)/copyright-v0.9.0
 $(COPYRIGHT): .bingo/copyright.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.

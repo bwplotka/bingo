@@ -5,17 +5,13 @@ package main_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/bwplotka/bingo/pkg/testutil"
 	"github.com/bwplotka/bingo/pkg/version"
@@ -27,43 +23,9 @@ const (
 	defaultModDir = ".bingo"
 )
 
-func runAthensCache(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, "make", "run-go-mod-cache")
-	testutil.Ok(t, cmd.Start())
-
-	// Wait until cache is responsive.
-	ctx, cancelt := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancelt()
-	for ctx.Err() == nil {
-		time.Sleep(1 * time.Second)
-
-		r, err := http.Get("http://localhost:3000/readyz")
-		if err != nil {
-			continue
-		}
-
-		_, _ = io.Copy(ioutil.Discard, r.Body)
-		r.Body.Close()
-
-		if r.StatusCode == 200 {
-			t.Cleanup(func() {
-				cancel()
-				_ = cmd.Wait()
-			})
-			return
-		}
-	}
-	cancel()
-	_ = cmd.Wait()
-	s, _ := cmd.Output()
-	t.Fatal(string(s))
-}
-
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 func TestGet(t *testing.T) {
 	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
-	//runAthensCache(t)
 	t.Run("Empty project", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
 			t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
@@ -630,8 +592,6 @@ func (g *goEnv) syntheticEnv() []string {
 	return []string{
 		// Make sure we don't require clang to build etc.
 		fmt.Sprintf("CGO_ENABLED=0"),
-		// Cache all in memory using athens (make sure runAthensCache function is invoked before test).
-		//fmt.Sprintf("GOPROXY=http://localhost:3000"),
 		fmt.Sprintf("PATH=%s:%s:%s", g.goroot, g.tmpDir, g.gobin),
 		fmt.Sprintf("GO=%s", filepath.Join(g.goroot, "go")),
 		fmt.Sprintf("GOBIN=%s", g.gobin),
