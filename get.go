@@ -158,6 +158,11 @@ func get(
 			}
 			versions = append(versions, version)
 		}
+
+		if len(versions) == 0 {
+			// Binary never seen before and requested to be installed from latest.
+			versions = append(versions, "")
+		}
 	} else if versions[0] == "none" {
 		// none means we no longer want to Version this package.
 		// NOTE: We don't remove binaries.

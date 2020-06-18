@@ -146,12 +146,12 @@ func main() {
 				rename:    *getRename,
 				rawTarget: target,
 			}); err != nil {
-				return err
+				return errors.Wrap(err, "get")
 			}
 
 			pkgs, err := bingo.ListPinnedMainPackages(logger, modDir, true)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "list pinned")
 			}
 			if len(pkgs) == 0 {
 				return bingo.RemoveHelpers(modDir)
