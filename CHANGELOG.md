@@ -9,10 +9,11 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
-## Unreleased
+## [v0.2.3](https://github.com/bwplotka/bingo/releases/tag/v0.2.3) - 2020.06.26
 
 ### Fixed
 
+* Fixed Go version checker.
 * Fixed case with installing latest binary version, when binary was not installed before.
 
 ## [v0.2.2](https://github.com/bwplotka/bingo/releases/tag/v0.2.2) - 2020.06.10

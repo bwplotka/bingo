@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -27,6 +29,28 @@ type Runner struct {
 	output         *bytes.Buffer
 }
 
+var semVerRegexp = regexp.MustCompile(`^go version go([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
+
+func isSupportedVersion(foundVersion string) error {
+	groups := semVerRegexp.FindAllStringSubmatch(foundVersion, -1)
+	if len(groups) > 0 && len(groups[0]) >= 2 {
+		major, err := strconv.ParseInt(groups[0][1], 10, 64)
+		if err == nil && major >= 1 {
+			foundVersion = fmt.Sprintf("v%v", strings.Join(groups[0][1:], ""))
+			if major >= 2 {
+				return nil
+			}
+			if len(groups[0]) >= 3 && len(groups[0][2]) > 1 {
+				minor, err := strconv.ParseInt(groups[0][2][1:], 10, 64)
+				if err == nil && minor >= 14 {
+					return nil
+				}
+			}
+		}
+	}
+	return errors.Errorf("found unsupported go version: %v; requires go1.14.x or higher", foundVersion)
+}
+
 // NewRunner checks Go version compatibility then returns Runner.
 func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error) {
 	output := &bytes.Buffer{}
@@ -41,12 +65,7 @@ func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error
 	if err := r.execGo(ctx, "", "", "version"); err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
-
-	// TODO(bwplotka): Make it more robust and accept newer Go.
-	if !strings.HasPrefix(strings.TrimRight(r.output.String(), "\n"), "go version go1.14.") {
-		return nil, errors.Errorf("found unsupported go version: %v. Requires go1.14.x", output.String())
-	}
-	return r, nil
+	return r, isSupportedVersion(strings.TrimRight(r.output.String(), "\n"))
 }
 
 func (r *Runner) Verbose() {
