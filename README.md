@@ -3,6 +3,7 @@
 [![Latest Release](https://img.shields.io/github/release/bwplotka/bingo.svg?style=flat-square)](https://github.com/bwplotka/bingo/releases/latest)
 [![CI](https://github.com/bwplotka/bingo/workflows/go/badge.svg)](https://github.com/bwplotka/bingo/actions?query=workflow%3Ago)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bwplotka/bingo)](https://goreportcard.com/report/github.com/bwplotka/bingo)
+[![Slack](https://img.shields.io/badge/join%20slack-%23bingo-brightgreen.svg)](https://gophers.slack.com/)
 
 `go get` like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
 built on top of Go Modules, allowing reproducible dev environments.
