@@ -36,7 +36,7 @@ You can read full a story behind `bingo` [in this blog post](https://deploy-prev
 
 * Go 1.14+
 * Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26), should be trivial!)
-* All tools that you wish to "pin" have to be build in Go (they don't need to use Go modules at all).
+* All tools that you wish to "pin" have to be built in Go (they don't need to use Go modules at all).
 
 ## Installing
 
@@ -58,7 +58,7 @@ The key idea is that you can manage your tools similar to your Go dependencies v
 bingo get [<package or binary>[@version1 or none,version2,version3...]]
 ```
 
-Once pinned, anyone can reliably install correct version of the tool either doing:
+Once pinned, anyone can reliably install correct version of the tool by either doing:
 
 ```bash
 go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>
