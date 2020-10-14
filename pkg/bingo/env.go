@@ -16,7 +16,7 @@ if [ -z "$GOBIN" ]; then
 fi
 
 {{range $p := .MainPackages }}
-{{ $p.EnvVarName }}="{{- range $i, $v := $p.Versions }}{{- if ne $i 0}} {{- end }}$GOBIN/{{ $p.Name }}-{{ $v.Version }}{{- end }}"
+{{ $p.EnvVarName }}="{{- range $i, $v := $p.Versions }}{{- if ne $i 0}} {{- end }}${GOBIN}/{{ $p.Name }}-{{ $v.Version }}{{- end }}"
 {{ end}}
 `
 )
