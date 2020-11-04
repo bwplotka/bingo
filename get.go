@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/pkg/errors"
 )
+
+var goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
 
 type getConfig struct {
 	runner    *runner.Runner
@@ -68,6 +71,10 @@ func getAll(
 }
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
+	if rawTarget == "" {
+		return "", "", nil, errors.New("target is empty, this should be filtered earlier")
+	}
+
 	s := strings.Split(rawTarget, "@")
 	nameOrPackage := s[0]
 	if len(s) > 1 {
@@ -93,6 +100,10 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 		// Binary referenced by path, get default name from package path.
 		pkgPath = nameOrPackage
 		name = path.Base(pkgPath)
+		if pkgSplit := strings.Split(pkgPath, "/"); len(pkgSplit) > 3 && goModVersionRegexp.MatchString(name) {
+			// It's common pattern to name urls with versions in go modules. Exclude that.
+			name = pkgSplit[len(pkgSplit)-2]
+		}
 	}
 	return name, pkgPath, versions, nil
 }
