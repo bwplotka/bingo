@@ -34,10 +34,9 @@ func TestIsSupportedVersion(t *testing.T) {
 			if tcase.err != nil {
 				testutil.NotOk(t, err)
 				testutil.Equals(t, tcase.err.Error(), err.Error())
-			} else {
-				testutil.Ok(t, err)
+				return
 			}
-
+			testutil.Ok(t, err)
 		})
 	}
 }
