@@ -209,7 +209,7 @@ func (r *runnable) Build(pkg, outPath string) error {
 		r.dir,
 		r.modFile,
 		append(
-			[]string{"build", "-i", "-o=" + outPath}, pkg,
+			[]string{"build", "-o=" + outPath}, pkg,
 		)...,
 	)
 }
