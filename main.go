@@ -249,10 +249,7 @@ func main() {
 }
 
 const bingoHelpFmt = `bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
-built on top of Go Modules, allowing reproducible dev environments.
-
-The key idea is that 'bingo' allows to easily maintain a separate, nested Go Module for each binary. By default, it will keep it '.bingo/<tool>.mod'
-This allows to correctly pin the tool without polluting the main go module or other's tool module.
+built on top of Go Modules, allowing reproducible dev environments. 'bingo' allows to easily maintain a separate, nested Go Module for each binary.
 
 For detailed examples see: https://github.com/bwplotka/bingo
 

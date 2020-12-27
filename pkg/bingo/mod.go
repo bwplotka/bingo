@@ -197,7 +197,7 @@ ModLoop:
 		pkg, ver, err := ModDirectPackage(f, nil)
 		if err != nil {
 			if remMalformed {
-				logger.Println("found malformed module file, removing:", f)
+				logger.Printf("found malformed module file %v, removing due to error: %v\n", f, err)
 				if err := os.RemoveAll(strings.TrimSuffix(f, ".") + "*"); err != nil {
 					return nil, err
 				}
