@@ -1,4 +1,4 @@
-# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.2.3. DO NOT EDIT.
+# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.2.4. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 GOPATH ?= $(shell go env GOPATH)
 GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
@@ -46,11 +46,11 @@ $(GOLANGCI_LINT): .bingo/golangci-lint.mod
 	@echo "(re)installing $(GOBIN)/golangci-lint-v1.26.0"
 	@cd .bingo && $(GO) build -mod=mod -modfile=golangci-lint.mod -o=$(GOBIN)/golangci-lint-v1.26.0 "github.com/golangci/golangci-lint/cmd/golangci-lint"
 
-MDOX := $(GOBIN)/mdox-v0.1.1-0.20201227094408-37f2155c30b5
+MDOX := $(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326
 $(MDOX): .bingo/mdox.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/mdox-v0.1.1-0.20201227094408-37f2155c30b5"
-	@cd .bingo && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.1.1-0.20201227094408-37f2155c30b5 "github.com/bwplotka/mdox"
+	@echo "(re)installing $(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326"
+	@cd .bingo && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326 "github.com/bwplotka/mdox"
 
 MISSPELL := $(GOBIN)/misspell-v0.3.4
 $(MISSPELL): .bingo/misspell.mod
