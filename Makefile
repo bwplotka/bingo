@@ -40,7 +40,7 @@ all: format build
 
 .PHONY: build
 build: ## Build bingo.
-	@echo ">> Building bingo"
+	@echo ">> building bingo"
 	@go install github.com/bwplotka/bingo
 
 .PHONY: check-comments
@@ -54,17 +54,15 @@ deps: ## Ensures fresh go.mod and go.sum.
 	@go mod verify
 
 .PHONY: docs
-docs: build $(EMBEDMD) ## Generates docs from flags.
-	@$(GOBIN)/bingo -h > bingo-help.txt
-	@$(EMBEDMD) -w *.md
-	@rm -f bingo-help.txt
+docs: build $(MDOX) ## Generates config snippets and doc formatting.
+	@echo ">> generating docs $(PATH)"
+	@$(MDOX) fmt -l *.md
 
 .PHONY: format
 format: ## Formats Go code including imports and cleans up white noise.
 format: $(GOIMPORTS)
 	@echo ">> formatting code"
 	@$(GOIMPORTS) -w $(FILES_TO_FMT)
-	@SED_BIN="$(SED)" scripts/cleanup-white-noise.sh $(FILES_TO_FMT)
 
 .PHONY: test
 test: ## Runs all Go unit tests.
@@ -99,8 +97,6 @@ lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format docs check-gi
 	@$(GOLANGCI_LINT) run
 	@echo ">> detecting misspells"
 	@find . -type f | grep -v vendor/ | grep -vE '\./\..*' | xargs $(MISSPELL) -error
-	@echo ">> detecting white noise"
-	@find . -type f \( -name "*.md" -o -name "*.go" \) | SED_BIN="$(SED)" xargs scripts/cleanup-white-noise.sh
 	@echo ">> ensuring Copyright headers"
 	@$(COPYRIGHT)
 	$(call require_clean_work_tree,"detected white noise or/and files without copyright; run 'make lint' file and commit changes.")
