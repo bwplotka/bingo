@@ -8,6 +8,12 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
+## [v0.2.4](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.12.27
+
+* Improved env variables
+* Removed -i option from build which was not needed.
+* Avoid vendor mode when installing via Makefile
+
 ## [v0.2.3](https://github.com/bwplotka/bingo/releases/tag/v0.2.3) - 2020.06.26
 
 ### Fixed
