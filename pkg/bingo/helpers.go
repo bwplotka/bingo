@@ -46,7 +46,6 @@ func genHelper(f, tmpl, relModDir, version string, pkgs []MainPackage) error {
 
 	data := templateData{
 		Version:      version,
-		RelModDir:    relModDir,
 		MainPackages: pkgs,
 	}
 
