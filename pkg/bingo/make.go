@@ -9,6 +9,7 @@ const (
 	// TODO(bwplotka): We get first binary as an example. It does not work if first one is array..
 	makefileBinVarsTmpl = `# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
+BINGO_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 GOPATH ?= $(shell go env GOPATH)
 GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO     ?= $(shell which go)
@@ -27,11 +28,11 @@ GO     ?= $(shell which go)
 #
 {{- range $p := .MainPackages }}
 {{ $p.EnvVarName }} :={{- range $p.Versions }} $(GOBIN)/{{ $p.Name }}-{{ .Version }}{{- end }}
-$({{ $p.EnvVarName }}):{{- range $p.Versions }} {{ $.RelModDir }}/{{ .ModFile }}{{- end }}
+$({{ $p.EnvVarName }}):{{- range $p.Versions }} $(BINGO_DIR)/{{ .ModFile }}{{- end }}
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 {{- range $p.Versions }}
 	@echo "(re)installing $(GOBIN)/{{ $p.Name }}-{{ .Version }}"
-	@cd {{ $.RelModDir }} && $(GO) build -mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
 {{- end }}
 {{ end}}
 `
