@@ -6,7 +6,7 @@ package runner
 import (
 	"testing"
 
-	"github.com/bwplotka/bingo/pkg/testutil"
+	"github.com/efficientgo/tools/core/pkg/testutil"
 	"github.com/pkg/errors"
 )
 

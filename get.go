@@ -108,15 +108,12 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 	return name, pkgPath, versions, nil
 }
 
-func get(
-	ctx context.Context,
-	logger *log.Logger,
-	c getConfig,
-) (err error) {
+func get(ctx context.Context, logger *log.Logger, c getConfig) (err error) {
 	if c.rawTarget == "" {
 		// Empty means get all. It recursively invokes get for each existing binary.
 		return getAll(ctx, logger, c)
 	}
+
 	name, pkgPath, versions, err := parseTarget(c.rawTarget)
 	if err != nil {
 		return errors.Wrapf(err, "parse %v", c.rawTarget)
@@ -131,17 +128,26 @@ func get(
 		return err
 	}
 	existingModFiles = append(existingModFiles, existingModArrFiles...)
-	if pkgPath == "" {
-		// Binary referenced by name, get full package name if module file exists.
 
-		// Get full import path from any existing module file for this name.
-		if len(existingModFiles) == 0 {
-			return errors.Errorf("binary %q was not installed before. Use full package name to install it", name)
-		}
-		pkgPath, _, err = bingo.ModDirectPackage(existingModFiles[0], nil)
+	// Get full import path from any existing module file for this name.
+	if pkgPath == "" && len(existingModFiles) == 0 {
+		// Binary referenced by name, get full package name if module file exists.
+		return errors.Errorf("binary %q was not installed before. Use full package name to install it", name)
+	}
+
+	if len(existingModFiles) > 0 {
+		modPkgPath, _, err := bingo.ModDirectPackage(existingModFiles[0], nil)
 		if err != nil {
 			return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", name, existingModFiles[0])
 		}
+
+		if pkgPath != "" && pkgPath != modPkgPath {
+			// Check if someone is not referencing totally different path.
+			return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
+				"Uninstall exsiting %q tool using `@none` or use `-n` flag to choose different name", pkgPath, name, modPkgPath, name)
+		}
+
+		pkgPath = modPkgPath
 	}
 
 	// Handle new name/rename.
@@ -165,7 +171,7 @@ func get(
 		for _, f := range existingModFiles {
 			_, version, err := bingo.ModDirectPackage(f, nil)
 			if err != nil {
-				return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", name, existingModFiles[0])
+				return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed Use full package name to reinstall it", name, existingModFiles[0])
 			}
 			versions = append(versions, version)
 		}
@@ -290,8 +296,9 @@ This is directory which stores Go modules with pinned buildable package that is 
 
 * Run ` + "`" + "bingo get" + "`" + ` to install all tools having each own module file in this directory.
 * Run ` + "`" + "bingo get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
-* For Makefile: Make sure to put ` + "`" + "include %s/" + bingo.MakefileBinVarsName + "`" + ` in your Makefile, then use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
-* For shell: Run ` + "`" + "source %s/" + bingo.EnvBinVarsName + "`" + ` to source all environment variable for each tool
+* For Makefile: Make sure to put ` + "`" + "include %s/Variables.mk" + "`" + ` in your Makefile, then use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
+* For shell: Run ` + "`" + "source %s/variables.env" + "`" + ` to source all environment variable for each tool.
+* For go: Import ` + "`" + "%s/variables.go" + "`" + ` to for variable names.
 * See https://github.com/bwplotka/bingo or -h on how to add, remove or change binaries dependencies.
 
 ## Requirements

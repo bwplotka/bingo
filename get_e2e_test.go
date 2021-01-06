@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bwplotka/bingo/pkg/testutil"
 	"github.com/bwplotka/bingo/pkg/version"
+	"github.com/efficientgo/tools/core/pkg/testutil"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +25,8 @@ const (
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 func TestGet(t *testing.T) {
-	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
+	var currTestCaseDir = fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
+
 	t.Run("Empty project", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
 			t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
@@ -221,6 +222,14 @@ func TestGet(t *testing.T) {
 						},
 						existingBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
 					},
+					{
+						name: "Installing different tool with name clash should fail",
+						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExectErr(p.root, goBinPath, "get", "golang.org/x/totally-not-tools/cmd/goimports@cb1345f3a375367f8439bba882e90348348288d9"))
+						},
+						existingBinaries: []string{"faillint-v1.4.0", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375"},
+					},
+
 					{
 						name: "Updating f4 to multiple versions with none should fail",
 						do: func(t *testing.T) {
@@ -468,6 +477,13 @@ func buildInitialGobin(t *testing.T, targetDir string) {
 	_, err = execCmd(wd, nil, "cp", filepath.Join(os.Getenv("GOBIN"), bingoBin), targetDir)
 	testutil.Ok(t, err)
 }
+
+//func scheduleAthensProxy(t *testing.T) {
+//	wd, err := os.Getwd()
+//	testutil.Ok(t, err)
+//
+//
+//}
 
 func makePath(t *testing.T) string {
 	makePath, err := execCmd("", nil, "which", "make")

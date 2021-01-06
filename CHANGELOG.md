@@ -8,6 +8,11 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
+## [v0.3.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.01.06
+
+* Support easier path changing upgrades of tools with the same name.
+* [Automatic download of `replace` entries](https://github.com/bwplotka/bingo/issues/7) for the pinned version of the tool. This is very often required by big projects to fight with deps hell ([Go Modules are hard](https://twitter.com/bwplotka/status/1347104281120403458)). 
+
 ## [v0.2.4](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.12.27
 
 * Improved env variables
