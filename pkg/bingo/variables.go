@@ -47,16 +47,22 @@ fi
 {{ end}}
 `,
 		"go": `// Auto generated binary variables helper managed by https://github.com/bwplotka/bingo {{ .Version }}. DO NOT EDIT.
-# All tools are designed to be build inside $GOBIN.
-# Those variables will work only until 'bingo get' was invoked, or if tools were installed via Makefile's Variables.mk.
-package bingovars
+// All tools are designed to be build inside $GOBIN.
+// Those variables will work only until 'bingo get' was invoked, or if tools were installed via Makefile's Variables.mk.
+package bingotools
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
-vars (
-{{range $p := .MainPackages }}
-{{ $p.EnvVarName }} = "{{- range $i, $v := $p.Versions }}{{- if ne $i 0}} {{- end }}os.Getenv("GOBIN") + "/{{ $p.Name }}-{{ $v.Version }}"{{- end }}"
-{{ end}}
+var (
+{{- range $p := .MainPackages }} {{ $length := len $p.EnvVarName }}
+	{{ $p.EnvVarName }} = {{ if ge 2 $length }}[]string{ {{ end }}
+	{{- range $i, $v := $p.Versions }}{{- if ne $i 0}},
+{{ end }}filepath.Join(os.Getenv("GOBIN"),"/{{ $p.Name }}-{{ $v.Version }}"){{ end }}
+	{{- if ge 2 $length }} } {{ end }}
+{{- end}}
 )
 `}
 )

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	bingovars "github.com/bwplotka/bingo/.bingo"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/testutil"
 	"github.com/pkg/errors"
@@ -25,6 +26,10 @@ const (
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 func TestGet(t *testing.T) {
+	stopAthensProxy := scheduleAthensProxy(t)
+	t.Cleanup(func() {
+		testutil.Ok(t, stopAthensProxy())
+	})
 	var currTestCaseDir = fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
 
 	t.Run("Empty project", func(t *testing.T) {
@@ -478,12 +483,17 @@ func buildInitialGobin(t *testing.T, targetDir string) {
 	testutil.Ok(t, err)
 }
 
-//func scheduleAthensProxy(t *testing.T) {
-//	wd, err := os.Getwd()
-//	testutil.Ok(t, err)
-//
-//
-//}
+func scheduleAthensProxy(t *testing.T) func() error {
+	cacheDir := filepath.Join(os.TempDir(), "athens-go-proxy")
+	o, err := exec.Command(bingovars.PROXY, "--help", cacheDir).Output()
+	testutil.Ok(t, err)
+	fmt.Println(string(o))
+
+	return func() error {
+
+		return nil
+	}
+}
 
 func makePath(t *testing.T) string {
 	makePath, err := execCmd("", nil, "which", "make")

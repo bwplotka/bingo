@@ -1,1 +1,1 @@
-module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files.
+module bingotools // auto-created go.mod 'bingo' for go -moddir compatibility with non-Go projects and so you can import variables.go. Commit this file, together with other .mod files.
