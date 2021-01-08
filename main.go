@@ -22,6 +22,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const defaultGoProxy = "https://proxy.golang.org"
+
 func exitOnUsageError(usage func(), v ...interface{}) {
 	fmt.Println(append([]interface{}{"Error:"}, v...)...)
 	fmt.Println()

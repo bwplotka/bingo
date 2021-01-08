@@ -24,9 +24,6 @@ type Runner struct {
 	insecure bool
 
 	verbose bool
-
-	stdout, stderr io.Writer
-	output         *bytes.Buffer
 }
 
 var semVerRegexp = regexp.MustCompile(`^go version go([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
@@ -57,15 +54,12 @@ func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error
 	r := &Runner{
 		goCmd:    goCmd,
 		insecure: insecure,
-		stdout:   output,
-		stderr:   output,
-		output:   output,
 	}
 
-	if err := r.execGo(ctx, "", "", "version"); err != nil {
+	if err := r.execGo(ctx, output, "", "", "version"); err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
-	return r, isSupportedVersion(strings.TrimRight(r.output.String(), "\n"))
+	return r, isSupportedVersion(strings.TrimRight(output.String(), "\n"))
 }
 
 func (r *Runner) Verbose() {
@@ -80,7 +74,7 @@ var cmdsSupportingModFileArg = map[string]struct{}{
 	"build":   {},
 }
 
-func (r *Runner) execGo(ctx context.Context, cd string, modFile string, args ...string) error {
+func (r *Runner) execGo(ctx context.Context, output io.Writer, cd string, modFile string, args ...string) error {
 	if modFile != "" {
 		for i, arg := range args {
 			if _, ok := cmdsSupportingModFileArg[arg]; ok {
@@ -88,33 +82,29 @@ func (r *Runner) execGo(ctx context.Context, cd string, modFile string, args ...
 					args = append(args, fmt.Sprintf("-modfile=%s", modFile))
 					break
 				}
-
 				args = append(args[:i+1], append([]string{fmt.Sprintf("-modfile=%s", modFile)}, args[i+1:]...)...)
 				break
 			}
 		}
 	}
-	return r.exec(ctx, cd, r.goCmd, args...)
+	return r.exec(ctx, output, cd, r.goCmd, args...)
 }
 
-func (r *Runner) exec(ctx context.Context, cd string, command string, args ...string) error {
-	r.output.Truncate(0)
-
+func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command string, args ...string) error {
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = filepath.Join(cmd.Dir, cd)
-	// TODO(bwplotka): Might be surpring, let's return err when this env variable is altered.
+	// TODO(bwplotka): Might be surprising, let's return err when this env variable is altered.
 	cmd.Env = append(os.Environ(), "GO111MODULE=on")
-	cmd.Stdout = r.stdout
-	cmd.Stderr = r.stderr
+	cmd.Stdout = output
+	cmd.Stderr = output
 	if err := cmd.Run(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			if r.verbose {
-				return errors.Errorf("error while running command '%s %s'; out: %s; err: %v", command, strings.Join(args, " "), r.output.String(), err)
+				return errors.Errorf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
 			}
-			return errors.New(r.output.String())
-
+			return errors.New("exit 1")
 		}
-		return errors.Errorf("error while running command '%s %s'; out: %s; err: %v", command, strings.Join(args, " "), r.output.String(), err)
+		return errors.Errorf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
 	}
 	if r.verbose {
 		fmt.Printf("exec '%s %s'\n", command, strings.Join(args, " "))
@@ -136,6 +126,7 @@ type runnable struct {
 	ctx     context.Context
 	modFile string
 	dir     string
+	silent  bool
 }
 
 // With returns runner that will be ran against give modFile (if any) and in given directory (if any).
@@ -146,14 +137,13 @@ func (r *Runner) With(ctx context.Context, modFile string, dir string) Runnable 
 		dir:     dir,
 		ctx:     ctx,
 	}
-	ru.enableOSStdOutput(true)
 	return ru
 }
 
-// WithDisabledOutput returns runner that will be ran against give modFile (if any) and in given directory (if any).
-func (r *Runner) WithDisabledOutput(ctx context.Context, modFile string, dir string) Runnable {
+// WithSilent returns runner that will be ran against give modFile (if any) and in given directory (if any).
+func (r *Runner) WithSilent(ctx context.Context, modFile string, dir string) Runnable {
 	ru := r.With(ctx, modFile, dir)
-	ru.(*runnable).enableOSStdOutput(false)
+	ru.(*runnable).silent = true
 	return ru
 }
 
@@ -165,40 +155,31 @@ const (
 	UpdatePatchPolicy = GetUpdatePolicy("-u=patch")
 )
 
-func (r *runnable) enableOSStdOutput(enable bool) {
-	if enable {
-		r.r.stdout = io.MultiWriter(r.r.output, os.Stdout)
-		r.r.stderr = io.MultiWriter(r.r.output, os.Stderr)
-		return
-	}
-	r.r.stdout = r.r.output
-	r.r.stderr = r.r.output
-}
-
 // ModInit runs `go mod init` against separate go modules files if any. REMOVE
 func (r *runnable) ModInit(moduleName string) error {
-	r.enableOSStdOutput(false)
-	defer r.enableOSStdOutput(true)
-
-	return r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"mod", "init"}, moduleName)...)
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"mod", "init"}, moduleName)...); err != nil {
+		return errors.Wrap(err, out.String())
+	}
+	return nil
 }
 
 // List runs `go list` against separate go modules files if any.
 func (r *runnable) List(args ...string) (string, error) {
-	r.enableOSStdOutput(false)
-	defer r.enableOSStdOutput(true)
-
-	err := r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"list"}, args...)...)
-	return strings.TrimRight(r.r.output.String(), "\n"), err
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"list"}, args...)...); err != nil {
+		return "", errors.Wrap(err, out.String())
+	}
+	return strings.TrimRight(out.String(), "\n"), nil
 }
 
 // GoEnv runs `go env` with given args.
 func (r *runnable) GoEnv(args ...string) (string, error) {
-	r.enableOSStdOutput(false)
-	defer r.enableOSStdOutput(true)
-
-	err := r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"env"}, args...)...)
-	return strings.TrimRight(r.r.output.String(), "\n"), err
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"env"}, args...)...); err != nil {
+		return "", errors.Wrap(err, out.String())
+	}
+	return strings.TrimRight(out.String(), "\n"), nil
 }
 
 // GetD runs 'go get -d' against separate go modules file with given arguments.
@@ -210,17 +191,34 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) error {
 	if update != NoUpdatePolicy {
 		args = append(args, string(update))
 	}
-	return r.r.execGo(r.ctx, r.dir, r.modFile, append(args, packages...)...)
+
+	if !r.silent {
+		return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append(args, packages...)...)
+	}
+
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(args, packages...)...); err != nil {
+		return errors.Wrap(err, out.String())
+	}
+	return nil
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
 func (r *runnable) Build(pkg, outPath string) error {
+	// go install does not define -o so we mimic go install with go build instead.
 	binPath := os.Getenv("GOBIN")
 	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
 		binPath = filepath.Join(gpath, "bin")
 	}
 	outPath = filepath.Join(binPath, outPath)
 
-	// go install does not define -o so we mimic go install with go build instead.
-	return r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
+	if !r.silent {
+		return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
+	}
+
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...); err != nil {
+		return errors.Wrap(err, out.String())
+	}
+	return nil
 }

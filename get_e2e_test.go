@@ -23,13 +23,13 @@ const (
 	defaultModDir = ".bingo"
 )
 
-var goproxy = "https://proxy.golang.org"
+const defaultGoProxy = "https://proxy.golang.org"
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 func TestGet(t *testing.T) {
 	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
 
-	g := newIsolatedGoEnv(t, goproxy)
+	g := newIsolatedGoEnv(t, defaultGoProxy)
 	defer g.Close(t)
 
 	t.Run("Empty project", func(t *testing.T) {

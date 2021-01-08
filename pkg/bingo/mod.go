@@ -143,18 +143,14 @@ func EnsureModMeta(modFile string, pkg string) (err error) {
 			}
 			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
 		}
-		return SaveModFile(f, m)
+		return SaveModFile(f, m.Syntax)
 
 	}
 	return errors.Errorf("empty module found in %s", modFile)
 }
 
-func SaveModFile(f *os.File, parsed *modfile.File) error {
-	newB, err := parsed.Format()
-	if err != nil {
-		return err
-	}
-
+func SaveModFile(f *os.File, s *modfile.FileSyntax) error {
+	newB := modfile.Format(s)
 	if err := f.Truncate(0); err != nil {
 		return errors.Wrap(err, "truncate")
 	}
@@ -162,7 +158,7 @@ func SaveModFile(f *os.File, parsed *modfile.File) error {
 		return errors.Wrap(err, "seek")
 	}
 
-	_, err = f.Write(newB)
+	_, err := f.Write(newB)
 	return err
 }
 

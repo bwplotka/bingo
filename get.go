@@ -265,9 +265,6 @@ func getOne(
 		if err := forceGetD(ctx, c, tmpModFile, targetWithVer); err != nil {
 			return errors.Wrap(err, "go get -d")
 		}
-
-		fmt.Println(emptyModFile, tmpModFile, err)
-		return errors.New("tmp")
 	}
 	if err := bingo.EnsureModMeta(tmpModFile, pkgPath); err != nil {
 		return errors.Wrap(err, "ensuring meta")
@@ -427,62 +424,71 @@ func removeAllGlob(glob string) error {
 // If this operation fails it checks if the problematic package has custom replaces in it's go modules as
 // this is a very common case. Since we always download single tool dependency module per tool module, we can
 // copy its replace if exists to fix this common case.
-func forceGetD(ctx context.Context, c getConfig, tmpModFile string, targetWithVer string) error {
-	//silentRu := c.runner.WithDisabledOutput(ctx, tmpModFile, c.modDir)
-	//if err := silentRu.GetD(c.update, targetWithVer); err == nil {
-	//	return nil
-	//}
-
+func forceGetD(ctx context.Context, c getConfig, tmpModFile string, targetWithVer string) (err error) {
+	getErr := c.runner.WithSilent(ctx, tmpModFile, c.modDir).GetD(c.update, targetWithVer)
+	if getErr == nil {
+		return nil
+	}
 	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
 
 	// Force attempt with cloning replace directives.
 	if err := func() error {
+		var modVersionedPath string
+		foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, strings.Split(targetWithVer, "@")[0])
+
+		// Try to match strings announcing what version was found (if we got to this stage).
+		re, err := regexp.Compile(foundVersionRe)
+		if err != nil {
+			return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
+		}
+
+		groups := re.FindAllStringSubmatch(getErr.Error(), 1)
+		if len(groups) > 0 && len(groups[0]) > 2 {
+			modVersionedPath = groups[0][1] + "@" + groups[0][2]
+		} else {
+			return errors.Errorf("we tried, but go get error was not helpful (our regexp: %v)", foundVersionRe)
+		}
+
 		f, err := os.OpenFile(tmpModFile, os.O_RDWR, os.ModePerm)
 		if err != nil {
 			return err
 		}
 		defer errcapture.Close(&err, f.Close, "close")
 
-		// Parse go.mod as user might not have passed pinning version, so we rely on failed go get -d to give us that.
-		tmpModParsed, err := bingo.ParseModFileOrReader(tmpModFile, f)
-		if err != nil {
-			return errors.Wrapf(err, "parse tmp mod file %v", tmpModFile)
-		}
-
-		// We expect just one direct import.
-		var pkg, modVersion string
-		for _, r := range tmpModParsed.Require {
-			if r.Indirect {
-				continue
-			}
-
-			pkg = r.Mod.Path
-			modVersion = r.Mod.Version
-			break
-		}
-		if pkg == "" {
-			return errors.Errorf("we tried, but go get failed without updating go.mod")
-		}
-
 		gopath, err := runnable.GoEnv("GOPATH")
 		if err != nil {
 			return errors.Wrap(err, "go env")
 		}
 
-		// We leverage fact that when go get fails because of version mismatch it actually does that after module is downloaded
-		// with it's go mod file in the GOPATH/pkg/mod/....
-		targetModParsed, err := bingo.ParseModFileOrReader(filepath.Join(gopath, "pkg", "mod", pkg, modVersion, "go.mod"), nil)
+		tmpModParsed, err := bingo.ParseModFileOrReader(tmpModFile, f)
 		if err != nil {
 			return errors.Wrapf(err, "parse tmp mod file %v", tmpModFile)
 		}
 
-		// Clone replace directives.
-		tmpModParsed.Replace = append(tmpModParsed.Replace, targetModParsed.Replace...)
+		// We leverage fact that when go get fails because of version mismatch it actually does that after module is downloaded
+		// with it's go mod file in the GOPATH/pkg/mod/....
+		targetModFile := filepath.Join(gopath, "pkg", "mod", modVersionedPath, "go.mod")
+		targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
+		if err != nil {
+			return errors.Wrapf(err, "parse target mod file %v", targetModFile)
+		}
 
-		return bingo.SaveModFile(f, tmpModParsed)
-
+		// Set replace directives.
+		for _, r := range tmpModParsed.Replace {
+			if err := tmpModParsed.DropReplace(r.Old.Path, r.Old.Version); err != nil {
+				return err
+			}
+		}
+		for _, r := range targetModParsed.Replace {
+			if err := tmpModParsed.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version); err != nil {
+				return err
+			}
+		}
+		tmpModParsed.Cleanup()
+		return bingo.SaveModFile(f, tmpModParsed.Syntax)
 	}(); err != nil {
 		return errors.Wrapf(runnable.GetD(c.update, targetWithVer), "also 'force' replace heal attempt failed %v", err)
 	}
+
 	return runnable.GetD(c.update, targetWithVer)
 }
