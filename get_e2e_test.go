@@ -5,7 +5,6 @@ package main_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,8 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bwplotka/bingo/pkg/envars"
-	"github.com/bwplotka/bingo/pkg/gomodcache"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/testutil"
 	"github.com/pkg/errors"
@@ -26,32 +23,19 @@ const (
 	defaultModDir = ".bingo"
 )
 
-var goproxy = gomodcache.URL // "https://proxy.golang.org"
+var goproxy = "https://proxy.golang.org"
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 func TestGet(t *testing.T) {
-	f, err := os.Open(".bingo/variables.env")
-	defer f.Close()
-
-	e, err := envars.EvalVariables(context.TODO(), f)
-	testutil.Ok(t, err)
-
-	proxyPath, ok := e.Lookup("PROXY")
-	if !ok {
-		t.Fatal("$PROXY path not found in bingo (run bingo get proxy?)")
-	}
-
-	stopAthensProxy, err := gomodcache.Start(proxyPath, filepath.Join(os.TempDir(), "athens-go-proxy"))
-	testutil.Ok(t, err)
-
-	t.Cleanup(func() { testutil.Ok(t, stopAthensProxy()) })
-
 	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
+
+	g := newIsolatedGoEnv(t, goproxy)
+	defer g.Close(t)
+
 	t.Run("Empty project", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
 			t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
-				g := newTmpGoEnv(t, goproxy)
-				defer g.Close(t)
+				g.Clear(t)
 
 				// We manually build bingo binary to make sure GOCACHE will not hit us.
 				goBinPath := filepath.Join(g.tmpDir, bingoBin)
@@ -315,7 +299,6 @@ func TestGet(t *testing.T) {
 		}
 	})
 	t.Run("Compatibility test", func(t *testing.T) {
-		t.Skip("go")
 		dirs, err := filepath.Glob("testdata/testproject*")
 		testutil.Ok(t, err)
 		for _, dir := range dirs {
@@ -323,8 +306,7 @@ func TestGet(t *testing.T) {
 				for _, isGoProject := range []bool{false, true} {
 					t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 						t.Run("Via bingo get all", func(t *testing.T) {
-							g := newTmpGoEnv(t, goproxy)
-							defer g.Close(t)
+							g.Clear(t)
 
 							// We manually build bingo binary to make sure GOCACHE will not hit us.
 							goBinPath := filepath.Join(g.tmpDir, bingoBin)
@@ -346,8 +328,7 @@ func TestGet(t *testing.T) {
 
 						})
 						t.Run("Via bingo get one by one", func(t *testing.T) {
-							g := newTmpGoEnv(t, goproxy)
-							defer g.Close(t)
+							g.Clear(t)
 
 							// We manually build bingo binary to make sure GOCACHE will not hit us.
 							goBinPath := filepath.Join(g.tmpDir, bingoBin)
@@ -372,8 +353,7 @@ func TestGet(t *testing.T) {
 							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.5.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.5.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.1.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.2.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.2.0\t\t\t\t\t\t\t\t\nf2\t\t\tf2-v1.0.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.3.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533", g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
 						t.Run("Via go", func(t *testing.T) {
-							g := newTmpGoEnv(t, goproxy)
-							defer g.Close(t)
+							g.Clear(t)
 
 							// Copy testproject at the beginning to temp dir.
 							// NOTE: No bingo binary is required here.
@@ -408,8 +388,7 @@ func TestGet(t *testing.T) {
 							// Make is one of test requirement.
 							makePath := makePath(t)
 
-							g := newTmpGoEnv(t, goproxy)
-							defer g.Close(t)
+							g.Clear(t)
 
 							// We manually build bingo binary to make sure GOCACHE will not hit us.
 							goBinPath := filepath.Join(g.tmpDir, bingoBin)
@@ -421,9 +400,9 @@ func TestGet(t *testing.T) {
 							p.assertNotChanged(t, defaultModDir)
 
 							testutil.Equals(t, []string{}, g.existingBinaries(t))
-							testutil.Equals(t, "(re)installing "+g.gobin+"/faillint-v1.3.0\ngo: downloading github.com/fatih/faillint v1.3.0\ngo: downloading golang.org/x/tools v0.0.0-20200207224406-61798d64f025\nchecking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
-							testutil.Equals(t, "(re)installing "+g.gobin+"/goimports-v0.0.0-20200522201501-cb1345f3a375\ngo: downloading golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375\ngo: downloading golang.org/x/mod v0.2.0\ngo: downloading golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543\nchecking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
-							testutil.Equals(t, "(re)installing "+g.gobin+"/goimports2-v0.0.0-20200519175826-7521f6f42533\ngo: downloading golang.org/x/tools v0.0.0-20200519175826-7521f6f42533\nchecking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
+							g.ExecOutput(t, p.root, makePath, "faillint-exists")
+							g.ExecOutput(t, p.root, makePath, "goimports-exists")
+							g.ExecOutput(t, p.root, makePath, "goimports2-exists")
 
 							testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 							testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
@@ -490,6 +469,8 @@ func execCmd(dir string, env []string, command string, args ...string) (string, 
 }
 
 func buildInitialGobin(t *testing.T, targetDir string) {
+	t.Helper()
+
 	wd, err := os.Getwd()
 	testutil.Ok(t, err)
 
@@ -500,6 +481,8 @@ func buildInitialGobin(t *testing.T, targetDir string) {
 }
 
 func makePath(t *testing.T) string {
+	t.Helper()
+
 	makePath, err := execCmd("", nil, "which", "make")
 	testutil.Ok(t, err)
 	return strings.TrimSuffix(makePath, "\n")
@@ -511,6 +494,8 @@ type testProject struct {
 }
 
 func newTestProject(t testing.TB, base string, target string, isGoProject bool) *testProject {
+	t.Helper()
+
 	wd, err := os.Getwd()
 	testutil.Ok(t, err)
 
@@ -534,7 +519,10 @@ func newTestProject(t testing.TB, base string, target string, isGoProject bool) 
 		isGoProject: isGoProject,
 	}
 }
+
 func (g *testProject) assertNotChanged(t testing.TB, except ...string) {
+	t.Helper()
+
 	if g.isGoProject {
 		g.assertGoModDidNotChange(t).assertGoSumDidNotChange(t)
 		except = append(except, "main.go", "go.sum", "go.mod")
@@ -543,6 +531,8 @@ func (g *testProject) assertNotChanged(t testing.TB, except ...string) {
 }
 
 func (g *testProject) assertGoModDidNotChange(t testing.TB) *testProject {
+	t.Helper()
+
 	a, err := ioutil.ReadFile(filepath.Join(g.root, "go.mod"))
 	testutil.Ok(t, err)
 
@@ -555,6 +545,8 @@ func (g *testProject) assertGoModDidNotChange(t testing.TB) *testProject {
 }
 
 func (g *testProject) assertGoSumDidNotChange(t testing.TB) *testProject {
+	t.Helper()
+
 	a, err := ioutil.ReadFile(filepath.Join(g.root, "go.sum"))
 	testutil.Ok(t, err)
 
@@ -566,6 +558,8 @@ func (g *testProject) assertGoSumDidNotChange(t testing.TB) *testProject {
 }
 
 func (g *testProject) assertProjectRootIsClean(t testing.TB, extra ...string) *testProject {
+	t.Helper()
+
 	expected := map[string]struct{}{
 		"Makefile": {},
 	}
@@ -593,7 +587,7 @@ type goEnv struct {
 	goroot, gopath, goproxy, gobin, gocache, tmpDir string
 }
 
-func newTmpGoEnv(t testing.TB, goproxy string) *goEnv {
+func newIsolatedGoEnv(t testing.TB, goproxy string) *goEnv {
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "bingo-tmpgoenv")
 	testutil.Ok(t, err)
 
@@ -612,6 +606,25 @@ func newTmpGoEnv(t testing.TB, goproxy string) *goEnv {
 		gobin:   filepath.Join(tmpDir, "bin"),
 		gocache: filepath.Join(tmpDir, "gocache"),
 		goproxy: goproxy,
+	}
+}
+
+// Clear clears all go env dirs but not goroot, gopath and gocache.
+func (g *goEnv) Clear(t testing.TB) {
+	t.Helper()
+
+	_, err := execCmd("", nil, "chmod", "-R", "777", g.tmpDir)
+	testutil.Ok(t, err)
+
+	dirs, err := ioutil.ReadDir(g.tmpDir)
+	testutil.Ok(t, err)
+
+	for _, d := range dirs {
+		switch filepath.Join(g.tmpDir, d.Name()) {
+		case g.gocache, g.goroot, g.gopath:
+		default:
+			testutil.Ok(t, os.RemoveAll(filepath.Join(g.tmpDir, d.Name())))
+		}
 	}
 }
 
@@ -665,6 +678,8 @@ func (g *goEnv) existingBinaries(t *testing.T) []string {
 }
 
 func (g *goEnv) Close(t testing.TB) {
+	t.Helper()
+
 	_, err := execCmd("", nil, "chmod", "-R", "777", g.tmpDir)
 	testutil.Ok(t, err)
 	testutil.Ok(t, os.RemoveAll(g.tmpDir))

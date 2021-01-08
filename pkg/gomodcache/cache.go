@@ -11,6 +11,9 @@ import (
 
 const URL = "http://localhost:3000"
 
+// TODO(bwplotka): Adding this code only slows down get_e2e_test.go
+// Investigate.
+// See 8d757f35b63be8ae76aa0bd3c3c5c4481114055b for details.
 func Start(athensBin string, cacheDir string) (func() error, error) {
 	env := envars.EnvSlice(os.Environ())
 
