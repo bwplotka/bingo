@@ -19,6 +19,7 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 )
 
@@ -34,40 +35,6 @@ type getConfig struct {
 
 	// target name or target package path, optionally with Version(s).
 	rawTarget string
-}
-
-func getAll(
-	ctx context.Context,
-	logger *log.Logger,
-	c getConfig,
-) (err error) {
-	if c.name != "" {
-		return errors.New("name cannot by specified if no target was given")
-	}
-	if c.rename != "" {
-		return errors.New("rename cannot by specified if no target was given")
-	}
-
-	pkgs, err := bingo.ListPinnedMainPackages(logger, c.relModDir, false)
-	if err != nil {
-		return err
-	}
-	for _, p := range pkgs {
-		mc := c
-		mc.rawTarget = p.Name
-		if len(p.Versions) > 1 {
-			// Compose array target. Order of versions matter.
-			var versions []string
-			for _, v := range p.Versions {
-				versions = append(versions, v.Version)
-			}
-			mc.rawTarget += "@" + strings.Join(versions, ",")
-		}
-		if err := get(ctx, logger, mc); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
@@ -106,6 +73,40 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 		}
 	}
 	return name, pkgPath, versions, nil
+}
+
+func getAll(
+	ctx context.Context,
+	logger *log.Logger,
+	c getConfig,
+) (err error) {
+	if c.name != "" {
+		return errors.New("name cannot by specified if no target was given")
+	}
+	if c.rename != "" {
+		return errors.New("rename cannot by specified if no target was given")
+	}
+
+	pkgs, err := bingo.ListPinnedMainPackages(logger, c.relModDir, false)
+	if err != nil {
+		return err
+	}
+	for _, p := range pkgs {
+		mc := c
+		mc.rawTarget = p.Name
+		if len(p.Versions) > 1 {
+			// Compose array target. Order of versions matter.
+			var versions []string
+			for _, v := range p.Versions {
+				versions = append(versions, v.Version)
+			}
+			mc.rawTarget += "@" + strings.Join(versions, ",")
+		}
+		if err := get(ctx, logger, mc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func get(ctx context.Context, logger *log.Logger, c getConfig) (err error) {
@@ -261,9 +262,12 @@ func getOne(
 			targetWithVer = fmt.Sprintf("%s@%s", pkgPath, version)
 		}
 
-		if err := runnable.GetD(c.update, targetWithVer); err != nil {
+		if err := forceGetD(ctx, c, tmpModFile, targetWithVer); err != nil {
 			return errors.Wrap(err, "go get -d")
 		}
+
+		fmt.Println(emptyModFile, tmpModFile, err)
+		return errors.New("tmp")
 	}
 	if err := bingo.EnsureModMeta(tmpModFile, pkgPath); err != nil {
 		return errors.Wrap(err, "ensuring meta")
@@ -354,11 +358,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 		return err
 	}
 	// gitignore.
-	return ioutil.WriteFile(
-		filepath.Join(relModDir, ".gitignore"),
-		[]byte(gitignore),
-		os.ModePerm,
-	)
+	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), os.ModePerm)
 }
 
 func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, modFile, tmpModFile string) (emptyModFile bool, _ error) {
@@ -373,7 +373,11 @@ func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, modFile
 	if err == nil {
 		return false, copyFile(modFile, tmpModFile)
 	}
-	return true, errors.Wrap(r.With(ctx, tmpModFile, filepath.Dir(modFile)).ModInit("_"), "mod init")
+
+	if err := r.With(ctx, tmpModFile, filepath.Dir(modFile)).ModInit("_"); err != nil {
+		return false, errors.Wrap(err, "mod init")
+	}
+	return true, nil
 }
 
 func copyFile(src, dst string) error {
@@ -417,4 +421,68 @@ func removeAllGlob(glob string) error {
 		}
 	}
 	return nil
+}
+
+// forceGetD runs 'go get -d' against separate go modules file with given arguments.
+// If this operation fails it checks if the problematic package has custom replaces in it's go modules as
+// this is a very common case. Since we always download single tool dependency module per tool module, we can
+// copy its replace if exists to fix this common case.
+func forceGetD(ctx context.Context, c getConfig, tmpModFile string, targetWithVer string) error {
+	//silentRu := c.runner.WithDisabledOutput(ctx, tmpModFile, c.modDir)
+	//if err := silentRu.GetD(c.update, targetWithVer); err == nil {
+	//	return nil
+	//}
+
+	runnable := c.runner.With(ctx, tmpModFile, c.modDir)
+
+	// Force attempt with cloning replace directives.
+	if err := func() error {
+		f, err := os.OpenFile(tmpModFile, os.O_RDWR, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer errcapture.Close(&err, f.Close, "close")
+
+		// Parse go.mod as user might not have passed pinning version, so we rely on failed go get -d to give us that.
+		tmpModParsed, err := bingo.ParseModFileOrReader(tmpModFile, f)
+		if err != nil {
+			return errors.Wrapf(err, "parse tmp mod file %v", tmpModFile)
+		}
+
+		// We expect just one direct import.
+		var pkg, modVersion string
+		for _, r := range tmpModParsed.Require {
+			if r.Indirect {
+				continue
+			}
+
+			pkg = r.Mod.Path
+			modVersion = r.Mod.Version
+			break
+		}
+		if pkg == "" {
+			return errors.Errorf("we tried, but go get failed without updating go.mod")
+		}
+
+		gopath, err := runnable.GoEnv("GOPATH")
+		if err != nil {
+			return errors.Wrap(err, "go env")
+		}
+
+		// We leverage fact that when go get fails because of version mismatch it actually does that after module is downloaded
+		// with it's go mod file in the GOPATH/pkg/mod/....
+		targetModParsed, err := bingo.ParseModFileOrReader(filepath.Join(gopath, "pkg", "mod", pkg, modVersion, "go.mod"), nil)
+		if err != nil {
+			return errors.Wrapf(err, "parse tmp mod file %v", tmpModFile)
+		}
+
+		// Clone replace directives.
+		tmpModParsed.Replace = append(tmpModParsed.Replace, targetModParsed.Replace...)
+
+		return bingo.SaveModFile(f, tmpModParsed)
+
+	}(); err != nil {
+		return errors.Wrapf(runnable.GetD(c.update, targetWithVer), "also 'force' replace heal attempt failed %v", err)
+	}
+	return runnable.GetD(c.update, targetWithVer)
 }

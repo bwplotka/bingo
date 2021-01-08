@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
 )
@@ -30,6 +31,19 @@ func NameFromModFile(modFile string) (name string, oneOfMany bool) {
 	return n[0], oneOfMany
 }
 
+func ParseModFileOrReader(modFile string, r io.Reader) (*modfile.File, error) {
+	b, err := readAllFileOrReader(modFile, r)
+	if err != nil {
+		return nil, errors.Wrap(err, "read")
+	}
+
+	m, err := modfile.Parse(modFile, b, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse")
+	}
+	return m, nil
+}
+
 func readAllFileOrReader(modFile string, r io.Reader) (b []byte, err error) {
 	if r != nil {
 		return ioutil.ReadAll(r)
@@ -42,14 +56,9 @@ func readAllFileOrReader(modFile string, r io.Reader) (b []byte, err error) {
 // If r is nil, modFile will be read.
 // If given file is Go Module, but without bingo metadata bingo.NoMeta error is returned.
 func ModDirectPackage(modFile string, r io.Reader) (pkg string, version string, err error) {
-	b, err := readAllFileOrReader(modFile, r)
+	m, err := ParseModFileOrReader(modFile, r)
 	if err != nil {
-		return "", "", errors.Wrap(err, "read")
-	}
-
-	m, err := modfile.Parse(modFile, b, nil)
-	if err != nil {
-		return "", "", errors.Wrap(err, "parse")
+		return "", "", err
 	}
 
 	if err := onModHeaderComments(m, errOnMetaMissing); err != nil {
@@ -103,23 +112,11 @@ func EnsureModMeta(modFile string, pkg string) (err error) {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil {
-			if err != nil {
-				err = errors.Wrapf(err, "additionally error on close: %v", cerr)
-				return
-			}
-			err = cerr
-		}
-	}()
-	b, err := ioutil.ReadAll(f)
+	defer errcapture.Close(&err, f.Close, "close")
+
+	m, err := ParseModFileOrReader(modFile, f)
 	if err != nil {
 		return err
-	}
-
-	m, err := modfile.Parse(modFile, b, nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse")
 	}
 
 	if err := onModHeaderComments(m, func(comments *modfile.Comments) error {
@@ -146,24 +143,27 @@ func EnsureModMeta(modFile string, pkg string) (err error) {
 			}
 			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
 		}
+		return SaveModFile(f, m)
 
-		// Save & Flush.
-		newB, err := m.Format()
-		if err != nil {
-			return err
-		}
-
-		if err := f.Truncate(0); err != nil {
-			return errors.Wrap(err, "truncate")
-		}
-		if _, err := f.Seek(0, 0); err != nil {
-			return errors.Wrap(err, "seek")
-		}
-
-		_, err = f.Write(newB)
-		return err
 	}
 	return errors.Errorf("empty module found in %s", modFile)
+}
+
+func SaveModFile(f *os.File, parsed *modfile.File) error {
+	newB, err := parsed.Format()
+	if err != nil {
+		return err
+	}
+
+	if err := f.Truncate(0); err != nil {
+		return errors.Wrap(err, "truncate")
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return errors.Wrap(err, "seek")
+	}
+
+	_, err = f.Write(newB)
+	return err
 }
 
 type MainPackageVersion struct {

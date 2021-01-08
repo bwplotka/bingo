@@ -84,12 +84,13 @@ func (r *Runner) execGo(ctx context.Context, cd string, modFile string, args ...
 	if modFile != "" {
 		for i, arg := range args {
 			if _, ok := cmdsSupportingModFileArg[arg]; ok {
+				if i == len(args)-1 {
+					args = append(args, fmt.Sprintf("-modfile=%s", modFile))
+					break
+				}
+
 				args = append(args[:i+1], append([]string{fmt.Sprintf("-modfile=%s", modFile)}, args[i+1:]...)...)
 				break
-			}
-
-			if i == len(args)-1 {
-				args = append(args, fmt.Sprintf("-modfile=%s", modFile))
 			}
 		}
 	}
@@ -126,6 +127,7 @@ type Runnable interface {
 	List(args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) error
 	Build(pkg, out string) error
+	GoEnv(args ...string) (string, error)
 }
 
 type runnable struct {
@@ -145,6 +147,13 @@ func (r *Runner) With(ctx context.Context, modFile string, dir string) Runnable 
 		ctx:     ctx,
 	}
 	ru.enableOSStdOutput(true)
+	return ru
+}
+
+// WithDisabledOutput returns runner that will be ran against give modFile (if any) and in given directory (if any).
+func (r *Runner) WithDisabledOutput(ctx context.Context, modFile string, dir string) Runnable {
+	ru := r.With(ctx, modFile, dir)
+	ru.(*runnable).enableOSStdOutput(false)
 	return ru
 }
 
@@ -183,6 +192,15 @@ func (r *runnable) List(args ...string) (string, error) {
 	return strings.TrimRight(r.r.output.String(), "\n"), err
 }
 
+// GoEnv runs `go env` with given args.
+func (r *runnable) GoEnv(args ...string) (string, error) {
+	r.enableOSStdOutput(false)
+	defer r.enableOSStdOutput(true)
+
+	err := r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"env"}, args...)...)
+	return strings.TrimRight(r.r.output.String(), "\n"), err
+}
+
 // GetD runs 'go get -d' against separate go modules file with given arguments.
 func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) error {
 	args := []string{"get", "-d"}
@@ -204,12 +222,5 @@ func (r *runnable) Build(pkg, outPath string) error {
 	outPath = filepath.Join(binPath, outPath)
 
 	// go install does not define -o so we mimic go install with go build instead.
-	return r.r.execGo(
-		r.ctx,
-		r.dir,
-		r.modFile,
-		append(
-			[]string{"build", "-o=" + outPath}, pkg,
-		)...,
-	)
+	return r.r.execGo(r.ctx, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
 }
