@@ -348,7 +348,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	// README.
 	if err := ioutil.WriteFile(
 		filepath.Join(relModDir, "README.md"),
-		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir)),
+		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir, relModDir)),
 		os.ModePerm,
 	); err != nil {
 		return err
