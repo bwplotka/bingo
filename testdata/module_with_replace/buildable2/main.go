@@ -4,7 +4,7 @@ import (
 	"log"
 
 	module "github.com/bwplotka/bingo/testdata/module_with_replace"
-	errors "github.com/efficientgo/tools/copyright"
+	errors "github.com/efficientgo/tools/core/pkg/runutil"
 
 	"github.com/oklog/run"
 )

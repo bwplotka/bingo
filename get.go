@@ -270,11 +270,8 @@ func getOne(
 		}
 	}
 
-	if err := merrors.New(
-		tmpModFile.Reload(),
-		tmpModFile.UpdateDirectPackage(pkgPath),
-		tmpModFile.Flush(),
-	).Err(); err != nil {
+	// We need to reload due to potential get -d changes.
+	if err := merrors.New(tmpModFile.Reload(), tmpModFile.UpdateDirectPackage(pkgPath), tmpModFile.Flush()).Err(); err != nil {
 		return errors.Wrap(err, "updating direct package")
 	}
 

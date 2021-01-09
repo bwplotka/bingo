@@ -22,13 +22,14 @@ const (
 const defaultGoProxy = "https://proxy.golang.org"
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
+// $GOBIN has to be set for this test to run properly.
 func TestGet(t *testing.T) {
 	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
 
 	g := newIsolatedGoEnv(t, defaultGoProxy)
 	defer g.Close(t)
 
-	t.Run("empty project with advanced cases", func(t *testing.T) {
+	if ok := t.Run("empty project with advanced cases", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
 			t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 				g.Clear(t)
@@ -206,12 +207,12 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "get -n=wr_buildable github.com/bwplotka/bingo/testdata/module_with_replace/buildable@f9375413c969c77fa358b93c54b73512f121f26a (get buildable from same module with relevant replaces)",
+						name: "get -n=wr_buildable github.com/bwplotka/bingo/testdata/module_with_replace/buildable@e80f2d6bb0941abab62d15e79e8aa6146da312ec (get buildable from same module with relevant replaces)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=wr_buildable", "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@f9375413c969c77fa358b93c54b73512f121f26a"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=wr_buildable", "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@e80f2d6bb0941abab62d15e79e8aa6146da312ec"))
 
 							// Check if installed tool is what we expect.
-							testutil.Equals(t, "module_with_replace.buildable 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.Equals(t, "module_with_replace.buildable 2.4\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109161932-e80f2d6bb094")))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -219,14 +220,39 @@ func TestGet(t *testing.T) {
 							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
 							{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
 							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109161932-e80f2d6bb094", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109161932-e80f2d6bb094"},
 						},
 						expectBinaries: []string{
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
 							"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109093942-2e6391144e85",
+							"wr_buildable-v0.0.0-20210109161932-e80f2d6bb094",
+						},
+					},
+					{
+						name: "get wr_buildable@12d56d5908ff9bdb4501a69fdc579ecca765e627 (upgrade buildable with different replaces - trickier then you think!)",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=wr_buildable", "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@e80f2d6bb0941abab62d15e79e8aa6146da312ec"))
+
+							// Check if installed tool is what we expect.
+							testutil.Equals(t, "module_with_replace.buildable 2.4\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109161932-e80f2d6bb094")))
+							//testutil.Equals(t, "module_with_replace.buildable 2.5\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109161932-e80f2d6bb094")))
+						},
+						expectRows: []row{
+							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+							{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
+							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109161932-e80f2d6bb094", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109161932-e80f2d6bb094"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109161932-e80f2d6bb094",
 						},
 					},
 					{
@@ -442,7 +468,9 @@ func TestGet(t *testing.T) {
 				}
 			})
 		}
-	})
+	}); !ok {
+		return
+	}
 	t.Run("Compatibility test", func(t *testing.T) {
 		t.Skip("f")
 		dirs, err := filepath.Glob("testdata/testproject*")
