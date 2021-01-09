@@ -8,6 +8,8 @@ import (
 )
 
 func main() {
+	log.SetFlags(0)
+
 	g := run.Group{}
 	if err := g.Run(); err != nil {
 		log.Fatal(errors.Wrap(err, "run"))
