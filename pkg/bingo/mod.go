@@ -15,11 +15,14 @@ import (
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 const (
 	// FakeRootModFileName is a name for fake go module that we have to maintain, until https://github.com/bwplotka/bingo/issues/20 is fixed.
 	FakeRootModFileName = "go.mod"
+
+	NoReplaceCommand = "bingo:no_replace_fetch"
 )
 
 // NameFromModFile returns binary name from module file path.
@@ -29,6 +32,147 @@ func NameFromModFile(modFile string) (name string, oneOfMany bool) {
 		oneOfMany = true
 	}
 	return n[0], oneOfMany
+}
+
+type ModFile struct {
+	fn string
+
+	f *os.File
+	m *modfile.File
+
+	directPackage       *module.Version
+	directModule        *module.Version
+	autoReplaceDisabled bool
+}
+
+// OpenModFile opens bingo mod file and adds meta if missing.
+func OpenModFile(modFile string) (_ *ModFile, err error) {
+	f, err := os.OpenFile(modFile, os.O_RDWR, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			errcapture.Close(&err, f.Close, "close")
+		}
+	}()
+	mf := &ModFile{f: f, fn: modFile}
+	if err := mf.Reload(); err != nil {
+		return nil, err
+	}
+
+	if err := onModHeaderComments(mf.m, func(comments *modfile.Comments) error {
+		if err := errOnMetaMissing(comments); err != nil {
+			mf.m.Module.Syntax.Suffix = append(mf.m.Module.Syntax.Suffix, modfile.Comment{Suffix: true, Token: metaComment})
+			return mf.saveAndReload()
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return mf, nil
+}
+
+func (mf *ModFile) Name() string {
+	return mf.fn
+}
+
+func (mf *ModFile) AutoReplaceDisabled() bool {
+	return mf.autoReplaceDisabled
+}
+
+func (mf *ModFile) Close() error {
+	return mf.f.Close()
+}
+
+func (mf *ModFile) Reload() (err error) {
+	if _, err := mf.f.Seek(0, 0); err != nil {
+		return errors.Wrap(err, "seek")
+	}
+
+	mf.m, err = ParseModFileOrReader(mf.fn, mf.f)
+	if err != nil {
+		return err
+	}
+
+	mf.autoReplaceDisabled = false
+	for _, c := range mf.m.Syntax.Comment().Suffix {
+		if c.Token == NoReplaceCommand {
+			mf.autoReplaceDisabled = true
+			break
+		}
+	}
+
+	// We expect just one direct import if any.
+	mf.directPackage = nil
+	mf.directModule = nil
+	for _, r := range mf.m.Require {
+		if r.Indirect {
+			continue
+		}
+
+		pkg := r.Mod.Path
+		if len(r.Syntax.Suffix) > 0 {
+			pkg = path.Join(pkg, strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n"))
+		}
+		mf.directModule = &module.Version{Path: r.Mod.Path, Version: r.Mod.Version}
+		mf.directPackage = &module.Version{Path: pkg, Version: r.Mod.Version}
+		break
+	}
+	return nil
+}
+
+func (mf *ModFile) saveAndReload() error {
+	newB := modfile.Format(mf.m.Syntax)
+	if err := mf.f.Truncate(0); err != nil {
+		return errors.Wrap(err, "truncate")
+	}
+	if _, err := mf.f.Seek(0, 0); err != nil {
+		return errors.Wrap(err, "seek")
+	}
+	if _, err := mf.f.Write(newB); err != nil {
+		return errors.Wrap(err, "write")
+	}
+	return mf.Reload()
+}
+
+// UpdateDirectPackage updates direct required module with the sub package path comment that recorded for package-level versioning.
+func (mf *ModFile) UpdateDirectPackage(pkg string) (err error) {
+	for _, r := range mf.m.Require {
+		if !strings.HasPrefix(pkg, r.Mod.Path) {
+			continue
+		}
+
+		r.Syntax.Suffix = r.Syntax.Suffix[:0]
+
+		// Add sub package info if needed.
+		if r.Mod.Path != pkg {
+			subPkg, err := filepath.Rel(r.Mod.Path, pkg)
+			if err != nil {
+				return err
+			}
+			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
+		}
+		return mf.saveAndReload()
+
+	}
+	return errors.Errorf("empty or malformed module found in %s; expected require statement based on %v", mf.fn, pkg)
+}
+
+// SetReplaceStmts removes all replace statements.
+func (mf *ModFile) SetReplaceStmts(target []*modfile.Replace) (err error) {
+	for _, r := range mf.m.Replace {
+		if err := mf.m.DropReplace(r.Old.Path, r.Old.Version); err != nil {
+			return err
+		}
+	}
+	for _, r := range target {
+		if err := mf.m.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version); err != nil {
+			return err
+		}
+	}
+	mf.m.Cleanup()
+	return mf.saveAndReload()
 }
 
 func ParseModFileOrReader(modFile string, r io.Reader) (*modfile.File, error) {
@@ -51,33 +195,26 @@ func readAllFileOrReader(modFile string, r io.Reader) (b []byte, err error) {
 	return ioutil.ReadFile(modFile)
 }
 
-// ModDirectPackage returns buildable package we encoded in the bingo controlled go module.
-// We encode it as single direct module with end of line comment containing relative package path if any.
-// If r is nil, modFile will be read.
-// If given file is Go Module, but without bingo metadata bingo.NoMeta error is returned.
-func ModDirectPackage(modFile string, r io.Reader) (pkg string, version string, err error) {
-	m, err := ParseModFileOrReader(modFile, r)
+func (mf *ModFile) DirectModule() *module.Version {
+	return mf.directModule
+}
+
+func (mf *ModFile) DirectPackage() *module.Version {
+	return mf.directPackage
+}
+
+func ModDirectPackage(modFile string) (pkg string, version string, err error) {
+	mf, err := OpenModFile(modFile)
 	if err != nil {
-		return "", "", err
+		return "", "", nil
 	}
+	defer errcapture.Close(&err, mf.Close, "close")
 
-	if err := onModHeaderComments(m, errOnMetaMissing); err != nil {
-		return "", "", err
+	if mf.directPackage == nil {
+		return "", "", errors.Errorf("empty module found in %s", mf.fn)
 	}
+	return mf.directPackage.Path, mf.directPackage.Version, nil
 
-	// We expect just one direct import.
-	for _, r := range m.Require {
-		if r.Indirect {
-			continue
-		}
-
-		pkg := r.Mod.Path
-		if len(r.Syntax.Suffix) > 0 {
-			pkg = path.Join(pkg, strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n"))
-		}
-		return pkg, r.Mod.Version, nil
-	}
-	return "", "", errors.Errorf("empty or malformed module file %v", modFile)
 }
 
 const metaComment = "// Auto generated by https://github.com/bwplotka/bingo. DO NOT EDIT"
@@ -105,63 +242,6 @@ func errOnMetaMissing(comments *modfile.Comments) error {
 	return nil
 }
 
-// EnsureModMeta comment on given module file to make sure users knows it's autogenerated.
-// It also ensures that sub package path is recorded, which is required for package-level versioning.
-func EnsureModMeta(modFile string, pkg string) (err error) {
-	f, err := os.OpenFile(modFile, os.O_RDWR, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer errcapture.Close(&err, f.Close, "close")
-
-	m, err := ParseModFileOrReader(modFile, f)
-	if err != nil {
-		return err
-	}
-
-	if err := onModHeaderComments(m, func(comments *modfile.Comments) error {
-		if err := errOnMetaMissing(comments); err != nil {
-			m.Module.Syntax.Suffix = append(m.Module.Syntax.Suffix, modfile.Comment{Suffix: true, Token: metaComment})
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	for _, r := range m.Require {
-		if !strings.HasPrefix(pkg, r.Mod.Path) {
-			continue
-		}
-
-		r.Syntax.Suffix = r.Syntax.Suffix[:0]
-
-		// Add sub package info if needed.
-		if r.Mod.Path != pkg {
-			subPkg, err := filepath.Rel(r.Mod.Path, pkg)
-			if err != nil {
-				return err
-			}
-			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
-		}
-		return SaveModFile(f, m.Syntax)
-
-	}
-	return errors.Errorf("empty module found in %s", modFile)
-}
-
-func SaveModFile(f *os.File, s *modfile.FileSyntax) error {
-	newB := modfile.Format(s)
-	if err := f.Truncate(0); err != nil {
-		return errors.Wrap(err, "truncate")
-	}
-	if _, err := f.Seek(0, 0); err != nil {
-		return errors.Wrap(err, "seek")
-	}
-
-	_, err := f.Write(newB)
-	return err
-}
-
 type MainPackageVersion struct {
 	Version string
 	ModFile string
@@ -186,7 +266,7 @@ ModLoop:
 			continue
 		}
 
-		pkg, ver, err := ModDirectPackage(f, nil)
+		pkg, ver, err := ModDirectPackage(f)
 		if err != nil {
 			if remMalformed {
 				logger.Printf("found malformed module file %v, removing due to error: %v\n", f, err)

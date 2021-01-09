@@ -113,7 +113,6 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command 
 }
 
 type Runnable interface {
-	ModInit(moduleName string) error
 	List(args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) error
 	Build(pkg, out string) error
@@ -127,6 +126,15 @@ type runnable struct {
 	modFile string
 	dir     string
 	silent  bool
+}
+
+// ModInit runs `go mod init` against separate go modules files if any.
+func (r *Runner) ModInit(ctx context.Context, cd, modFile, moduleName string) error {
+	out := &bytes.Buffer{}
+	if err := r.execGo(ctx, out, cd, modFile, append([]string{"mod", "init"}, moduleName)...); err != nil {
+		return errors.Wrap(err, out.String())
+	}
+	return nil
 }
 
 // With returns runner that will be ran against give modFile (if any) and in given directory (if any).
@@ -155,15 +163,6 @@ const (
 	UpdatePatchPolicy = GetUpdatePolicy("-u=patch")
 )
 
-// ModInit runs `go mod init` against separate go modules files if any. REMOVE
-func (r *runnable) ModInit(moduleName string) error {
-	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"mod", "init"}, moduleName)...); err != nil {
-		return errors.Wrap(err, out.String())
-	}
-	return nil
-}
-
 // List runs `go list` against separate go modules files if any.
 func (r *runnable) List(args ...string) (string, error) {
 	out := &bytes.Buffer{}
@@ -176,7 +175,7 @@ func (r *runnable) List(args ...string) (string, error) {
 // GoEnv runs `go env` with given args.
 func (r *runnable) GoEnv(args ...string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"env"}, args...)...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.dir, "", append([]string{"env"}, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
 	return strings.TrimRight(out.String(), "\n"), nil

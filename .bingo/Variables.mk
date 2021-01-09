@@ -65,9 +65,9 @@ $(PROXY): $(BINGO_DIR)/proxy.mod
 	@echo "(re)installing $(GOBIN)/proxy-v0.10.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=proxy.mod -o=$(GOBIN)/proxy-v0.10.0 "github.com/gomods/athens/cmd/proxy"
 
-THANOS := $(GOBIN)/thanos-v0.17.2
+THANOS := $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51
 $(THANOS): $(BINGO_DIR)/thanos.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/thanos-v0.17.2"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=thanos.mod -o=$(GOBIN)/thanos-v0.17.2 "github.com/thanos-io/thanos/cmd/thanos"
+	@echo "(re)installing $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=thanos.mod -o=$(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51 "github.com/thanos-io/thanos/cmd/thanos"
 
