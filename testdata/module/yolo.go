@@ -2,6 +2,8 @@ package module
 
 import "github.com/pkg/errors"
 
-func Yolo2() error {
+const Version = "1"
+
+func Yolo() error {
 	return errors.Errorf("some error")
 }

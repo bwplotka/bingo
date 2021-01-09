@@ -61,9 +61,9 @@ func TestGet(t *testing.T) {
 						existingBinaries: []string{"faillint-v1.4.0"},
 					},
 					{
-						name: "Get goimports from commit",
+						name: "Get test module from commit",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com golang.org/x/tools/cmd/goimports@2b542361a4fc4b018c0770324a3b65d0393db1e0"))
 							testutil.Equals(t, "Name\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\n----\t\t-----------\t\t\t\t\t\t\t-----------------\t\t\t\t\nfaillint\tfaillint-v1.4.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.4.0\t\ngoimports\tgoimports-v0.0.0-20200521211927-2b542361a4fc\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200521211927-2b542361a4fc", g.ExecOutput(t, p.root, goBinPath, "list"))
 						},
 						existingBinaries: []string{"faillint-v1.4.0", "goimports-v0.0.0-20200521211927-2b542361a4fc"},

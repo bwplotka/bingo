@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/bwplotka/bingo/testdata/module"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 )
@@ -12,5 +13,5 @@ func main() {
 	if err := g.Run(); err != nil {
 		log.Fatal(errors.Wrap(err, "run"))
 	}
-	log.Println("buildable1 ok run")
+	log.Println("module.buildable", module.Version)
 }
