@@ -3,7 +3,7 @@ package notmain
 import (
 	"log"
 
-	errors "github.com/efficientgo/tools/core/pkg/runutil"
+	errors "golang.org/x/crypto/openpgp/errors"
 
 	"github.com/oklog/run"
 )

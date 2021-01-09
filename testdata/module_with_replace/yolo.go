@@ -1,10 +1,10 @@
 package module
 
 import (
-	errors "github.com/efficientgo/tools/core/pkg/runutil"
+	errors "golang.org/x/crypto/openpgp/errors"
 )
 
-const Version = "2.5"
+const Version = "2.6"
 
 func Yolo() error {
 	return errors.Errorf("some error")
