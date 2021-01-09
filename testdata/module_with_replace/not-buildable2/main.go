@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	errors "github.com/efficientgo/tools/core"
+	errors "github.com/efficientgo/tools/copyright"
 
 	"github.com/oklog/run"
 )

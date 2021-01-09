@@ -64,7 +64,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 	if err := onModHeaderComments(mf.m, func(comments *modfile.Comments) error {
 		if err := errOnMetaMissing(comments); err != nil {
 			mf.m.Module.Syntax.Suffix = append(mf.m.Module.Syntax.Suffix, modfile.Comment{Suffix: true, Token: metaComment})
-			return mf.saveAndReload()
+			return mf.Flush()
 		}
 		return nil
 	}); err != nil {
@@ -122,7 +122,8 @@ func (mf *ModFile) Reload() (err error) {
 	return nil
 }
 
-func (mf *ModFile) saveAndReload() error {
+// Flush saves all changes made to parsed syntax and reloads the parsed file.
+func (mf *ModFile) Flush() error {
 	newB := modfile.Format(mf.m.Syntax)
 	if err := mf.f.Truncate(0); err != nil {
 		return errors.Wrap(err, "truncate")
@@ -137,6 +138,7 @@ func (mf *ModFile) saveAndReload() error {
 }
 
 // UpdateDirectPackage updates direct required module with the sub package path comment that recorded for package-level versioning.
+// It's caller responsibility to Flush all changes.
 func (mf *ModFile) UpdateDirectPackage(pkg string) (err error) {
 	for _, r := range mf.m.Require {
 		if !strings.HasPrefix(pkg, r.Mod.Path) {
@@ -153,14 +155,15 @@ func (mf *ModFile) UpdateDirectPackage(pkg string) (err error) {
 			}
 			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
 		}
-		return mf.saveAndReload()
+		return nil
 
 	}
 	return errors.Errorf("empty or malformed module found in %s; expected require statement based on %v", mf.fn, pkg)
 }
 
-// SetReplaceStmts removes all replace statements.
-func (mf *ModFile) SetReplaceStmts(target []*modfile.Replace) (err error) {
+// SetReplace removes all replace statements and set to the given ones.
+// It's caller responsibility to Flush all changes.
+func (mf *ModFile) SetReplace(target ...*modfile.Replace) (err error) {
 	for _, r := range mf.m.Replace {
 		if err := mf.m.DropReplace(r.Old.Path, r.Old.Version); err != nil {
 			return err
@@ -172,7 +175,22 @@ func (mf *ModFile) SetReplaceStmts(target []*modfile.Replace) (err error) {
 		}
 	}
 	mf.m.Cleanup()
-	return mf.saveAndReload()
+	return nil
+}
+
+// SetDirectRequire removes all require statements and set to the given ones.
+// It's caller responsibility to Flush all changes.
+func (mf *ModFile) SetDirectRequire(target ...*modfile.Require) (err error) {
+	for _, r := range mf.m.Require {
+		if err := mf.m.DropRequire(r.Mod.Path); err != nil {
+			return err
+		}
+	}
+	for _, r := range target {
+		mf.m.AddNewRequire(r.Mod.Path, r.Mod.Version, false)
+	}
+	mf.m.Cleanup()
+	return nil
 }
 
 func ParseModFileOrReader(modFile string, r io.Reader) (*modfile.File, error) {

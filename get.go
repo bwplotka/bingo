@@ -20,7 +20,9 @@ import (
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
+	"github.com/efficientgo/tools/pkg/merrors"
 	"github.com/pkg/errors"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
@@ -121,11 +123,16 @@ func get(ctx context.Context, logger *log.Logger, c getConfig) (err error) {
 		return errors.Wrapf(err, "parse %v", c.rawTarget)
 	}
 
-	existingModFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".mod"))
+	targetName := name
+	if c.name != "" {
+		targetName = c.name
+	}
+
+	existingModFiles, err := filepath.Glob(filepath.Join(c.modDir, targetName+".mod"))
 	if err != nil {
 		return err
 	}
-	existingModArrFiles, err := filepath.Glob(filepath.Join(c.modDir, name+".*.mod"))
+	existingModArrFiles, err := filepath.Glob(filepath.Join(c.modDir, targetName+".*.mod"))
 	if err != nil {
 		return err
 	}
@@ -134,29 +141,23 @@ func get(ctx context.Context, logger *log.Logger, c getConfig) (err error) {
 	// Get full import path from any existing module file for this name.
 	if pkgPath == "" && len(existingModFiles) == 0 {
 		// Binary referenced by name, get full package name if module file exists.
-		return errors.Errorf("binary %q was not installed before. Use full package name to install it", name)
+		return errors.Errorf("binary %q was not installed before. Use full package name to install it", targetName)
 	}
 
 	if len(existingModFiles) > 0 {
 		modPkgPath, _, err := bingo.ModDirectPackage(existingModFiles[0])
 		if err != nil {
-			return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", name, existingModFiles[0])
+			return errors.Wrapf(err, "binary %q was installed, but go modules %s is malformed. Use full package name to reinstall it", targetName, existingModFiles[0])
 		}
 
 		if pkgPath != "" && pkgPath != modPkgPath {
 			// Check if someone is not referencing totally different path.
 			return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
-				"Uninstall exsiting %q tool using `@none` or use `-n` flag to choose different name", pkgPath, name, modPkgPath, name)
+				"Uninstall exsiting %q tool using `@none` or use `-n` flag to choose different name", pkgPath, targetName, modPkgPath, targetName)
 		}
-
 		pkgPath = modPkgPath
 	}
 
-	// Handle new name/rename.
-	targetName := name
-	if c.name != "" {
-		targetName = c.name
-	}
 	if c.rename != "" {
 		targetName = c.rename
 	}
@@ -264,14 +265,17 @@ func getOne(
 			if err := c.runner.With(ctx, tmpModFile.Name(), c.modDir).GetD(c.update, targetPackage.String()); err != nil {
 				return errors.Wrap(err, "go get -d")
 			}
-		} else {
-			if err := autoReplaceGetD(ctx, c, tmpModFile, targetPackage); err != nil {
-				return errors.Wrap(err, "go get -d")
-			}
+		} else if err := autoReplaceGetD(ctx, c, tmpModFile, targetPackage); err != nil {
+			return errors.Wrap(err, "go get -d")
 		}
 	}
-	if err := tmpModFile.UpdateDirectPackage(pkgPath); err != nil {
-		return errors.Wrap(err, "ensuring meta")
+
+	if err := merrors.New(
+		tmpModFile.Reload(),
+		tmpModFile.UpdateDirectPackage(pkgPath),
+		tmpModFile.Flush(),
+	).Err(); err != nil {
+		return errors.Wrap(err, "updating direct package")
 	}
 
 	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
@@ -426,7 +430,6 @@ func removeAllGlob(glob string) error {
 // It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
 // Since we always download single tool dependency module per tool module, we can
 // copy its replace if exists to fix this common case.
-// TODO(bwplotka): Tested manually only, add tests.
 func autoReplaceGetD(ctx context.Context, c getConfig, tmpModFile *bingo.ModFile, targetPackage module.Version) (err error) {
 	// Do initial get -d.
 	gerr := c.runner.WithSilent(ctx, tmpModFile.Name(), c.modDir).GetD(c.update, targetPackage.String())
@@ -463,6 +466,12 @@ func autoReplaceGetD(ctx context.Context, c getConfig, tmpModFile *bingo.ModFile
 			}
 		}
 
+		if err := tmpModFile.SetDirectRequire(&modfile.Require{
+			Mod: *directModule,
+		}); err != nil {
+			return err
+		}
+
 		gopath, err := runnable.GoEnv("GOPATH")
 		if err != nil {
 			return errors.Wrap(err, "go env")
@@ -477,10 +486,12 @@ func autoReplaceGetD(ctx context.Context, c getConfig, tmpModFile *bingo.ModFile
 		}
 
 		// Set replace directives.
-		return tmpModFile.SetReplaceStmts(targetModParsed.Replace)
+		if err := tmpModFile.SetReplace(targetModParsed.Replace...); err != nil {
+			return err
+		}
+		return tmpModFile.Flush()
 	}(); err != nil {
 		return errors.Wrapf(runnable.GetD(c.update, targetPackage.String()), "also 'force' replace heal attempt failed %v", err)
 	}
-
 	return runnable.GetD(c.update, targetPackage.String())
 }
