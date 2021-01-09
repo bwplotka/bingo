@@ -146,7 +146,7 @@ func TestGet(t *testing.T) {
 						existingBinaries: []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
 					},
 					{
-						name: "<Special> Persist current state, to use for compatibility testing. ",
+						name: "<Special> Persist current state, to use for compatibility testing.",
 						do: func(t *testing.T) {
 							if isGoProject {
 								return

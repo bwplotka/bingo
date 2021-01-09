@@ -4,6 +4,6 @@ import (
 	errors "github.com/efficientgo/tools/core"
 )
 
-func Yolo() error {
+func Yolo2() error {
 	return errors.Errorf("some error")
 }
