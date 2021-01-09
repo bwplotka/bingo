@@ -4,6 +4,8 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/efficientgo/tools v0.0.0-20201228165755-e2b84817bf79 h1:Pi2rMrMQeQ45UAZr8Ple+eSk9WCyglYpkFh0r22E00c=
+github.com/efficientgo/tools v0.0.0-20201228165755-e2b84817bf79/go.mod h1:jQUsxCcf91LHRhOnGqrx/yrleJbosynzf29/UlCbzlk=
 github.com/efficientgo/tools/core v0.0.0-20210106193344-1108f4e7d16b h1:yi5z8x/FKDHrqtEFiAsxF5b7Sz2+CJrRwBC2kbyhVcA=
 github.com/efficientgo/tools/core v0.0.0-20210106193344-1108f4e7d16b/go.mod h1:RJm2+KCRfMUwgEgRte3obd5uLdVY5YbDZjgSMPY0HSA=
 github.com/felixge/fgprof v0.9.1/go.mod h1:7/HK6JFtFaARhIljgP2IV8rJLIoHDoOYoUphsnGvqxE=

@@ -190,17 +190,17 @@ func main() {
 			}
 
 			w := new(tabwriter.Writer)
-			w.Init(os.Stdout, 4, 5, 1, '\t', 0)
+			w.Init(os.Stdout, 4, 4, 1, '\t', 0)
 			defer func() { _ = w.Flush() }()
 
-			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version\t")
-			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------\t")
+			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version")
+			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------")
 			for _, p := range pkgs {
 				if target != "" && p.Name != target {
 					continue
 				}
 				for _, v := range p.Versions {
-					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s\t", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
+					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
 				}
 				if target != "" {
 					return nil
