@@ -1,10 +1,10 @@
 package module
 
 import (
-	errors "golang.org/x/crypto/openpgp/errors"
+	errors "github.com/bwplotka/bingo"
 )
 
-const Version = "2.6"
+const Version = "2.7"
 
 func Yolo() error {
 	return errors.Errorf("some error")

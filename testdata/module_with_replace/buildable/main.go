@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
+	errors "github.com/bwplotka/bingo"
 	module "github.com/bwplotka/bingo/testdata/module_with_replace"
-	errors "golang.org/x/crypto/openpgp/errors"
 
 	"github.com/oklog/run"
 )

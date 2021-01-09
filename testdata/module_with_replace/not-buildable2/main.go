@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	errors "golang.org/x/crypto/openpgp/errors"
+	errors "github.com/bwplotka/bingo"
 
 	"github.com/oklog/run"
 )
