@@ -1,10 +1,10 @@
 package module
 
 import (
-	errors "github.com/bwplotka/bingo"
+	errors "github.com/efficientgo/tools/copyright"
 )
 
-const Version = "2.7"
+const Version = "2.8"
 
 func Yolo() error {
 	return errors.Errorf("some error")

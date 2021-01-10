@@ -3,7 +3,7 @@ package notmain
 import (
 	"log"
 
-	errors "github.com/bwplotka/bingo"
+	errors "github.com/efficientgo/tools/copyright"
 
 	"github.com/oklog/run"
 )
