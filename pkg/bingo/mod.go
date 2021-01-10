@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -34,18 +33,44 @@ func NameFromModFile(modFile string) (name string, oneOfMany bool) {
 	return n[0], oneOfMany
 }
 
+// A Package (for clients, a bingo.Package) is defined by a module path, package relative path and version pair.
+// These are stored in their plain (unescaped) form.
+type Package struct {
+	Module module.Version
+
+	// RelPath is a path that together with module compose a package path, like "/pkg/makefile".
+	// Empty if the module is a full package path.
+	RelPath string
+}
+
+// String returns a representation of the Package suitable for `go` tools and logging.
+// (Module.Path/RelPath@Module.Version, or Module.Path/RelPath if Version is empty).
+func (m Package) String() string {
+	if m.Module.Version == "" {
+		return m.Path()
+	}
+	return m.Path() + "@" + m.Module.Version
+}
+
+// Path returns a full package path.
+func (m Package) Path() string {
+	return filepath.Join(m.Module.Path, m.RelPath)
+}
+
+// ModFile represents bingo tool .mod file.
 type ModFile struct {
-	fn string
+	name string
 
 	f *os.File
 	m *modfile.File
 
-	directPackage       *module.Version
-	directModule        *module.Version
+	directPackage       *Package
 	autoReplaceDisabled bool
 }
 
-// OpenModFile opens bingo mod file and adds meta if missing.
+// OpenModFile opens bingo mod file.
+// It also adds meta if missing and trims all require direct module imports except first within the parsed syntax.
+// Use `Flush` to persist those changes.
 func OpenModFile(modFile string) (_ *ModFile, err error) {
 	f, err := os.OpenFile(modFile, os.O_RDWR, os.ModePerm)
 	if err != nil {
@@ -56,7 +81,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 			errcapture.Close(&err, f.Close, "close")
 		}
 	}()
-	mf := &ModFile{f: f, fn: modFile}
+	mf := &ModFile{f: f, name: modFile}
 	if err := mf.Reload(); err != nil {
 		return nil, err
 	}
@@ -64,7 +89,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 	if err := onModHeaderComments(mf.m, func(comments *modfile.Comments) error {
 		if err := errOnMetaMissing(comments); err != nil {
 			mf.m.Module.Syntax.Suffix = append(mf.m.Module.Syntax.Suffix, modfile.Comment{Suffix: true, Token: metaComment})
-			return mf.Flush()
+			return nil
 		}
 		return nil
 	}); err != nil {
@@ -74,7 +99,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 }
 
 func (mf *ModFile) Name() string {
-	return mf.fn
+	return mf.name
 }
 
 func (mf *ModFile) AutoReplaceDisabled() bool {
@@ -90,7 +115,7 @@ func (mf *ModFile) Reload() (err error) {
 		return errors.Wrap(err, "seek")
 	}
 
-	mf.m, err = ParseModFileOrReader(mf.fn, mf.f)
+	mf.m, err = ParseModFileOrReader(mf.name, mf.f)
 	if err != nil {
 		return err
 	}
@@ -105,21 +130,27 @@ func (mf *ModFile) Reload() (err error) {
 
 	// We expect just one direct import if any.
 	mf.directPackage = nil
-	mf.directModule = nil
 	for _, r := range mf.m.Require {
 		if r.Indirect {
 			continue
 		}
 
-		pkg := r.Mod.Path
+		mf.directPackage = &Package{Module: r.Mod}
 		if len(r.Syntax.Suffix) > 0 {
-			pkg = path.Join(pkg, strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n"))
+			mf.directPackage.RelPath = strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n")
 		}
-		mf.directModule = &module.Version{Path: r.Mod.Path, Version: r.Mod.Version}
-		mf.directPackage = &module.Version{Path: pkg, Version: r.Mod.Version}
 		break
 	}
+	// Remove rest.
+	mf.dropAllRequire()
+	if mf.directPackage != nil {
+		return mf.SetDirectRequire(*mf.directPackage)
+	}
 	return nil
+}
+
+func (mf *ModFile) DirectPackage() *Package {
+	return mf.directPackage
 }
 
 // Flush saves all changes made to parsed syntax and reloads the parsed file.
@@ -137,28 +168,25 @@ func (mf *ModFile) Flush() error {
 	return mf.Reload()
 }
 
-// UpdateDirectPackage updates direct required module with the sub package path comment that recorded for package-level versioning.
+// SetDirectRequire removes all require statements and set to the given one. It supports package level versioning.
 // It's caller responsibility to Flush all changes.
-func (mf *ModFile) UpdateDirectPackage(pkg string) (err error) {
-	for _, r := range mf.m.Require {
-		if !strings.HasPrefix(pkg, r.Mod.Path) {
-			continue
-		}
+func (mf *ModFile) SetDirectRequire(target Package) (err error) {
+	mf.dropAllRequire()
+	mf.m.AddNewRequire(target.Module.Path, target.Module.Version, false)
 
-		r.Syntax.Suffix = r.Syntax.Suffix[:0]
-
-		// Add sub package info if needed.
-		if r.Mod.Path != pkg {
-			subPkg, err := filepath.Rel(r.Mod.Path, pkg)
-			if err != nil {
-				return err
-			}
-			r.Syntax.Suffix = append(r.Syntax.Suffix, modfile.Comment{Suffix: true, Token: "// " + subPkg})
-		}
-		return nil
-
+	// Add sub package info if needed.
+	if target.RelPath != "" {
+		r := mf.m.Require[0]
+		r.Syntax.Suffix = append(r.Syntax.Suffix[:0], modfile.Comment{Suffix: true, Token: "// " + target.RelPath})
 	}
-	return errors.Errorf("empty or malformed module found in %s; expected require statement based on %v", mf.fn, pkg)
+	mf.m.Cleanup()
+	return nil
+}
+
+func (mf *ModFile) dropAllRequire() {
+	for _, r := range mf.m.Require {
+		_ = mf.m.DropRequire(r.Mod.Path)
+	}
 }
 
 // SetReplace removes all replace statements and set to the given ones.
@@ -178,21 +206,7 @@ func (mf *ModFile) SetReplace(target ...*modfile.Replace) (err error) {
 	return nil
 }
 
-// SetDirectRequire removes all require statements and set to the given ones.
-// It's caller responsibility to Flush all changes.
-func (mf *ModFile) SetDirectRequire(target ...*modfile.Require) (err error) {
-	for _, r := range mf.m.Require {
-		if err := mf.m.DropRequire(r.Mod.Path); err != nil {
-			return err
-		}
-	}
-	for _, r := range target {
-		mf.m.AddNewRequire(r.Mod.Path, r.Mod.Version, false)
-	}
-	mf.m.Cleanup()
-	return nil
-}
-
+// ParseModFileOrReader parses any module file or reader allowing to read it's content.
 func ParseModFileOrReader(modFile string, r io.Reader) (*modfile.File, error) {
 	b, err := readAllFileOrReader(modFile, r)
 	if err != nil {
@@ -206,33 +220,26 @@ func ParseModFileOrReader(modFile string, r io.Reader) (*modfile.File, error) {
 	return m, nil
 }
 
-func readAllFileOrReader(modFile string, r io.Reader) (b []byte, err error) {
+func readAllFileOrReader(file string, r io.Reader) (b []byte, err error) {
 	if r != nil {
 		return ioutil.ReadAll(r)
 	}
-	return ioutil.ReadFile(modFile)
+	return ioutil.ReadFile(file)
 }
 
-func (mf *ModFile) DirectModule() *module.Version {
-	return mf.directModule
-}
-
-func (mf *ModFile) DirectPackage() *module.Version {
-	return mf.directPackage
-}
-
-func ModDirectPackage(modFile string) (pkg string, version string, err error) {
+// ModDirectPackage return the first direct package from bingo enhanced module file. The package suffix (if any) is
+// encoded in the line comment, in the same line as module and version.
+func ModDirectPackage(modFile string) (pkg Package, err error) {
 	mf, err := OpenModFile(modFile)
 	if err != nil {
-		return "", "", nil
+		return Package{}, err
 	}
 	defer errcapture.Close(&err, mf.Close, "close")
 
 	if mf.directPackage == nil {
-		return "", "", errors.Errorf("empty module found in %s", mf.fn)
+		return Package{}, errors.Errorf("no direct package found in %s; empty module?", mf.name)
 	}
-	return mf.directPackage.Path, mf.directPackage.Version, nil
-
+	return *mf.directPackage, nil
 }
 
 const metaComment = "// Auto generated by https://github.com/bwplotka/bingo. DO NOT EDIT"
@@ -284,7 +291,7 @@ ModLoop:
 			continue
 		}
 
-		pkg, ver, err := ModDirectPackage(f)
+		pkg, err := ModDirectPackage(f)
 		if err != nil {
 			if remMalformed {
 				logger.Printf("found malformed module file %v, removing due to error: %v\n", f, err)
@@ -303,14 +310,14 @@ ModLoop:
 				// Preserve order. Unfortunately first array mod file has no number, so it's last.
 				if filepath.Base(f) == p.Name+".mod" {
 					pkgs[i].Versions = append([]MainPackageVersion{{
-						Version: ver,
+						Version: pkg.Module.Version,
 						ModFile: filepath.Base(f),
 					}}, pkgs[i].Versions...)
 					continue ModLoop
 				}
 
 				pkgs[i].Versions = append(pkgs[i].Versions, MainPackageVersion{
-					Version: ver,
+					Version: pkg.Module.Version,
 					ModFile: filepath.Base(f),
 				})
 				continue ModLoop
@@ -319,10 +326,10 @@ ModLoop:
 		pkgs = append(pkgs, MainPackage{
 			Name: name,
 			Versions: []MainPackageVersion{
-				{Version: ver, ModFile: filepath.Base(f)},
+				{Version: pkg.Module.Version, ModFile: filepath.Base(f)},
 			},
 			EnvVarName:  varName,
-			PackagePath: pkg,
+			PackagePath: pkg.Path(),
 		})
 	}
 	return pkgs, nil

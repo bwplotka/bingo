@@ -114,7 +114,7 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command 
 
 type Runnable interface {
 	List(args ...string) (string, error)
-	GetD(update GetUpdatePolicy, packages ...string) error
+	GetD(update GetUpdatePolicy, packages ...string) (string, error)
 	Build(pkg, out string) error
 	GoEnv(args ...string) (string, error)
 }
@@ -125,7 +125,6 @@ type runnable struct {
 	ctx     context.Context
 	modFile string
 	dir     string
-	silent  bool
 }
 
 // ModInit runs `go mod init` against separate go modules files if any.
@@ -145,13 +144,6 @@ func (r *Runner) With(ctx context.Context, modFile string, dir string) Runnable 
 		dir:     dir,
 		ctx:     ctx,
 	}
-	return ru
-}
-
-// WithSilent returns runner that will be ran against give modFile (if any) and in given directory (if any).
-func (r *Runner) WithSilent(ctx context.Context, modFile string, dir string) Runnable {
-	ru := r.With(ctx, modFile, dir)
-	ru.(*runnable).silent = true
 	return ru
 }
 
@@ -182,7 +174,7 @@ func (r *runnable) GoEnv(args ...string) (string, error) {
 }
 
 // GetD runs 'go get -d' against separate go modules file with given arguments.
-func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) error {
+func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) (string, error) {
 	args := []string{"get", "-d"}
 	if r.r.insecure {
 		args = append(args, "-insecure")
@@ -191,15 +183,11 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) error {
 		args = append(args, string(update))
 	}
 
-	if !r.silent {
-		return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append(args, packages...)...)
-	}
-
 	out := &bytes.Buffer{}
 	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(args, packages...)...); err != nil {
-		return errors.Wrap(err, out.String())
+		return "", errors.Wrap(err, out.String())
 	}
-	return nil
+	return strings.TrimRight(out.String(), "\n"), nil
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
@@ -211,13 +199,5 @@ func (r *runnable) Build(pkg, outPath string) error {
 	}
 	outPath = filepath.Join(binPath, outPath)
 
-	if !r.silent {
-		return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
-	}
-
-	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...); err != nil {
-		return errors.Wrap(err, out.String())
-	}
-	return nil
+	return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
 }
