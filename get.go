@@ -379,25 +379,27 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 			return err
 		}
 
-		// autoReplace is reproducing replace statements to be exactly the same as the target module we want to install.
-		// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
-		// Since we always download single tool dependency module per tool module, we can
-		// copy its replace if exists to fix this common case.
-		gopath, err := runnable.GoEnv("GOPATH")
-		if err != nil {
-			return errors.Wrap(err, "go env")
-		}
+		if !strings.HasSuffix(target.Module.Version, "+incompatible") {
+			// autoReplace is reproducing replace statements to be exactly the same as the target module we want to install.
+			// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
+			// Since we always download single tool dependency module per tool module, we can
+			// copy its replace if exists to fix this common case.
+			gopath, err := runnable.GoEnv("GOPATH")
+			if err != nil {
+				return errors.Wrap(err, "go env")
+			}
 
-		// We leverage fact that when go get runs if downloads the version we find as relevant locally
-		// in the GOPATH/pkg/mod/...
-		targetModFile := filepath.Join(gopath, "pkg", "mod", target.Module.String(), "go.mod")
-		targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
-		if err != nil {
-			return errors.Wrapf(err, "parse target mod file %v", targetModFile)
-		}
+			// We leverage fact that when go get runs if downloads the version we find as relevant locally
+			// in the GOPATH/pkg/mod/...
+			targetModFile := filepath.Join(gopath, "pkg", "mod", target.Module.String(), "go.mod")
+			targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
+			if err != nil {
+				return errors.Wrapf(err, "parse target mod file %v", targetModFile)
+			}
 
-		// Store replace to auto-update if needed.
-		replaceStmts = targetModParsed.Replace
+			// Store replace to auto-update if needed.
+			replaceStmts = targetModParsed.Replace
+		}
 	}
 
 	// Now we should have target with all required info, prepare tmp file.
