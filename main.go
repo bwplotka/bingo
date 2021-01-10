@@ -130,13 +130,18 @@ func main() {
 			exitOnUsageError(flags.Usage, *getRename, "-r name contains not allowed characters")
 		}
 
-		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
+		cmdFunc = func(ctx context.Context, r *runner.Runner) (err error) {
 			relModDir := *getModDir
 			modDir, err := filepath.Abs(relModDir)
 			if err != nil {
 				return errors.Wrap(err, "abs")
 			}
-			defer func() { _ = cleanGoGetTmpFiles(modDir) }()
+			defer func() {
+				if err != nil {
+					// Leave tmp files on error for debug purposes.
+					_ = cleanGoGetTmpFiles(modDir)
+				}
+			}()
 
 			cfg := getConfig{
 				runner:    r,

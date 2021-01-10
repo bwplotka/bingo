@@ -23,29 +23,9 @@ import (
 	"github.com/efficientgo/tools/pkg/merrors"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 )
 
 var goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
-
-type getConfig struct {
-	runner    *runner.Runner
-	modDir    string
-	relModDir string
-	update    runner.GetUpdatePolicy
-	name      string
-	rename    string
-}
-
-func (c getConfig)  forPackage() getPackageConfig {
-	return getPackageConfig{
-		modDir:    c.modDir,
-		relModDir: c.relModDir,
-		update:    c.update,
-		runner:    c.runner,
-	}
-}
-
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
 	if rawTarget == "" {
@@ -87,7 +67,32 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 	return name, pkgPath, versions, nil
 }
 
-func getAll(ctx context.Context,logger *log.Logger,c getConfig) (err error) {
+type installPackageConfig struct {
+	runner    *runner.Runner
+	modDir    string
+	relModDir string
+	update    runner.GetUpdatePolicy
+}
+
+type getConfig struct {
+	runner    *runner.Runner
+	modDir    string
+	relModDir string
+	update    runner.GetUpdatePolicy
+	name      string
+	rename    string
+}
+
+func (c getConfig) forPackage() installPackageConfig {
+	return installPackageConfig{
+		modDir:    c.modDir,
+		relModDir: c.relModDir,
+		runner:    c.runner,
+		update:    c.update,
+	}
+}
+
+func getAll(ctx context.Context, logger *log.Logger, c getConfig) (err error) {
 	if c.name != "" {
 		return errors.New("name cannot by specified if no target was given")
 	}
@@ -124,8 +129,15 @@ func existingModFiles(modDir string, targetName string) (existingModFiles []stri
 // get performs bingo get: it's like go get, but package aware, without go source files and on dedicated mod file.
 // rawTarget is name or target package path, optionally with module version or array versions.
 func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string) (err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute) // TODO(bwplotka): Put as param?
+	defer cancel()
+
+	if err := ensureModDirExists(logger, c.relModDir); err != nil {
+		return errors.Wrap(err, "ensure mod dir")
+	}
+
 	if rawTarget == "" {
-		// Empty means get all. It recursively invokes get for each existing binary.
+		// Empty target means to get all. It recursively invokes get for each existing binary.
 		return getAll(ctx, logger, c)
 	}
 
@@ -135,26 +147,18 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	}
 
 	if c.rename != "" {
-		if c.rename == name {
-			return errors.Wrapf(err, "-r cannot be the same as module name %v", c.rename)
+		if versions[0] != "" || len(versions) > 1 {
+			return errors.Errorf("rename cannot take version arguments (string after @), got %v", versions)
 		}
-		renamedExisting, err := existingModFiles(c.modDir, c.rename)
-		if err != nil {
-			return errors.Wrapf(err, "existing mod files for %v", c.rename)
-		}
-
-		if len(renamedExisting) > 0 {
-			return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", renamedExisting, c.rename)
+		if err := validateNewName(versions, c.modDir, name, c.rename); err != nil {
+			return errors.Wrap(err, "-n")
 		}
 	}
 
 	targetName := name
 	if c.name != "" {
-		if c.name == name{
-			return errors.Wrapf(err, "-n cannot be the same as module name %v", c.name)
-		}
-		if versions[0] == "none" {
-			return errors.Errorf("cannot use -n option with @none logic")
+		if err := validateNewName(versions, c.modDir, name, c.name); err != nil {
+			return errors.Wrap(err, "-n")
 		}
 		targetName = c.name
 	}
@@ -162,192 +166,98 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	if versions[0] == "none" {
 		// none means we no longer want to version this package.
 		// NOTE: We don't remove binaries.
-		return removeAllGlob(filepath.Join(c.modDir, targetName+".*"))
+		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
-
-	defer func() {
-		if err == nil {
-			return
-		}
-
-		// Rename requested. Remove old mod(s) in this case, but only at the end.
-		if	c.rename != "" && targetName != name {
-			defer func() {_ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
-		}
-
-		// Remove target unused arr mod files based on version file.
-		existingTargetModArrFiles, gerr := filepath.Glob(filepath.Join(c.modDir, targetName+".*.mod"))
-		if gerr != nil {
-			err = gerr
-			return
-		}
-		for _, f := range existingTargetModArrFiles {
-			i, perr := strconv.ParseInt(strings.Split(filepath.Base(f), ".")[1], 10, 64)
-			if perr != nil || int(i) >= len(versions) {
-				if rerr := os.RemoveAll(f); rerr != nil {
-					err = rerr
-					return
-				}
-			}
-		}
-	}()
 
 	existing, err := existingModFiles(c.modDir, targetName)
 	if err != nil {
 		return errors.Wrapf(err, "existing mod files for %v", targetName)
 	}
+	targets := make([]bingo.Package, 0, len(versions))
+	for i, v := range versions {
+		if len(existing) < i {
+			e := existing[i]
 
-	if len(versions) == 1 {
-		// Single version mode.
-		if len(existing) > 0 {
-			existingPkg, err := bingo.ModDirectPackage(existing[0])
-			if err == nil {
-				// Check if existing mod file is not referencing totally different path.
-				if pkgPath != "" && pkgPath != existingPkg.Path() {
-					return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
-						"Uninstall existing %q tool using `@none` or use `-n` flag to choose different name", pkgPath, targetName, existingPkg.Path(), targetName)
-				}
-
-				if versions[0] != "" {
-					existingPkg.Module.Version = versions[0]
-				}
-
-				if c.rename != "" {
-					targetName = c.rename
-				}
-
-				if err := getPackage(ctx, logger, c.forPackage(), 0, targetName, existingPkg); err != nil {
-					return errors.Wrapf(err, "%s.mod: getting %s", targetName, existingPkg)
-				}
-
-				// Done for this case.
-				return nil
-			}
-
-			// Malformed modfile or missing info about existing direct package.
-			if pkgPath != "" {
-				return errors.Wrapf(err, "bingo tool module %v is malformed. Use full package name to reinstall it", existing[0])
-			}
-
-			if c.rename != "" {
-				return errors.Errorf("bingo tool module %v.mod is malformed; can't rename broken tool. Use @none of full package if  it will be recreated; err: %v\n", targetName, err)
-			}
-
-			logger.Printf("bingo tool module %v.mod is malformed; it will be recreated; err: %v\n", targetName, err)
-		}
-
-		// Non array (that could be array before).
-		// Get full import path from any existing module file for this name.
-		if pkgPath == "" && len(existing) == 0 {
-			// Binary referenced by name, get full package name if module file exists.
-			return errors.Errorf("binary %q was not installed before. Use full package name to install it", targetName)
-		}
-
-
-
-
-		if len(versions) == 0 {
-			for _, f := range existing {
-				pkg, err := bingo.ModDirectPackage(f)
-				if err != nil {
-					return errors.Wrapf(err, "binary %q was installed, but go module %s is malformed. Use full package name to reinstall it", name, f)
-				}
-				versions = append(versions, pkg.Module.Version)
-			}
-
-			if len(versions) == 0 {
-				// Binary never seen before and requested to be installed from latest.
-				versions = append(versions, "")
-			}
-		}
-
-		for i, version := range versions {
-			// Ideally we can pa
-			if err := getOne(ctx, logger, c, i, pkgPath, targetName, version); err != nil {
-				return errors.Wrapf(err, "%d: getting %s", i, version)
-			}
-		}
-
-		if c.rename != "" && targetName != name {
-			// Rename requested. Remove old mod(s) in this case, but only at the end.
-			defer func() { _ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
-		}
-
-		// Remove target unused arr mod files.
-		existingTargetModArrFiles, err := filepath.Glob(filepath.Join(c.modDir, targetName+".*.mod"))
-		if err != nil {
-			return err
-		}
-		for _, f := range existingTargetModArrFiles {
-			i, err := strconv.ParseInt(strings.Split(filepath.Base(f), ".")[1], 10, 64)
-			if err != nil || int(i) >= len(versions) {
-				if err := os.RemoveAll(f); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	for _, f := range existing {
-		existingPkg, err := bingo.ModDirectPackageOrNil(f)
-		if err != nil {
-			if pkgPath != "" {
-				return errors.Wrapf(err, "bingo tool module %v.mod is malformed. but go modules %s is malformed. Use full package name to reinstall it", targetName, f)
-			}
-			// This will be handled by getPackage correctly (existing file replaced atomically).
-		}
-
-		if existingPkg != nil {
-			// Check if existing mod file is not referencing totally different path.
-			if pkgPath != "" && pkgPath != existingPkg.Path() {
-				return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
-					"Uninstall existing %q tool using `@none` or use `-n` flag to choose different name", pkgPath, targetName, existingPkg.Path(), targetName)
-			}
-			pkgPath = existingPkg.Path()
-		}
-	}
-
-	// Get full import path from any existing module file for this name.
-	if pkgPath == "" && len(existing) == 0 {
-		// Binary referenced by name, get full package name if module file exists.
-		return errors.Errorf("binary %q was not installed before. Use full package name to install it", targetName)
-	}
-
-
-
-	if len(versions) == 0 {
-		for _, f := range existing {
-			pkg, err := bingo.ModDirectPackage(f)
+			mf, err := bingo.OpenModFile(e)
 			if err != nil {
-				return errors.Wrapf(err, "binary %q was installed, but go module %s is malformed. Use full package name to reinstall it", name, f)
+				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, targetName)
 			}
-			versions = append(versions, pkg.Module.Version)
-		}
+			defer errcapture.Close(&err, mf.Close, "close")
 
-		if len(versions) == 0 {
-			// Binary never seen before and requested to be installed from latest.
-			versions = append(versions, "")
+			if mf.DirectPackage() != nil {
+				if pkgPath != "" && pkgPath != mf.DirectPackage().Path() {
+					// TODO(bwplotka): Sketchy.
+					return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
+						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", pkgPath, targetName, mf.DirectPackage().Path(), targetName)
+				}
+				p := *mf.DirectPackage()
+				if v != "" {
+					p.Module.Version = v
+				}
+				targets = append(targets, p)
+				continue
+
+			} else if c.rename != "" {
+				return errors.Errorf("bingo tool module %v.mod is malformed; can't get package path and version for"+
+					" base tool. Use @none to uninstall or reinstall base package; err: %v\n", targetName, err)
+			}
+		} else if c.rename != "" {
+			return errors.Errorf("nothing to rename, no module %v.mod was found; can't get package path and version for"+
+				" base tool. Install base package first; err: %v\n", targetName, err)
 		}
+		p := bingo.Package{RelPath: pkgPath}
+		if v != "" {
+			p.Module.Version = versions[i]
+		}
+		targets = append(targets, p)
 	}
 
 	if c.rename != "" {
 		targetName = c.rename
+	}
 
-		renamedExisting, err := existingModFiles(c.modDir, targetName)
-		if err != nil {
-			return errors.Wrapf(err, "existing mod files for %v", targetName)
-		}
-
-		if len(renamedExisting) > 0 {
-			return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use -n to choose different one", existing, c.rename)
+	for _, t := range targets {
+		if err := getPackage(ctx, logger, c.forPackage(), 0, targetName, t); err != nil {
+			return errors.Wrapf(err, "%s.mod: getting %s", targetName, t)
 		}
 	}
 
-	for i, version := range versions {
-		// Ideally we can pa
-		if err := getOne(ctx, logger, c, i, pkgPath, targetName, version); err != nil {
-			return errors.Wrapf(err, "%d: getting %s", i, version)
+	// Rename requested. Remove old mod(s) in this case, but only at the end.
+	if c.rename != "" && targetName != name {
+		defer func() { _ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
+	}
+
+	// Remove target unused arr mod files based on version file.
+	existingTargetModArrFiles, gerr := filepath.Glob(filepath.Join(c.modDir, targetName+".*.mod"))
+	if gerr != nil {
+		err = gerr
+		return
+	}
+	for _, f := range existingTargetModArrFiles {
+		i, perr := strconv.ParseInt(strings.Split(filepath.Base(f), ".")[1], 10, 64)
+		if perr != nil || int(i) >= len(versions) {
+			if rerr := os.RemoveAll(f); rerr != nil {
+				err = rerr
+				return
+			}
 		}
+	}
+	return nil
+}
+
+func validateNewName(versions []string, modDir, old, new string) error {
+	if new == old {
+		return errors.Errorf("cannot be the same as module name %v", new)
+	}
+	if versions[0] == "none" {
+		return errors.Errorf("cannot use with @none logic")
+	}
+	newExisting, err := existingModFiles(modDir, new)
+	if err != nil {
+		return errors.Wrapf(err, "existing mod files for %v", new)
+	}
+	if len(newExisting) > 0 {
+		return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, new)
 	}
 	return nil
 }
@@ -360,17 +270,10 @@ func cleanGoGetTmpFiles(modDir string) error {
 	return removeAllGlob(filepath.Join(modDir, "*.tmp.*"))
 }
 
-type getPackageConfig struct {
-	runner    *runner.Runner
-	modDir    string
-	relModDir string
-	update    runner.GetUpdatePolicy
-}
-
 func validateTargetName(targetName string) error {
 	if targetName == "cmd" {
 		return errors.Errorf("package would be installed with ambiguous name %s. This is a common, but slightly annoying package layout"+
-			"It's advised to choose unique name with -n flag",targetName)
+			"It's advised to choose unique name with -n flag", targetName)
 	}
 	if targetName == strings.TrimSuffix(bingo.FakeRootModFileName, ".mod") {
 		return errors.Errorf("requested binary with name %q`. This is impossible, choose different name using -n flag", strings.TrimSuffix(bingo.FakeRootModFileName, ".mod"))
@@ -378,21 +281,19 @@ func validateTargetName(targetName string) error {
 	return nil
 }
 
-// getPackage takes package array index, module and package path, tool name and (optionally) version and generates new module with the given package's module as the only
-// require statement. For generation purposes we take the existing <name>.mod file (if exists, if paths matches).
-// This allows:
+// getPackage takes package array index, tool name and package path (also module path and version which are optional) and
+// generates new module with the given package's module as the only dependency (direct require statement).
+// For generation purposes we take the existing <name>.mod file (if exists, if paths matches). This allows:
 //  * Comments to be preserved.
-//  * First direct require module will be preserved.
+//  * First direct require module will be preserved (unless version changes)
 //  * Replace to be preserved if the // bingo:no_replace_fetch commend is found it such mod file.
 // As resolution of module vs package for Go Module is convoluted and all code is under internal dir, we have to rely on `go` binary
-// capabilities.
+// capabilities and output.
 // TODO(bwplotka): Consider copying code for it? Of course it's would be easier if such tool would exist in Go project itself (:
-func getPackage(ctx context.Context, logger *log.Logger, c getPackageConfig, i int, name string, target bingo.Package) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancel()
-
-	if err := validateTargetName(name); err != nil {
-		return errors.Wrap(err, target.String())
+func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig, i int, name string, target bingo.Package) (err error) {
+	// Cleanup all bingo modules' tmp files for fresh start.
+	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
+		return err
 	}
 
 	// The out module file we generate/maintain keep in modDir.
@@ -402,66 +303,126 @@ func getPackage(ctx context.Context, logger *log.Logger, c getPackageConfig, i i
 		outModFile = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i))
 	}
 
-	// Cleanup all bingo modules' tmp files for fresh start.
+	// If we don't have all information or update is set, resolve version.
+	var replaceStmts []*modfile.Replace
+	if target.Module.Version == "" || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
+		// Set up totally empty mod file to get clear version to install.
+		tmpEmptyModFile, err := createTmpModFileFromExisting(ctx, c.runner, logger, "", filepath.Join(c.modDir, name+"-e.tmp.mod"))
+		if err != nil {
+			return errors.Wrap(err, "create empty tmp mod file")
+		}
+		defer errcapture.Close(&err, tmpEmptyModFile.Close, "close")
+
+		runnable := c.runner.With(ctx, tmpEmptyModFile.Name(), c.modDir)
+
+		// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
+		out, gerr := runnable.GetD(c.update, target.String())
+		if gerr != nil {
+			// Wrap all with runnable output.
+			if err := func() error {
+				// TODO(bwplotka) Obviously hacky but reliable so far.
+				// Try to match strings announcing what version was found (if we got to this stage).
+				re := regexp.MustCompile(`go: (\S*) upgrade => (\S*)`)
+				if !re.MatchString(out) {
+					foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
+					re, err = regexp.Compile(foundVersionRe)
+					if err != nil {
+						return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
+					}
+				}
+
+				groups := re.FindAllStringSubmatch(out, 1)
+				if len(groups) == 0 || len(groups[0]) < 3 {
+					return errors.Errorf("go get did not found the package (or our regexp did not match: %v)", re.String())
+				}
+
+				target.RelPath, err = filepath.Rel(groups[0][1], target.RelPath)
+				if err != nil {
+					return errors.Wrap(err, "rel")
+				}
+
+				// Update target with old version and module.
+				target.Module.Path = groups[0][1]
+				target.Module.Version = groups[0][2]
+
+				return nil
+			}(); err != nil {
+				return errors.Wrapf(err, "resolve; go get -d output: %v", errors.Wrap(gerr, out).Error())
+			}
+		} else {
+			if err := tmpEmptyModFile.Reload(); err != nil {
+				return err
+			}
+			if tmpEmptyModFile.DirectPackage() == nil {
+				return errors.Errorf("go get -d did not put direct import in to go module %v output: %v", tmpEmptyModFile.Name(), out)
+			}
+			target = *tmpEmptyModFile.DirectPackage()
+		}
+
+		// autoReplace is reproducing replace statements to be exactly the same as the target module we want to install.
+		// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
+		// Since we always download single tool dependency module per tool module, we can
+		// copy its replace if exists to fix this common case.
+		gopath, err := runnable.GoEnv("GOPATH")
+		if err != nil {
+			return errors.Wrap(err, "go env")
+		}
+
+		// We leverage fact that when go get runs if downloads the version we find as relevant locally
+		// in the GOPATH/pkg/mod/...
+		targetModFile := filepath.Join(gopath, "pkg", "mod", target.Module.String(), "go.mod")
+		targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
+		if err != nil {
+			return errors.Wrapf(err, "parse target mod file %v", targetModFile)
+		}
+
+		// Store replace to auto-update if needed.
+		replaceStmts = targetModParsed.Replace
+	}
+
+	// Now we should have target with all required info, prepare tmp file.
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
-	if err := ensureModDirExists(logger, c.relModDir); err != nil {
-		return errors.Wrap(err, "ensure mod dir")
-	}
-
-	// Set up tmp file that we will work on for now. This is to avoid partial updates.
 	tmpModFile, err := createTmpModFileFromExisting(ctx, c.runner, logger, outModFile, filepath.Join(c.modDir, name+".tmp.mod"))
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
 	}
 	defer errcapture.Close(&err, tmpModFile.Close, "close")
 
-	if tmpModFile.DirectPackage()
-
-
-	runnable := c.runner.With(ctx, tmpModFile.Name(), c.modDir)
-	targetPackage := module.Version{Path: pkgPath, Version: version}
-
-	// Try to resolve and re-download only if needed.
-	if version != "" || tmpModFile.DirectPackage() == nil ||
-		tmpModFile.DirectPackage().String() != targetPackage.String() ||
-		c.update != runner.NoUpdatePolicy {
-
-		// Steps 1 & 2: Resolve and download thanks to 'go get' on our separate .mod file.
-		if !tmpModFile.AutoReplaceDisabled() {
-
-			if err := autoReplace(ctx, c, tmpModFile, targetPackage); err != nil {
-				return errors.Wrap(err, "go get -d")
-			}
-		}
-
-		out, err := runnable.GetD(c.update, targetPackage.String())
-		if err != nil {
-			return errors.Wrapf(err, "go get -d: %v", out)
-		}
-		fmt.Println(out)
-
-		// We need to reload due to potential get -d changes.
-		if err := merrors.New(tmpModFile.Reload(), tmpModFile.UpdateDirectPackage(pkgPath), tmpModFile.Flush()).Err(); err != nil {
-			return errors.Wrap(err, "updating direct package")
-		}
+	serr := merrors.New()
+	if !tmpModFile.AutoReplaceDisabled() && len(replaceStmts) > 0 {
+		serr.Add(tmpModFile.SetReplace(replaceStmts...))
+	}
+	serr.Add(tmpModFile.SetDirectRequire(target), tmpModFile.Flush())
+	if err := serr.Err(); err != nil {
+		return errors.Wrap(err, "update tmp mod file syntax")
 	}
 
-	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
-	if listOutput, err := runnable.List("-f={{.Name}}", pkgPath); err != nil {
-		return err
-	} else if !strings.HasSuffix(listOutput, "main") {
-		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkgPath, listOutput)
+	runnable := c.runner.With(ctx, tmpModFile.Name(), c.modDir)
+	if err := install(runnable, tmpModFile.Name(), tmpModFile.DirectPackage()); err != nil {
+		return errors.Wrap(err, "install")
 	}
 
 	// We were working on tmp file, do atomic rename.
 	if err := os.Rename(tmpModFile.Name(), outModFile); err != nil {
 		return errors.Wrap(err, "rename")
 	}
+	return nil
+}
 
-	// Step 3: Build and install.
-	return c.runner.With(ctx, outModFile, c.modDir).Build(pkgPath, fmt.Sprintf("%s-%s", name, tmpModFile.DirectPackage().Version))
+func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err error) {
+	if err := validateTargetName(name); err != nil {
+		return errors.Wrap(err, pkg.String())
+	}
+
+	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
+	if listOutput, err := runnable.List("-f={{.Name}}", pkg.Path()); err != nil {
+		return err
+	} else if !strings.HasSuffix(listOutput, "main") {
+		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
+	}
+	return runnable.Build(pkg.Path(), fmt.Sprintf("%s-%s", name, pkg.Module.Version))
 }
 
 const modREADMEFmt = `# Project Development Dependencies.
@@ -531,28 +492,30 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), os.ModePerm)
 }
 
-func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner,logger *log.Logger, modFile, tmpModFile string) (*bingo.ModFile, error) {
+func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, logger *log.Logger, modFile, tmpModFile string) (*bingo.ModFile, error) {
 	if err := os.RemoveAll(tmpModFile); err != nil {
 		return nil, errors.Wrap(err, "rm")
 	}
 
-	_, err := os.Stat(modFile)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, errors.Wrapf(err, "stat module file %s", modFile)
-	}
-	if err == nil {
-		// Only use existing mod file on successful parse.
-		o, err := bingo.OpenModFile(modFile)
-		if err == nil {
-			if err := o.Close(); err != nil {
-				return nil, err
-			}
-			if err := copyFile(modFile, tmpModFile); err != nil {
-				return nil, err
-			}
-			return bingo.OpenModFile(tmpModFile)
+	if modFile != "" {
+		_, err := os.Stat(modFile)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "stat module file %s", modFile)
 		}
-		logger.Printf("bingo tool module %v is malformed; it will be recreated; err: %v\n", modFile, err)
+		if err == nil {
+			// Only use existing mod file on successful parse.
+			o, err := bingo.OpenModFile(modFile)
+			if err == nil {
+				if err := o.Close(); err != nil {
+					return nil, err
+				}
+				if err := copyFile(modFile, tmpModFile); err != nil {
+					return nil, err
+				}
+				return bingo.OpenModFile(tmpModFile)
+			}
+			logger.Printf("bingo tool module %v is malformed; it will be recreated; err: %v\n", modFile, err)
+		}
 	}
 
 	// Create from scratch.
@@ -601,75 +564,6 @@ func removeAllGlob(glob string) error {
 		if err := os.RemoveAll(f); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// autoReplace runs 'go get -d' against separate go modules file with given arguments while making
-// super replace statements are exactly the same as the target module.
-// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
-// Since we always download single tool dependency module per tool module, we can
-// copy its replace if exists to fix this common case.
-func autoReplace(ctx context.Context, c getConfig, tmpModFile *bingo.ModFile, targetPackage module.Version) (err error) {
-	runnable := c.runner.With(ctx, tmpModFile.Name(), c.modDir)
-
-	// Do initial get -d. No matter if it succeeds or not, we need to take the target version it tried to ensure we
-	// have correct replace directive.
-	out, gerr := runnable.GetD(c.update, targetPackage.String())
-
-	// Regenerate replace statements.
-	// Wrap all with gerr
-	if err := func() error {
-		if err := tmpModFile.Reload(); err != nil {
-			return err
-		}
-
-		// On error we might not have populated tmpModFile with module and version. In this case we need to trust get to put the
-		// information what module was found (if any) in error message.
-		foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, targetPackage.Path)
-
-		// Try to match strings announcing what version was found (if we got to this stage).
-		re, err := regexp.Compile(foundVersionRe)
-		if err != nil {
-			return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
-		}
-
-		groups := re.FindAllStringSubmatch(out, 1)
-		if len(groups) == 0 || len(groups[0]) < 3 {
-			return errors.Errorf("we tried, but go get error was not helpful (our regexp: %v)", foundVersionRe)
-		}
-
-		//targetDirectModule = &module.Version{Path: groups[0][1], Version: groups[0][2]}
-
-		directModule := tmpModFile.DirectModule()
-		if directModule != nil {
-
-		}
-
-		if err := tmpModFile.SetDirectRequire(&modfile.Require{Mod: *directModule}); err != nil {
-			return err
-		}
-
-		gopath, err := runnable.GoEnv("GOPATH")
-		if err != nil {
-			return errors.Wrap(err, "go env")
-		}
-
-		// We leverage fact that when go get fails because of version mismatch it actually does that after module is downloaded
-		// with it's go mod file in the GOPATH/pkg/mod/....
-		targetModFile := filepath.Join(gopath, "pkg", "mod", directModule.String(), "go.mod")
-		targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
-		if err != nil {
-			return errors.Wrapf(err, "parse target mod file %v", targetModFile)
-		}
-
-		// Set replace directives.
-		if err := tmpModFile.SetReplace(targetModParsed.Replace...); err != nil {
-			return err
-		}
-		return tmpModFile.Flush()
-	}(); err != nil {
-		return errors.Wrapf(gerr, "also 'force' replace heal attempt failed %v", err)
 	}
 	return nil
 }
