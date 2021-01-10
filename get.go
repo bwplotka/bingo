@@ -289,7 +289,7 @@ func validateTargetName(targetName string) error {
 func updateModAndVersionFromGoGetOutput(logger *log.Logger, verbose bool, runnable runner.Runnable, update runner.GetUpdatePolicy, target *bingo.Package) (err error) {
 	// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
 	out, gerr := runnable.GetD(update, target.String())
-
+	q
 	// Wrap all with runnable output.
 	defer func() {
 		if err != nil {
