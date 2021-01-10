@@ -29,7 +29,7 @@ func RemoveHelpers(modDir string) error {
 // GenHelpers generates helpers to allows reliable binaries use. Regenerate if needed.
 // It is expected to have at least one mod file.
 // TODO(bwplotka): Allow installing those optionally?
-func GenHelpers(relModDir, version string, pkgs []MainPackage) error {
+func GenHelpers(relModDir, version string, pkgs []PackageRenderable) error {
 	for ext, tmpl := range templatesByFileExt {
 		v := "variables." + ext
 		if ext == "mk" {
@@ -46,11 +46,11 @@ func GenHelpers(relModDir, version string, pkgs []MainPackage) error {
 type templateData struct {
 	Version      string
 	GobinPath    string
-	MainPackages []MainPackage
+	MainPackages []PackageRenderable
 	RelModDir    string
 }
 
-func genHelper(f, tmpl, relModDir, version string, pkgs []MainPackage) error {
+func genHelper(f, tmpl, relModDir, version string, pkgs []PackageRenderable) error {
 	t, err := template.New(f).Parse(tmpl)
 	if err != nil {
 		return errors.Wrap(err, "parse template")

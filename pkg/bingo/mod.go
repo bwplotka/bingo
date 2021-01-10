@@ -267,20 +267,39 @@ func errOnMetaMissing(comments *modfile.Comments) error {
 	return nil
 }
 
-type MainPackageVersion struct {
+// PackageVersionRenderable is used in variables.go. Modify with care.
+type PackageVersionRenderable struct {
 	Version string
 	ModFile string
 }
 
-type MainPackage struct {
+// PackageRenderable is used in variables.go. Modify with care.
+type PackageRenderable struct {
 	Name        string
+	ModPath     string
 	PackagePath string
 	EnvVarName  string
-	Versions    []MainPackageVersion
+	Versions    []PackageVersionRenderable
+}
+
+func (p PackageRenderable) ToPackages() []Package {
+	ret := make([]Package, 0, len(p.Versions))
+	for _, v := range p.Versions {
+		relPath, _ := filepath.Rel(p.ModPath, p.PackagePath)
+
+		ret = append(ret, Package{
+			Module: module.Version{
+				Version: v.Version,
+				Path:    p.ModPath,
+			},
+			RelPath: relPath,
+		})
+	}
+	return ret
 }
 
 // ListPinnedMainPackages lists all bingo pinned binaries (Go main packages).
-func ListPinnedMainPackages(logger *log.Logger, modDir string, remMalformed bool) (pkgs []MainPackage, _ error) {
+func ListPinnedMainPackages(logger *log.Logger, modDir string, remMalformed bool) (pkgs []PackageRenderable, _ error) {
 	modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
 	if err != nil {
 		return nil, err
@@ -309,27 +328,28 @@ ModLoop:
 				pkgs[i].EnvVarName = varName + "_ARRAY"
 				// Preserve order. Unfortunately first array mod file has no number, so it's last.
 				if filepath.Base(f) == p.Name+".mod" {
-					pkgs[i].Versions = append([]MainPackageVersion{{
+					pkgs[i].Versions = append([]PackageVersionRenderable{{
 						Version: pkg.Module.Version,
 						ModFile: filepath.Base(f),
 					}}, pkgs[i].Versions...)
 					continue ModLoop
 				}
 
-				pkgs[i].Versions = append(pkgs[i].Versions, MainPackageVersion{
+				pkgs[i].Versions = append(pkgs[i].Versions, PackageVersionRenderable{
 					Version: pkg.Module.Version,
 					ModFile: filepath.Base(f),
 				})
 				continue ModLoop
 			}
 		}
-		pkgs = append(pkgs, MainPackage{
+		pkgs = append(pkgs, PackageRenderable{
 			Name: name,
-			Versions: []MainPackageVersion{
+			Versions: []PackageVersionRenderable{
 				{Version: pkg.Module.Version, ModFile: filepath.Base(f)},
 			},
 			EnvVarName:  varName,
 			PackagePath: pkg.Path(),
+			ModPath:     pkg.Module.Path,
 		})
 	}
 	return pkgs, nil

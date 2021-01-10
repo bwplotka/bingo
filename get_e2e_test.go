@@ -402,6 +402,7 @@ func TestGet(t *testing.T) {
 							"wr_buildable-v0.0.0-20210109161932-e80f2d6bb094", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a",
 						},
 					},
+					/// TODO: Rename to existing mod.
 					{
 						name: "Updating f2 to same multiple versions should fail",
 						do: func(t *testing.T) {

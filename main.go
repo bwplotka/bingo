@@ -138,16 +138,16 @@ func main() {
 			}
 			defer func() { _ = cleanGoGetTmpFiles(modDir) }()
 
-			// Like go get, but package aware and without go source files.
-			if err := get(ctx, logger, getConfig{
+			cfg := getConfig{
 				runner:    r,
 				modDir:    modDir,
 				relModDir: relModDir,
 				update:    upPolicy,
 				name:      *getName,
 				rename:    *getRename,
-				rawTarget: target,
-			}); err != nil {
+			}
+
+			if err := get(ctx, logger, cfg, target); err != nil {
 				return errors.Wrap(err, "get")
 			}
 
