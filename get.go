@@ -20,7 +20,6 @@ import (
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
-	"github.com/efficientgo/tools/pkg/merrors"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
 )
@@ -281,6 +280,60 @@ func validateTargetName(targetName string) error {
 	return nil
 }
 
+func updateModAndVersionFromGoGetOutput(runnable runner.Runnable, update runner.GetUpdatePolicy, target *bingo.Package) (err error) {
+	// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
+	out, gerr := runnable.GetD(update, target.String())
+
+	// Wrap all with runnable output.
+	defer func() {
+		if err != nil {
+			if gerr != nil {
+				out = errors.Wrap(gerr, out).Error()
+			}
+			err = errors.Wrapf(err, "resolve; go get -d output: %v", out)
+		}
+	}()
+
+	// TODO(bwplotka) Obviously hacky but reliable so far.
+	// Try to match strings announcing what version was found (if we got to this stage).
+	downloadingRe := fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Path())
+	upgradeRe := `go: (\S*) upgrade => (\S*)`
+	foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
+
+	re, err := regexp.Compile(downloadingRe)
+	if err != nil {
+		return errors.Wrapf(err, "regexp compile %v", downloadingRe)
+	}
+	if !re.MatchString(out) {
+		re = regexp.MustCompile(upgradeRe)
+		if !re.MatchString(out) {
+			re, err = regexp.Compile(foundVersionRe)
+			if err != nil {
+				return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
+			}
+		}
+	}
+
+	groups := re.FindAllStringSubmatch(out, 1)
+	if len(groups) == 0 || len(groups[0]) < 3 {
+		return errors.Errorf("go get did not found the package (or our regexps did not match: %v)", []string{
+			downloadingRe,
+			upgradeRe,
+			foundVersionRe,
+		})
+	}
+
+	target.RelPath, err = filepath.Rel(groups[0][1], target.RelPath)
+	if err != nil {
+		return errors.Wrap(err, "rel")
+	}
+
+	// Update target with old version and module.
+	target.Module.Path = groups[0][1]
+	target.Module.Version = groups[0][2]
+	return nil
+}
+
 // getPackage takes package array index, tool name and package path (also module path and version which are optional) and
 // generates new module with the given package's module as the only dependency (direct require statement).
 // For generation purposes we take the existing <name>.mod file (if exists, if paths matches). This allows:
@@ -314,49 +367,8 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		defer errcapture.Close(&err, tmpEmptyModFile.Close, "close")
 
 		runnable := c.runner.With(ctx, tmpEmptyModFile.Name(), c.modDir)
-
-		// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
-		out, gerr := runnable.GetD(c.update, target.String())
-		if gerr != nil {
-			// Wrap all with runnable output.
-			if err := func() error {
-				// TODO(bwplotka) Obviously hacky but reliable so far.
-				// Try to match strings announcing what version was found (if we got to this stage).
-				re := regexp.MustCompile(`go: (\S*) upgrade => (\S*)`)
-				if !re.MatchString(out) {
-					foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
-					re, err = regexp.Compile(foundVersionRe)
-					if err != nil {
-						return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
-					}
-				}
-
-				groups := re.FindAllStringSubmatch(out, 1)
-				if len(groups) == 0 || len(groups[0]) < 3 {
-					return errors.Errorf("go get did not found the package (or our regexp did not match: %v)", re.String())
-				}
-
-				target.RelPath, err = filepath.Rel(groups[0][1], target.RelPath)
-				if err != nil {
-					return errors.Wrap(err, "rel")
-				}
-
-				// Update target with old version and module.
-				target.Module.Path = groups[0][1]
-				target.Module.Version = groups[0][2]
-
-				return nil
-			}(); err != nil {
-				return errors.Wrapf(err, "resolve; go get -d output: %v", errors.Wrap(gerr, out).Error())
-			}
-		} else {
-			if err := tmpEmptyModFile.Reload(); err != nil {
-				return err
-			}
-			if tmpEmptyModFile.DirectPackage() == nil {
-				return errors.Errorf("go get -d did not put direct import in to go module %v output: %v", tmpEmptyModFile.Name(), out)
-			}
-			target = *tmpEmptyModFile.DirectPackage()
+		if err := updateModAndVersionFromGoGetOutput(runnable, c.update, &target); err != nil {
+			return err
 		}
 
 		// autoReplace is reproducing replace statements to be exactly the same as the target module we want to install.
@@ -390,13 +402,18 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 	defer errcapture.Close(&err, tmpModFile.Close, "close")
 
-	serr := merrors.New()
 	if !tmpModFile.AutoReplaceDisabled() && len(replaceStmts) > 0 {
-		serr.Add(tmpModFile.SetReplace(replaceStmts...))
+		if err := tmpModFile.SetReplace(replaceStmts...); err != nil {
+			return err
+		}
 	}
-	serr.Add(tmpModFile.SetDirectRequire(target), tmpModFile.Flush())
-	if err := serr.Err(); err != nil {
-		return errors.Wrap(err, "update tmp mod file syntax")
+
+	if err := tmpModFile.SetDirectRequire(target); err != nil {
+		return err
+	}
+
+	if err := tmpModFile.Flush(); err != nil {
+		return err
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile.Name(), c.modDir)

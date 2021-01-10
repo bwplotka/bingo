@@ -175,7 +175,7 @@ func (mf *ModFile) SetDirectRequire(target Package) (err error) {
 	mf.m.AddNewRequire(target.Module.Path, target.Module.Version, false)
 
 	// Add sub package info if needed.
-	if target.RelPath != "" {
+	if target.RelPath != "" && target.RelPath != "." {
 		r := mf.m.Require[0]
 		r.Syntax.Suffix = append(r.Syntax.Suffix[:0], modfile.Comment{Suffix: true, Token: "// " + target.RelPath})
 	}
@@ -185,7 +185,9 @@ func (mf *ModFile) SetDirectRequire(target Package) (err error) {
 
 func (mf *ModFile) dropAllRequire() {
 	for _, r := range mf.m.Require {
-		_ = mf.m.DropRequire(r.Mod.Path)
+		if r.Syntax != nil {
+			_ = mf.m.DropRequire(r.Mod.Path)
+		}
 	}
 }
 

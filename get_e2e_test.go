@@ -31,7 +31,7 @@ func TestGet(t *testing.T) {
 
 	if ok := t.Run("empty project with advanced cases", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
-			t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
+			if ok := t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 				g.Clear(t)
 
 				// We manually build bingo binary to make sure GOCACHE will not hit us.
@@ -528,7 +528,9 @@ func TestGet(t *testing.T) {
 						return
 					}
 				}
-			})
+			}); !ok {
+				return
+			}
 		}
 	}); !ok {
 		return
