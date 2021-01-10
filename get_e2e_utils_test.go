@@ -244,7 +244,7 @@ func (g *goEnv) existingBinaries(t *testing.T) []string {
 
 	for _, f := range files {
 		if f.IsDir() {
-			t.Fatal("Did not expect directory in gobin", g.gobin)
+			t.Fatal("Did not expect directory in gobin", g.gobin, "got", f.Name())
 		}
 		filenames = append(filenames, f.Name())
 	}

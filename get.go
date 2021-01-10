@@ -71,6 +71,8 @@ type installPackageConfig struct {
 	modDir    string
 	relModDir string
 	update    runner.GetUpdatePolicy
+
+	verbose bool
 }
 
 type getConfig struct {
@@ -80,6 +82,8 @@ type getConfig struct {
 	update    runner.GetUpdatePolicy
 	name      string
 	rename    string
+
+	verbose bool
 }
 
 func (c getConfig) forPackage() installPackageConfig {
@@ -88,6 +92,7 @@ func (c getConfig) forPackage() installPackageConfig {
 		relModDir: c.relModDir,
 		runner:    c.runner,
 		update:    c.update,
+		verbose:   c.verbose,
 	}
 }
 
@@ -172,9 +177,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	if err != nil {
 		return errors.Wrapf(err, "existing mod files for %v", targetName)
 	}
+
 	targets := make([]bingo.Package, 0, len(versions))
 	for i, v := range versions {
-		if len(existing) < i {
+		if len(existing) > i {
 			e := existing[i]
 
 			mf, err := bingo.OpenModFile(e)
@@ -280,7 +286,7 @@ func validateTargetName(targetName string) error {
 	return nil
 }
 
-func updateModAndVersionFromGoGetOutput(runnable runner.Runnable, update runner.GetUpdatePolicy, target *bingo.Package) (err error) {
+func updateModAndVersionFromGoGetOutput(logger *log.Logger, verbose bool, runnable runner.Runnable, update runner.GetUpdatePolicy, target *bingo.Package) (err error) {
 	// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
 	out, gerr := runnable.GetD(update, target.String())
 
@@ -293,6 +299,10 @@ func updateModAndVersionFromGoGetOutput(runnable runner.Runnable, update runner.
 			err = errors.Wrapf(err, "resolve; go get -d output: %v", out)
 		}
 	}()
+
+	if verbose {
+		logger.Println("tricky: Matching go output:", out)
+	}
 
 	// TODO(bwplotka) Obviously hacky but reliable so far.
 	// Try to match strings announcing what version was found (if we got to this stage).
@@ -323,14 +333,12 @@ func updateModAndVersionFromGoGetOutput(runnable runner.Runnable, update runner.
 		})
 	}
 
-	target.RelPath, err = filepath.Rel(groups[0][1], target.RelPath)
-	if err != nil {
-		return errors.Wrap(err, "rel")
-	}
-
-	// Update target with old version and module.
+	target.RelPath = strings.TrimPrefix(target.RelPath, groups[0][1])
 	target.Module.Path = groups[0][1]
 	target.Module.Version = groups[0][2]
+	if verbose {
+		logger.Println("tricky: Matched", re.String(), "Module:", groups[0][1], "Version:", groups[0][2], "Together:", target)
+	}
 	return nil
 }
 
@@ -358,7 +366,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 
 	// If we don't have all information or update is set, resolve version.
 	var replaceStmts []*modfile.Replace
-	if target.Module.Version == "" || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
+	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
 		// Set up totally empty mod file to get clear version to install.
 		tmpEmptyModFile, err := createTmpModFileFromExisting(ctx, c.runner, logger, "", filepath.Join(c.modDir, name+"-e.tmp.mod"))
 		if err != nil {
@@ -366,8 +374,8 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 		defer errcapture.Close(&err, tmpEmptyModFile.Close, "close")
 
-		runnable := c.runner.With(ctx, tmpEmptyModFile.Name(), c.modDir)
-		if err := updateModAndVersionFromGoGetOutput(runnable, c.update, &target); err != nil {
+		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir)
+		if err := updateModAndVersionFromGoGetOutput(logger, c.verbose, runnable, c.update, &target); err != nil {
 			return err
 		}
 
@@ -416,13 +424,13 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return err
 	}
 
-	runnable := c.runner.With(ctx, tmpModFile.Name(), c.modDir)
-	if err := install(runnable, tmpModFile.Name(), tmpModFile.DirectPackage()); err != nil {
+	runnable := c.runner.With(ctx, tmpModFile.FileName(), c.modDir)
+	if err := install(runnable, name, tmpModFile.DirectPackage()); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
 	// We were working on tmp file, do atomic rename.
-	if err := os.Rename(tmpModFile.Name(), outModFile); err != nil {
+	if err := os.Rename(tmpModFile.FileName(), outModFile); err != nil {
 		return errors.Wrap(err, "rename")
 	}
 	return nil

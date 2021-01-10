@@ -150,6 +150,7 @@ func main() {
 				update:    upPolicy,
 				name:      *getName,
 				rename:    *getRename,
+				verbose:   true, // TODO *verbose,
 			}
 
 			if err := get(ctx, logger, cfg, target); err != nil {

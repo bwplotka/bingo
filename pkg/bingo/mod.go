@@ -59,7 +59,7 @@ func (m Package) Path() string {
 
 // ModFile represents bingo tool .mod file.
 type ModFile struct {
-	name string
+	filename string
 
 	f *os.File
 	m *modfile.File
@@ -81,7 +81,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 			errcapture.Close(&err, f.Close, "close")
 		}
 	}()
-	mf := &ModFile{f: f, name: modFile}
+	mf := &ModFile{f: f, filename: modFile}
 	if err := mf.Reload(); err != nil {
 		return nil, err
 	}
@@ -98,8 +98,8 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 	return mf, nil
 }
 
-func (mf *ModFile) Name() string {
-	return mf.name
+func (mf *ModFile) FileName() string {
+	return mf.filename
 }
 
 func (mf *ModFile) AutoReplaceDisabled() bool {
@@ -115,7 +115,7 @@ func (mf *ModFile) Reload() (err error) {
 		return errors.Wrap(err, "seek")
 	}
 
-	mf.m, err = ParseModFileOrReader(mf.name, mf.f)
+	mf.m, err = ParseModFileOrReader(mf.filename, mf.f)
 	if err != nil {
 		return err
 	}
@@ -185,10 +185,12 @@ func (mf *ModFile) SetDirectRequire(target Package) (err error) {
 
 func (mf *ModFile) dropAllRequire() {
 	for _, r := range mf.m.Require {
-		if r.Syntax != nil {
-			_ = mf.m.DropRequire(r.Mod.Path)
+		if r.Syntax == nil {
+			continue
 		}
+		_ = mf.m.DropRequire(r.Mod.Path)
 	}
+	mf.m.Require = mf.m.Require[:0]
 }
 
 // SetReplace removes all replace statements and set to the given ones.
@@ -239,7 +241,7 @@ func ModDirectPackage(modFile string) (pkg Package, err error) {
 	defer errcapture.Close(&err, mf.Close, "close")
 
 	if mf.directPackage == nil {
-		return Package{}, errors.Errorf("no direct package found in %s; empty module?", mf.name)
+		return Package{}, errors.Errorf("no direct package found in %s; empty module?", mf.filename)
 	}
 	return *mf.directPackage, nil
 }
