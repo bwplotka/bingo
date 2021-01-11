@@ -151,6 +151,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	}
 
 	if c.rename != "" {
+		// Tream rename specially.
 		if pkgPath != "" {
 			return errors.Errorf("-r rename has to reference installed tool by name not path, got: %v", pkgPath)
 		}
@@ -167,6 +168,38 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		if len(newExisting) > 0 {
 			return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, c.rename)
 		}
+
+		existing, err := existingModFiles(c.modDir, name)
+		if err != nil {
+			return errors.Wrapf(err, "existing mod files for %v", name)
+		}
+
+		if len(existing) == 0 {
+			return errors.Errorf("nothing to rename, tool %v not installed", name)
+		}
+
+		targets := make([]bingo.Package, 0, len(existing))
+		for _, e := range existing {
+			mf, err := bingo.OpenModFile(e)
+			if err != nil {
+				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
+			}
+			defer errcapture.Close(&err, mf.Close, "close")
+
+			if mf.DirectPackage() == nil {
+				return errors.Wrapf(err, "failed to rename tool %v to %v name; found empty mod file %v; Use full path to install tool again", name, c.rename, e)
+			}
+			targets = append(targets, *mf.DirectPackage())
+		}
+
+		for i, t := range targets {
+			if err := getPackage(ctx, logger, c.forPackage(), i, c.rename, t); err != nil {
+				return errors.Wrapf(err, "%s.mod: getting %s", c.rename, t)
+			}
+		}
+
+		// Remove old mod files.
+		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
 
 	targetName := name
@@ -179,7 +212,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 
 	existing, err := existingModFiles(c.modDir, targetName)
 	if err != nil {
-		return errors.Wrapf(err, "existing mod files for %v", name)
+		return errors.Wrapf(err, "existing mod files for %v", targetName)
 	}
 
 	if versions[0] == "none" {
@@ -206,12 +239,6 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			defer errcapture.Close(&err, mf.Close, "close")
 
 			if mf.DirectPackage() != nil {
-				if c.rename != "" {
-					// Special path for rename. There is always single existing file checked in this case and we should take it's package.
-					targets = append(targets, *mf.DirectPackage())
-					continue
-				}
-
 				if pkgPath != "" && pkgPath != mf.DirectPackage().Path() {
 					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
 						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), pkgPath, targetName)
@@ -231,19 +258,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		targets = append(targets, p)
 	}
 
-	if c.rename != "" {
-		targetName = c.rename
-	}
-
 	for i, t := range targets {
 		if err := getPackage(ctx, logger, c.forPackage(), i, targetName, t); err != nil {
 			return errors.Wrapf(err, "%s.mod: getting %s", targetName, t)
 		}
-	}
-
-	// Rename requested. Remove old mod(s) in this case, but only at the end.
-	if c.rename != "" && targetName != name {
-		defer func() { _ = removeAllGlob(filepath.Join(c.modDir, name+".*")) }()
 	}
 
 	// Remove target unused arr mod files based on version file.

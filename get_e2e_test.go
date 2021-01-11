@@ -525,7 +525,7 @@ func TestGet(t *testing.T) {
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
 							{name: "buildable3", binName: "buildable3-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
 							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "f4", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
 							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
 							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
 							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
@@ -548,7 +548,7 @@ func TestGet(t *testing.T) {
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
 							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "f4", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
 							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
 							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
 							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
@@ -717,7 +717,7 @@ func TestGet(t *testing.T) {
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							}
-							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 						})
 						// TODO(bwplotka): Test variables.env as well.
 						t.Run("Makefile", func(t *testing.T) {
@@ -737,30 +737,35 @@ func TestGet(t *testing.T) {
 
 							testutil.Equals(t, []string{}, g.existingBinaries(t))
 							g.ExecOutput(t, p.root, makePath, "faillint-exists")
-							g.ExecOutput(t, p.root, makePath, "goimports-exists")
-							g.ExecOutput(t, p.root, makePath, "goimports2-exists")
+							g.ExecOutput(t, p.root, makePath, "buildable-exists")
+							g.ExecOutput(t, p.root, makePath, "wr_buildable-exists")
+
+							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
+							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 
 							testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
-							testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
-							testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
+							testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "buildable-exists"))
+							testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "wr_buildable-exists"))
 
-							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 							t.Run("Delete binary file, expect reinstall", func(t *testing.T) {
 								_, err := execCmd(g.gobin, nil, "rm", "faillint-v1.3.0")
 								testutil.Ok(t, err)
-								testutil.Equals(t, []string{"goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+								testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
 								testutil.Equals(t, "(re)installing "+g.gobin+"/faillint-v1.3.0\nchecking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 								testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
-								testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "goimports-exists"))
-								testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "goimports2-exists"))
-								testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+								testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 							})
 							t.Run("Delete makefile", func(t *testing.T) {
-								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable2@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
-								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports@none"))
-								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f4@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
 
 								testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\t\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
