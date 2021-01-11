@@ -212,7 +212,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		}
 		p := bingo.Package{RelPath: pkgPath}
 		if v != "" {
-			p.Module.Version = versions[i]
+			p.Module.Version = v
 		}
 		targets = append(targets, p)
 	}
@@ -221,8 +221,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		targetName = c.rename
 	}
 
-	for _, t := range targets {
-		if err := getPackage(ctx, logger, c.forPackage(), 0, targetName, t); err != nil {
+	for i, t := range targets {
+		if err := getPackage(ctx, logger, c.forPackage(), i, targetName, t); err != nil {
 			return errors.Wrapf(err, "%s.mod: getting %s", targetName, t)
 		}
 	}
@@ -286,17 +286,34 @@ func validateTargetName(targetName string) error {
 	return nil
 }
 
-func updateModAndVersionFromGoGetOutput(logger *log.Logger, verbose bool, runnable runner.Runnable, update runner.GetUpdatePolicy, target *bingo.Package) (err error) {
-	// Do initial go get -d. If it errors out, we rely on output to find the latest target version.
+func resolvePackage(
+	logger *log.Logger,
+	verbose bool,
+	tmpModFile string,
+	runnable runner.Runnable,
+	update runner.GetUpdatePolicy,
+	target *bingo.Package,
+) (err error) {
+	// Do initial go get -d and remember output.
+	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
+	// being commit sha as well. If nothing else will succeed, we will rely on output to find the target version.
 	out, gerr := runnable.GetD(update, target.String())
-	q
-	// Wrap all with runnable output.
-	defer func() {
+	if gerr == nil {
+		mod, err := bingo.ModIndirectModule(tmpModFile)
 		if err != nil {
-			if gerr != nil {
-				out = errors.Wrap(gerr, out).Error()
-			}
-			err = errors.Wrapf(err, "resolve; go get -d output: %v", out)
+			return err
+		}
+
+		target.RelPath = strings.TrimPrefix(target.RelPath, mod.Path)
+		target.Module.Path = mod.Path
+		target.Module.Version = mod.Version
+		return nil
+	}
+
+	defer func() {
+		// Wrap all with runnable output.
+		if err != nil {
+			err = errors.Wrapf(err, "resolve; go get -d output: %v", errors.Wrap(gerr, out).Error())
 		}
 	}()
 
@@ -375,7 +392,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		defer errcapture.Close(&err, tmpEmptyModFile.Close, "close")
 
 		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir)
-		if err := updateModAndVersionFromGoGetOutput(logger, c.verbose, runnable, c.update, &target); err != nil {
+		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, c.update, &target); err != nil {
 			return err
 		}
 
@@ -444,7 +461,7 @@ func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err err
 	}
 
 	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
-	if listOutput, err := runnable.List("-f={{.Name}}", pkg.Path()); err != nil {
+	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-f={{.Name}}", pkg.Path()); err != nil {
 		return err
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)

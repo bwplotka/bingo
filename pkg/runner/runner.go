@@ -113,7 +113,7 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command 
 }
 
 type Runnable interface {
-	List(args ...string) (string, error)
+	List(update GetUpdatePolicy, args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) (string, error)
 	Build(pkg, out string) error
 	GoEnv(args ...string) (string, error)
@@ -156,9 +156,13 @@ const (
 )
 
 // List runs `go list` against separate go modules files if any.
-func (r *runnable) List(args ...string) (string, error) {
+func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) {
+	a := []string{"list"}
+	if update != NoUpdatePolicy {
+		a = append(a, string(update))
+	}
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append([]string{"list"}, args...)...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(a, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
 	return strings.TrimRight(out.String(), "\n"), nil
