@@ -158,6 +158,11 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		}
 	}
 
+	existing, err := existingModFiles(c.modDir, name)
+	if err != nil {
+		return errors.Wrapf(err, "existing mod files for %v", name)
+	}
+
 	targetName := name
 	if c.name != "" {
 		if err := validateNewName(versions, c.modDir, name, c.name); err != nil {
@@ -172,11 +177,6 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	}
 
-	existing, err := existingModFiles(c.modDir, targetName)
-	if err != nil {
-		return errors.Wrapf(err, "existing mod files for %v", targetName)
-	}
-
 	targets := make([]bingo.Package, 0, len(versions))
 	for i, v := range versions {
 		if len(existing) > i {
@@ -184,30 +184,27 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 
 			mf, err := bingo.OpenModFile(e)
 			if err != nil {
-				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, targetName)
+				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
 			defer errcapture.Close(&err, mf.Close, "close")
 
-			if mf.DirectPackage() != nil {
-				if pkgPath != "" && pkgPath != mf.DirectPackage().Path() {
-					// TODO(bwplotka): Sketchy.
-					return errors.Errorf("failed to install %q under %q name as binary with the same name is already installed for path %q. "+
-						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", pkgPath, targetName, mf.DirectPackage().Path(), targetName)
+			if pkgPath == "" {
+				// Tool was referenced by name. Make sure we can take path from referenced name.
+				if mf.DirectPackage() == nil {
+					return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 				}
-				p := *mf.DirectPackage()
-				if v != "" {
-					p.Module.Version = v
-				}
-				targets = append(targets, p)
-				continue
-
-			} else if c.rename != "" {
-				return errors.Errorf("bingo tool module %v.mod is malformed; can't get package path and version for"+
-					" base tool. Use @none to uninstall or reinstall base package; err: %v\n", targetName, err)
 			}
-		} else if c.rename != "" {
-			return errors.Errorf("nothing to rename, no module %v.mod was found; can't get package path and version for"+
-				" base tool. Install base package first; err: %v\n", targetName, err)
+
+			if mf.DirectPackage() != nil {
+				if pkgPath != mf.DirectPackage().Path() {
+					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
+						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), pkgPath, targetName)
+				}
+				pkgPath = mf.DirectPackage().Path()
+			}
+		}
+		if pkgPath == "" {
+			return errors.Errorf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
 		}
 		p := bingo.Package{RelPath: pkgPath}
 		if v != "" {
@@ -303,7 +300,7 @@ func resolvePackage(
 			return err
 		}
 
-		target.RelPath = strings.TrimPrefix("/", strings.TrimPrefix(target.RelPath, mod.Path))
+		target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mod.Path), "/")
 		target.Module.Path = mod.Path
 		target.Module.Version = mod.Version
 		return nil
@@ -349,7 +346,7 @@ func resolvePackage(
 		})
 	}
 
-	target.RelPath = strings.TrimPrefix("/", strings.TrimPrefix(target.RelPath, groups[0][1]))
+	target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, groups[0][1]), "/")
 	target.Module.Path = groups[0][1]
 	target.Module.Version = groups[0][2]
 	if verbose {

@@ -79,6 +79,8 @@ func main() {
 		exitOnUsageError(flags.Usage, "Failed to parse flags:", err)
 	}
 
+	// DEBUG
+	*verbose = true
 	if *help {
 		flags.Usage()
 		os.Exit(0)
@@ -150,7 +152,7 @@ func main() {
 				update:    upPolicy,
 				name:      *getName,
 				rename:    *getRename,
-				verbose:   true, // TODO *verbose,
+				verbose:   *verbose,
 			}
 
 			if err := get(ctx, logger, cfg, target); err != nil {
