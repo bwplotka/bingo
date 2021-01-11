@@ -65,7 +65,7 @@ func EvalVariables(ctx context.Context, r io.Reader, envSlice ...string) (ret En
 	tok := sc.Scan()
 	for tok != scanner.EOF {
 		k := sc.TokenText()
-		tok = sc.Scan()
+		_ = sc.Scan()
 		v := sc.TokenText()
 		ret = append(ret, fmt.Sprintf("%s=%s", k, strings.Trim(v, "\"")))
 		tok = sc.Scan()
@@ -98,7 +98,7 @@ func trimDeclStmts(ast *syntax.File) {
 			switch node.(type) {
 			case *syntax.DeclClause:
 				// TODO(bwplotka): Right not just trim them, but in future pull out assignments to statements on the parent level.
-				node = nil
+				node = nil // nolint
 				return false
 			}
 			return true

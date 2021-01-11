@@ -13,7 +13,7 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 ### Added
 
 * Support easier path changing upgrades of tools with the same name.
-* [Automatic download of `replace` entries](https://github.com/bwplotka/bingo/issues/7) for the pinned version of the tool. This is very often required by big projects to fight with deps hell ([Go Modules are hard](https://twitter.com/bwplotka/status/1347104281120403458)). 
+* [Automatic download of `replace` entries](https://github.com/bwplotka/bingo/issues/7) for the pinned version of the tool. This is very often required by big projects to fight with deps hell ([Go Modules are hard](https://twitter.com/bwplotka/status/1347104281120403458)).
 
 ### Fixed
 

@@ -56,9 +56,7 @@ func Start(athensBin string, cacheDir string) (func() error, error) {
 			merr.Add(c.Process.Kill())
 		}
 
-		select {
-		case <-errc:
-		}
+		<-errc
 		return merr.Err()
 	}, nil
 }

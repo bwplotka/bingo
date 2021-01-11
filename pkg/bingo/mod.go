@@ -351,14 +351,15 @@ func onModHeaderComments(m *modfile.File, f func(*modfile.Comments) error) error
 }
 
 func errOnMetaMissing(comments *modfile.Comments) error {
-	for _, c := range comments.Suffix {
-		tr := strings.Trim(c.Token, "\n")
-		if tr != metaComment {
-			return errors.Errorf("expected %q comment on top of module, found %q", metaComment, tr)
-		}
-		return nil
+	if len(comments.Suffix) == 0 {
+		return errors.Errorf("expected %q comment on top of module, found no comment", metaComment)
 	}
-	return errors.Errorf("expected %q comment on top of module, found no comment", metaComment)
+
+	tr := strings.Trim(comments.Suffix[0].Token, "\n")
+	if tr != metaComment {
+		return errors.Errorf("expected %q comment on top of module, found %q", metaComment, tr)
+	}
+	return nil
 }
 
 // PackageVersionRenderable is used in variables.go. Modify with care.

@@ -56,7 +56,7 @@ deps: ## Ensures fresh go.mod and go.sum.
 .PHONY: docs
 docs: build $(MDOX) ## Generates config snippets and doc formatting.
 	@echo ">> generating docs $(PATH)"
-	@$(MDOX) fmt -l *.md
+	@$(MDOX) fmt -l --links.validate.without-address-regex="twitter.com" *.md
 
 .PHONY: format
 format: ## Formats Go code including imports and cleans up white noise.

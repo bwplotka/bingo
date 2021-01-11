@@ -568,12 +568,12 @@ func TestGet(t *testing.T) {
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f4@none"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
 						},
-						expectRows: []row{},
+						expectRows: []row(nil),
 						expectBinaries: []string{
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
@@ -603,7 +603,6 @@ func TestGet(t *testing.T) {
 		return
 	}
 	t.Run("Compatibility test", func(t *testing.T) {
-		t.Skip("f")
 		dirs, err := filepath.Glob("testdata/testproject*")
 		testutil.Ok(t, err)
 		for _, dir := range dirs {
@@ -666,8 +665,8 @@ func TestGet(t *testing.T) {
 							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
-							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
-							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.NotOk(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.NotOk(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
 							testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 
 							// Get array version with one go.
@@ -741,8 +740,8 @@ func TestGet(t *testing.T) {
 							g.ExecOutput(t, p.root, makePath, "wr_buildable-exists")
 
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
-							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
-							testutil.Ok(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.NotOk(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
+							testutil.NotOk(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
 							testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 
 							testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
@@ -763,7 +762,7 @@ func TestGet(t *testing.T) {
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable2@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
-								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f4@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
@@ -788,10 +787,13 @@ type row struct {
 func expectBingoListRows(t testing.TB, expect []row, output string) {
 	t.Helper()
 
-	trimmed := strings.TrimLeft(output, "Name\tBinary Name\tPackage @ Version\n----\t-----------\t-----------------\n")
+	trimmed := strings.TrimLeft(output, "Name\tBinary Name\tPackage @ Version\n----\t-----------\t-----------------\n") // nolint
 	var got []row
 	for _, line := range strings.Split(trimmed, "\n") {
 		s := strings.Fields(line)
+		if len(s) == 0 {
+			break
+		}
 		r := row{name: s[0]}
 		if len(s) > 1 {
 			r.binName = s[1]

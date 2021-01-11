@@ -22,8 +22,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultGoProxy = "https://proxy.golang.org"
-
 func exitOnUsageError(usage func(), v ...interface{}) {
 	fmt.Println(append([]interface{}{"Error:"}, v...)...)
 	fmt.Println()
@@ -79,8 +77,6 @@ func main() {
 		exitOnUsageError(flags.Usage, "Failed to parse flags:", err)
 	}
 
-	// DEBUG
-	*verbose = true
 	if *help {
 		flags.Usage()
 		os.Exit(0)
