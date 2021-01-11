@@ -269,48 +269,6 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "naive installing package that would result with `cmd` name fails - different name is suggested",
-						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
-							{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
-						name: "install package with go name should fail. (this is due to clash with go.mod)",
-						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/something/go"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
-							{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
 						name: "Get array of 4 versions of faillint under f2 name",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n", "f2", "github.com/fatih/faillint@v1.5.0,v1.1.0,v1.2.0,v1.0.0"))
@@ -411,31 +369,6 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "Rename buildable2 to faillint (existing tool) should fail",
-						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=faillint", "buildable2"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
-							{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "f2", binName: "f2-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-							{name: "f2", binName: "f2-v1.4.0", pkgVersion: "github.com/fatih/faillint@v1.4.0"},
-							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
 						name: "Rename buildable2 to buildable3",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-r=buildable3", "buildable2"))
@@ -463,9 +396,21 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "Updating f2 to same multiple versions should fail",
+						name: "error cases",
 						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.1.0,v1.4.0,v1.1.0"))
+							// Installing different tool with name clash should fail
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/totally-not-bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							// Installing package with go name should fail. (this is due to clash with go.mod).
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/something/go"))
+							// Naive installing package that would result with `cmd` name fails - different name is suggested.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
+							// Updating f4 to multiple versions with none should fail.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.4.0,v1.1.0,none"))
+							// Removing by path.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable@none"))
+							// Removing non existing tool.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "buildable2@none"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -488,9 +433,11 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "Creating not existing foo to f3 should fail",
+						name: "-n name error cases",
 						do: func(t *testing.T) {
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.1.0,v1.4.0,v1.1.0")) // Updating to the same array versions.
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-n", "f3", "x"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-n", "f2-clone", "f2")) // Cloning.
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -513,9 +460,16 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						name: "Renaming not existing x to f3 should fail",
+						name: "-r rename error cases",
 						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r", "f3", "x"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "buildable2@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=faillint", "buildable2")) // Renaming to existing name.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r", "f3", "x"))             // Renaming not existing.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r", "f4", "f3@v1.1.0,v1.0.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -536,115 +490,98 @@ func TestGet(t *testing.T) {
 							"go-bindata-v3.1.1+incompatible",
 							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
-					},
-					{
-						name: "Cloning f2 to f2-clone should work",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n", "f2-clone", "f2"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
-							{name: "buildable3", binName: "buildable3-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "f2", binName: "f2-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-							{name: "f2", binName: "f2-v1.4.0", pkgVersion: "github.com/fatih/faillint@v1.4.0"},
-							{name: "f2-clone", binName: "f2-clone-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-							{name: "f2-clone", binName: "f2-clone-v1.4.0", pkgVersion: "github.com/fatih/faillint@v1.4.0"},
-							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f2-clone-v1.3.0", "f2-clone--v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
-						name: "Deleting f2-clone",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2-clone@none"))
-						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
 					},
 					{
 						name: "Renaming f2 to f3 should work",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-r", "f3", "f2"))
-							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf3\t\t\tf3-v1.3.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.3.0\t\t\t\t\t\t\t\t\nf3\t\t\tf3-v1.4.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.4.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.1.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.0.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533", g.ExecOutput(t, p.root, goBinPath, "list"))
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+						expectRows: []row{
+							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+							{name: "buildable3", binName: "buildable3-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "f3", binName: "f3-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
+							{name: "f3", binName: "f3-v1.4.0", pkgVersion: "github.com/fatih/faillint@v1.4.0"},
+							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
 					},
 					{
-						name: "Renaming f3 to f4 with certain version should work",
+						name: "Updating f3 back to non array version should work",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-r", "f4", "f3@v1.1.0,v1.0.0"))
-							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\t\nf4\t\t\tf4-v1.1.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nf4\t\t\tf4-v1.0.0\t\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.1.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.0.0\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\t\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375\t\ngoimports2\tgoimports2-v0.0.0-20200519175826-7521f6f42533\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200519175826-7521f6f42533", g.ExecOutput(t, p.root, goBinPath, "list"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@v1.1.0"))
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+						expectRows: []row{
+							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+							{name: "buildable3", binName: "buildable3-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "f4", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
 					},
 					{
-						name: "Installing different tool with name clash should fail",
+						name: "Remove buildable3 by name",
 						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "golang.org/x/totally-not-tools/cmd/goimports@cb1345f3a375367f8439bba882e90348348288d9"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable3@none"))
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-
-					{
-						name: "Updating f4 to multiple versions with none should fail",
-						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.4.0,v1.1.0,none"))
+						expectRows: []row{
+							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "f4", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-					{
-						name: "Updating f4 back to non array version should work",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f4@v1.1.0"))
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-					{
-						name: "Remove goimports2 by name",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "goimports2@none"))
-							testutil.Equals(t, "Name\t\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\t\t\t\t\t\t\t\t\t\t\n----\t\t\t-----------\t\t\t\t\t\t\t-----------------\t\t\t\t\t\t\t\t\t\t\nf4\t\t\tf4-v1.1.0\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.1.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.0.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375", g.ExecOutput(t, p.root, goBinPath, "list"))
-						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
 					},
 					{
-						name: "Remove goimports by path",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "golang.org/x/tools/cmd/goimports@none"))
-						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-					{
-						name: "Remove faillint by name",
+						name: "Remove rest of tools",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
-						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-					{
-						name: "Remove f4 by name",
-						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f4@none"))
-						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
-					},
-					{
-						name: "Remove go-bindata by name",
-						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
-							testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\t\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
 						},
-						expectBinaries: []string{"f2-clone-v1.3.0", "f2-clone-v1.4.0", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.3.0", "f3-v1.4.0", "f4-v1.0.0", "f4-v1.1.0", "faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0", "go-bindata-v3.1.1+incompatible", "goimports-v0.0.0-20200521211927-2b542361a4fc", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200515010526-7d3b6ebf133d", "goimports2-v0.0.0-20200519175826-7521f6f42533"},
+						expectRows: []row{},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
 					},
 				} {
 					if ok := t.Run(tcase.name, func(t *testing.T) {
@@ -735,7 +672,7 @@ func TestGet(t *testing.T) {
 
 							// Get array version with one go.
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2"))
-							testutil.Equals(t, []string{"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0"}, g.existingBinaries(t))
 
 							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
@@ -753,20 +690,32 @@ func TestGet(t *testing.T) {
 							// Get all binaries by doing native go build.
 							if isGoProject {
 								// This should work without cd even.
-								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports.mod"), "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
+								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
+									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
-								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"), "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
+								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
+
+								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"),
+									"-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 								testutil.Ok(t, err)
-								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "goimports2.mod"), "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
+								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "wr_buildable.mod"),
+									"-o="+filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"), "github.com/bwplotka/bingo/testdata/module_with_replace/buildable")
 								testutil.Ok(t, err)
+								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							} else {
 								// For no go projects we have this "bug" that requires go.mod to be present.
-								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports.mod", "-o="+filepath.Join(g.gobin, "goimports-v0.0.0-20200522201501-cb1345f3a375"), "golang.org/x/tools/cmd/goimports")
+								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=buildable.mod",
+									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
-								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod", "-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
+								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
+
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod",
+									"-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 								testutil.Ok(t, err)
-								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=goimports2.mod", "-o="+filepath.Join(g.gobin, "goimports2-v0.0.0-20200519175826-7521f6f42533"), "golang.org/x/tools/cmd/goimports")
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=wr_buildable.mod",
+									"-o="+filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"), "github.com/bwplotka/bingo/testdata/module_with_replace/buildable")
 								testutil.Ok(t, err)
+								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							}
 							testutil.Equals(t, []string{"faillint-v1.3.0", "goimports-v0.0.0-20200522201501-cb1345f3a375", "goimports2-v0.0.0-20200519175826-7521f6f42533"}, g.existingBinaries(t))
 						})

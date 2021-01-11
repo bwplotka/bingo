@@ -144,34 +144,51 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		return getAll(ctx, logger, c)
 	}
 
+	// NOTE: pkgPath can be empty. This means that tool was referenced by name.
 	name, pkgPath, versions, err := parseTarget(rawTarget)
 	if err != nil {
 		return errors.Wrapf(err, "parse %v", rawTarget)
 	}
 
 	if c.rename != "" {
+		if pkgPath != "" {
+			return errors.Errorf("-r rename has to reference installed tool by name not path, got: %v", pkgPath)
+		}
 		if versions[0] != "" || len(versions) > 1 {
-			return errors.Errorf("rename cannot take version arguments (string after @), got %v", versions)
+			return errors.Errorf("-r rename cannot take version arguments (string after @), got %v", versions)
 		}
-		if err := validateNewName(versions, c.modDir, name, c.rename); err != nil {
-			return errors.Wrap(err, "-n")
+		if err := validateNewName(versions, name, c.rename); err != nil {
+			return errors.Wrap(err, "-r")
 		}
-	}
-
-	existing, err := existingModFiles(c.modDir, name)
-	if err != nil {
-		return errors.Wrapf(err, "existing mod files for %v", name)
+		newExisting, err := existingModFiles(c.modDir, c.rename)
+		if err != nil {
+			return errors.Wrapf(err, "existing mod files for %v", c.rename)
+		}
+		if len(newExisting) > 0 {
+			return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, c.rename)
+		}
 	}
 
 	targetName := name
 	if c.name != "" {
-		if err := validateNewName(versions, c.modDir, name, c.name); err != nil {
+		if err := validateNewName(versions, name, c.name); err != nil {
 			return errors.Wrap(err, "-n")
 		}
 		targetName = c.name
 	}
 
+	existing, err := existingModFiles(c.modDir, targetName)
+	if err != nil {
+		return errors.Wrapf(err, "existing mod files for %v", name)
+	}
+
 	if versions[0] == "none" {
+		if pkgPath != "" {
+			return errors.Errorf("cannot delete tool by full path. Use just %v@none name instead", targetName)
+		}
+		if len(existing) == 0 {
+			return errors.Errorf("nothing to delete, tool %v is not installed", targetName)
+		}
 		// none means we no longer want to version this package.
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
@@ -188,19 +205,20 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			}
 			defer errcapture.Close(&err, mf.Close, "close")
 
-			if pkgPath == "" {
-				// Tool was referenced by name. Make sure we can take path from referenced name.
-				if mf.DirectPackage() == nil {
-					return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
-				}
-			}
-
 			if mf.DirectPackage() != nil {
-				if pkgPath != mf.DirectPackage().Path() {
+				if c.rename != "" {
+					// Special path for rename. There is always single existing file checked in this case and we should take it's package.
+					targets = append(targets, *mf.DirectPackage())
+					continue
+				}
+
+				if pkgPath != "" && pkgPath != mf.DirectPackage().Path() {
 					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
 						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), pkgPath, targetName)
 				}
 				pkgPath = mf.DirectPackage().Path()
+			} else if pkgPath == "" {
+				return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 			}
 		}
 		if pkgPath == "" {
@@ -246,19 +264,12 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	return nil
 }
 
-func validateNewName(versions []string, modDir, old, new string) error {
+func validateNewName(versions []string, old, new string) error {
 	if new == old {
 		return errors.Errorf("cannot be the same as module name %v", new)
 	}
 	if versions[0] == "none" {
 		return errors.Errorf("cannot use with @none logic")
-	}
-	newExisting, err := existingModFiles(modDir, new)
-	if err != nil {
-		return errors.Wrapf(err, "existing mod files for %v", new)
-	}
-	if len(newExisting) > 0 {
-		return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, new)
 	}
 	return nil
 }

@@ -5,12 +5,12 @@ faillint-exists: $(FAILLINT)
 	@test $(FAILLINT) || (echo "no var" && exit 1)
 	@test -f $(FAILLINT) || (echo "no file" && exit 1)
 
-goimports-exists: $(GOIMPORTS)
-	@echo "checking goimports"
-	@test $(GOIMPORTS) || (echo "no var" && exit 1)
-	@test -f $(GOIMPORTS) || (echo "no file" && exit 1)
+buildable-exists: $(BUILDABLE)
+	@echo "checking buildable"
+	@test $(BUILDABLE) || (echo "no var" && exit 1)
+	@test -f $(BUILDABLE) || (echo "no file" && exit 1)
 
-goimports2-exists: $(GOIMPORTS2)
-	@echo "checking goimports2"
-	@test $(GOIMPORTS2) || (echo "no var" && exit 1)
-	@test -f $(GOIMPORTS2) || (echo "no file" && exit 1)
+wr_buildable-exists: $(WR_BUILDABLE)
+	@echo "checking wr_buildable"
+	@test $(WR_BUILDABLE) || (echo "no var" && exit 1)
+	@test -f $(WR_BUILDABLE) || (echo "no file" && exit 1)
