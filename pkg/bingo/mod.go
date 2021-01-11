@@ -4,6 +4,7 @@
 package bingo
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,7 +13,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
+	"github.com/efficientgo/tools/core/pkg/merrors"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -71,7 +74,7 @@ type ModFile struct {
 
 // OpenModFile opens bingo mod file.
 // It also adds meta if missing and trims all require direct module imports except first within the parsed syntax.
-// Use `Flush` to persist those changes.
+// It's a caller responsibility to Close the file when not using anymore.
 func OpenModFile(modFile string) (_ *ModFile, err error) {
 	f, err := os.OpenFile(modFile, os.O_RDWR, os.ModePerm)
 	if err != nil {
@@ -99,6 +102,72 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 	return mf, nil
 }
 
+// CreateFromExistingOrNew creates and opens new bingo enhanced module file.
+// If existing file exists and is not malformed it copies this as the source, otherwise completely new is created.
+// It's a caller responsibility to Close the file when not using anymore.
+func CreateFromExistingOrNew(ctx context.Context, r *runner.Runner, logger *log.Logger, existingFile, modFile string) (*ModFile, error) {
+	if err := os.RemoveAll(modFile); err != nil {
+		return nil, errors.Wrap(err, "rm")
+	}
+
+	if existingFile != "" {
+		_, err := os.Stat(existingFile)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "stat module file %s", existingFile)
+		}
+		if err == nil {
+			// Only use existing mod file on successful parse.
+			o, err := OpenModFile(existingFile)
+			if err == nil {
+				if err := o.Close(); err != nil {
+					return nil, err
+				}
+				if err := copyFile(existingFile, modFile); err != nil {
+					return nil, err
+				}
+				return OpenModFile(modFile)
+			}
+			logger.Printf("bingo tool module file %v is malformed; it will be recreated; err: %v\n", existingFile, err)
+		}
+	}
+
+	// Create from scratch.
+	if err := r.ModInit(ctx, filepath.Dir(existingFile), modFile, "_"); err != nil {
+		return nil, errors.Wrap(err, "mod init")
+	}
+	return OpenModFile(modFile)
+}
+
+func copyFile(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	// TODO(bwplotka): Check those errors in defer.
+	defer source.Close()
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := source.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 0 {
+			break
+		}
+
+		if _, err := destination.Write(buf[:n]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (mf *ModFile) FileName() string {
 	return mf.filename
 }
@@ -107,8 +176,9 @@ func (mf *ModFile) AutoReplaceDisabled() bool {
 	return mf.autoReplaceDisabled
 }
 
+// Close flushes changes and closes file.
 func (mf *ModFile) Close() error {
-	return mf.f.Close()
+	return merrors.New(mf.Flush(), mf.f.Close()).Err()
 }
 
 func (mf *ModFile) Reload() (err error) {
@@ -181,6 +251,7 @@ func (mf *ModFile) SetDirectRequire(target Package) (err error) {
 		r.Syntax.Suffix = append(r.Syntax.Suffix[:0], modfile.Comment{Suffix: true, Token: "// " + target.RelPath})
 	}
 	mf.m.Cleanup()
+	mf.directPackage = &target
 	return nil
 }
 
@@ -285,8 +356,9 @@ func errOnMetaMissing(comments *modfile.Comments) error {
 		if tr != metaComment {
 			return errors.Errorf("expected %q comment on top of module, found %q", metaComment, tr)
 		}
+		return nil
 	}
-	return nil
+	return errors.Errorf("expected %q comment on top of module, found no comment", metaComment)
 }
 
 // PackageVersionRenderable is used in variables.go. Modify with care.

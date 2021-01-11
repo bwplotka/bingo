@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -304,7 +303,7 @@ func resolvePackage(
 			return err
 		}
 
-		target.RelPath = strings.TrimPrefix(target.RelPath, mod.Path)
+		target.RelPath = strings.TrimPrefix("/", strings.TrimPrefix(target.RelPath, mod.Path))
 		target.Module.Path = mod.Path
 		target.Module.Version = mod.Version
 		return nil
@@ -350,7 +349,7 @@ func resolvePackage(
 		})
 	}
 
-	target.RelPath = strings.TrimPrefix(target.RelPath, groups[0][1])
+	target.RelPath = strings.TrimPrefix("/", strings.TrimPrefix(target.RelPath, groups[0][1]))
 	target.Module.Path = groups[0][1]
 	target.Module.Version = groups[0][2]
 	if verbose {
@@ -385,7 +384,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	var replaceStmts []*modfile.Replace
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
 		// Set up totally empty mod file to get clear version to install.
-		tmpEmptyModFile, err := createTmpModFileFromExisting(ctx, c.runner, logger, "", filepath.Join(c.modDir, name+"-e.tmp.mod"))
+		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", filepath.Join(c.modDir, name+"-e.tmp.mod"))
 		if err != nil {
 			return errors.Wrap(err, "create empty tmp mod file")
 		}
@@ -423,7 +422,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
-	tmpModFile, err := createTmpModFileFromExisting(ctx, c.runner, logger, outModFile, filepath.Join(c.modDir, name+".tmp.mod"))
+	tmpModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, outModFile, filepath.Join(c.modDir, name+".tmp.mod"))
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
 	}
@@ -534,69 +533,6 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	}
 	// gitignore.
 	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), os.ModePerm)
-}
-
-func createTmpModFileFromExisting(ctx context.Context, r *runner.Runner, logger *log.Logger, modFile, tmpModFile string) (*bingo.ModFile, error) {
-	if err := os.RemoveAll(tmpModFile); err != nil {
-		return nil, errors.Wrap(err, "rm")
-	}
-
-	if modFile != "" {
-		_, err := os.Stat(modFile)
-		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "stat module file %s", modFile)
-		}
-		if err == nil {
-			// Only use existing mod file on successful parse.
-			o, err := bingo.OpenModFile(modFile)
-			if err == nil {
-				if err := o.Close(); err != nil {
-					return nil, err
-				}
-				if err := copyFile(modFile, tmpModFile); err != nil {
-					return nil, err
-				}
-				return bingo.OpenModFile(tmpModFile)
-			}
-			logger.Printf("bingo tool module %v is malformed; it will be recreated; err: %v\n", modFile, err)
-		}
-	}
-
-	// Create from scratch.
-	if err := r.ModInit(ctx, filepath.Dir(modFile), tmpModFile, "_"); err != nil {
-		return nil, errors.Wrap(err, "mod init")
-	}
-	return bingo.OpenModFile(tmpModFile)
-}
-
-func copyFile(src, dst string) error {
-	source, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	// TODO(bwplotka): Check those errors in defer.
-	defer source.Close()
-	destination, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destination.Close()
-
-	buf := make([]byte, 1024)
-	for {
-		n, err := source.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if n == 0 {
-			break
-		}
-
-		if _, err := destination.Write(buf[:n]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func removeAllGlob(glob string) error {
