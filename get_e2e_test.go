@@ -748,15 +748,15 @@ func TestGet(t *testing.T) {
 							testutil.Equals(t, "checking buildable\n", g.ExecOutput(t, p.root, makePath, "buildable-exists"))
 							testutil.Equals(t, "checking wr_buildable\n", g.ExecOutput(t, p.root, makePath, "wr_buildable-exists"))
 
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 							t.Run("Delete binary file, expect reinstall", func(t *testing.T) {
 								_, err := execCmd(g.gobin, nil, "rm", "faillint-v1.3.0")
 								testutil.Ok(t, err)
-								testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
+								testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
 								testutil.Equals(t, "(re)installing "+g.gobin+"/faillint-v1.3.0\nchecking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
 								testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
-								testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
+								testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 							})
 							t.Run("Delete makefile", func(t *testing.T) {
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable2@none"))
