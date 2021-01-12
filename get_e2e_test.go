@@ -640,8 +640,8 @@ func TestGet(t *testing.T) {
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible", "thanos-v0.17.2",
-							"thanos-v0.13.1-0.20210108102609-f85e4003ba51",
+							"go-bindata-v3.1.1+incompatible",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.17.2",
 							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
 					},
@@ -723,9 +723,9 @@ func TestGet(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint"))
 							testutil.Equals(t, []string{"faillint-v1.3.0"}, g.existingBinaries(t))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable"))
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0"}, g.existingBinaries(t))
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable"))
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
 							testutil.NotOk(t, g.ExpectErr(p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
@@ -734,7 +734,7 @@ func TestGet(t *testing.T) {
 
 							// Get array version with one go.
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2"))
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0"}, g.existingBinaries(t))
 
 							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
@@ -753,7 +753,7 @@ func TestGet(t *testing.T) {
 							if isGoProject {
 								// This should work without cd even.
 								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
-									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85"), "github.com/bwplotka/bingo/testdata/module/buildable")
+									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
 
@@ -767,7 +767,7 @@ func TestGet(t *testing.T) {
 							} else {
 								// For no go projects we have this "bug" that requires go.mod to be present.
 								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=buildable.mod",
-									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85"), "github.com/bwplotka/bingo/testdata/module/buildable")
+									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
 
@@ -779,7 +779,7 @@ func TestGet(t *testing.T) {
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							}
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 						})
 						// TODO(bwplotka): Test variables.env as well.
 						t.Run("Makefile", func(t *testing.T) {

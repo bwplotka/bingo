@@ -23,7 +23,8 @@ type Runner struct {
 	goCmd    string
 	insecure bool
 
-	verbose bool
+	verbose   bool
+	goVersion string
 }
 
 var semVerRegexp = regexp.MustCompile(`^go version go([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
@@ -59,7 +60,12 @@ func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error
 	if err := r.execGo(ctx, output, "", "", "version"); err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
-	return r, isSupportedVersion(strings.TrimRight(output.String(), "\n"))
+	r.goVersion = strings.TrimRight(output.String(), "\n")
+	return r, isSupportedVersion(r.goVersion)
+}
+
+func (r *Runner) GoVersion() string {
+	return r.goVersion
 }
 
 func (r *Runner) Verbose() {

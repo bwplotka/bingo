@@ -26,7 +26,7 @@ func TestEval(t *testing.T) {
 			"HOME="+os.Getenv("HOME"),
 		)
 		testutil.Ok(t, err)
-		testutil.Equals(t, []string{
+		testutil.Equals(t, EnvSlice{
 			"VAR1=with space 124", "VAR2=with space 124-yolo", "VAR3=with\\n\\nnewline",
 		}, e)
 	})
@@ -42,7 +42,7 @@ func TestEval(t *testing.T) {
 			"HOME="+os.Getenv("HOME"),
 		)
 		testutil.Ok(t, err)
-		testutil.Equals(t, []string{
+		testutil.Equals(t, EnvSlice{
 			"GOBIN=/home/something/bin",
 			"COPYRIGHT=/home/something/bin/copyright-v0.0.0-20210107100701-44cf59f65a1b",
 			"EMBEDMD=/home/something/bin/embedmd-v1.0.0",
@@ -67,9 +67,7 @@ func TestEval(t *testing.T) {
 		)
 		testutil.Ok(t, err)
 		// TODO(bwplotka): Support this assignments on decl statements.
-		testutil.Equals(t, []string{
-			"GOBIN=/home/something/bin",
-		}, e)
+		testutil.Equals(t, EnvSlice{"GOBIN=/home/something/bin", "PROXY=", "X="}, e)
 	})
 
 }

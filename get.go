@@ -21,6 +21,7 @@ import (
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 var goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
@@ -235,6 +236,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 
 	targets := make([]bingo.Package, 0, len(versions))
 	for i, v := range versions {
+		target := bingo.Package{Module: module.Version{Version: v}, RelPath: pkgPath}
 		if len(existing) > i {
 			e := existing[i]
 
@@ -249,7 +251,14 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
 						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), pkgPath, targetName)
 				}
-				pkgPath = mf.DirectPackage().Path()
+
+				target.Module.Path = mf.DirectPackage().Module.Path
+				if target.Module.Version == "" {
+					// If no version is requested pass the existing one.
+					target.Module.Version = mf.DirectPackage().Module.Version
+				}
+				target.RelPath = mf.DirectPackage().RelPath
+
 			} else if pkgPath == "" {
 				return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 			}
@@ -257,11 +266,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		if pkgPath == "" {
 			return errors.Errorf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
 		}
-		p := bingo.Package{RelPath: pkgPath}
-		if v != "" {
-			p.Module.Version = v
-		}
-		targets = append(targets, p)
+		targets = append(targets, target)
 	}
 
 	for i, t := range targets {
