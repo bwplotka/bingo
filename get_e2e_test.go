@@ -745,8 +745,8 @@ func TestGet(t *testing.T) {
 							testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 
 							testutil.Equals(t, "checking faillint\n", g.ExecOutput(t, p.root, makePath, "faillint-exists"))
-							testutil.Equals(t, "checking goimports\n", g.ExecOutput(t, p.root, makePath, "buildable-exists"))
-							testutil.Equals(t, "checking goimports2\n", g.ExecOutput(t, p.root, makePath, "wr_buildable-exists"))
+							testutil.Equals(t, "checking buildable\n", g.ExecOutput(t, p.root, makePath, "buildable-exists"))
+							testutil.Equals(t, "checking wr_buildable\n", g.ExecOutput(t, p.root, makePath, "wr_buildable-exists"))
 
 							testutil.Equals(t, []string{"buildable-v0.0.0-20210109093942-2e6391144e85", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 							t.Run("Delete binary file, expect reinstall", func(t *testing.T) {
