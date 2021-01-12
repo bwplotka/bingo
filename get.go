@@ -247,9 +247,9 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			defer errcapture.Close(&err, mf.Close, "close")
 
 			if mf.DirectPackage() != nil {
-				if pkgPath != "" && pkgPath != mf.DirectPackage().Path() {
+				if target.RelPath != "" && target.Path() != mf.DirectPackage().Path() {
 					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
-						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), pkgPath, targetName)
+						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
 				}
 
 				target.Module.Path = mf.DirectPackage().Module.Path
@@ -259,11 +259,11 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 				}
 				target.RelPath = mf.DirectPackage().RelPath
 
-			} else if pkgPath == "" {
+			} else if target.RelPath == "" {
 				return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 			}
 		}
-		if pkgPath == "" {
+		if target.RelPath == "" {
 			return errors.Errorf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
 		}
 		targets = append(targets, target)
