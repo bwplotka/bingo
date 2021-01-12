@@ -411,6 +411,10 @@ func TestGet(t *testing.T) {
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable@none"))
 							// Removing non existing tool.
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "buildable2@none"))
+							// Upgrade non existing tool.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-u", "lol"))
+							// Upgrade with version.
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-u", "buildable@v0.0.0-20210109094001-375d0606849d"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -583,6 +587,64 @@ func TestGet(t *testing.T) {
 							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
 					},
+					{
+						name: "Get tricky case with replace (thanos)",
+						do: func(t *testing.T) {
+							// Out test module_with_replace is easy. The build without replaces would fail.
+							// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
+						},
+						expectRows: []row{
+							{name: "thanos", binName: "thanos-v0.13.1-0.20210108102609-f85e4003ba51", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.13.1-0.20210108102609-f85e4003ba51"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
+					},
+					{
+						name: "Use -u to upgrade thanos package",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-u", "thanos"))
+						},
+						expectRows: []row{
+							// TODO(bwplotka) This will be painful to maintain, but well... improve it
+							{name: "thanos", binName: "thanos-v0.17.2", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.17.2"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.17.2",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
+					},
+					{
+						name: "Use -u=patch to upgrade thanos package",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "--upatch", "thanos"))
+						},
+						expectRows: []row{
+							// TODO(bwplotka) This will be painful to maintain, but well... improve it
+							{name: "thanos", binName: "thanos-v0.17.2", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.17.2"},
+						},
+						expectBinaries: []string{
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible", "thanos-v0.17.2",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
+					},
 				} {
 					if ok := t.Run(tcase.name, func(t *testing.T) {
 						defer p.assertNotChanged(t, defaultModDir)
@@ -602,6 +664,7 @@ func TestGet(t *testing.T) {
 	}); !ok {
 		return
 	}
+
 	t.Run("Compatibility test", func(t *testing.T) {
 		dirs, err := filepath.Glob("testdata/testproject*")
 		testutil.Ok(t, err)
@@ -762,12 +825,12 @@ func TestGet(t *testing.T) {
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable2@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
-								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@none"))
+								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
 
-								testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\t\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
+								testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
 
 								_, err := os.Stat(filepath.Join(p.root, ".bingo", "Variables.mk"))
 								testutil.NotOk(t, err)

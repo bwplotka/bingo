@@ -135,7 +135,7 @@ func main() {
 				return errors.Wrap(err, "abs")
 			}
 			defer func() {
-				if err != nil {
+				if err == nil {
 					// Leave tmp files on error for debug purposes.
 					_ = cleanGoGetTmpFiles(modDir)
 				}

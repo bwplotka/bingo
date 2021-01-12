@@ -1,6 +1,6 @@
 module github.com/bwplotka/bingo
 
-go 1.15
+go 1.14
 
 require (
 	github.com/efficientgo/tools v0.0.0-20201228165755-e2b84817bf79

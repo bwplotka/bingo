@@ -17,8 +17,9 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ### Fixed
 
-* Simplified and fixed -u option.
+* Simplified and fixed -u cases.
 * Fixed various invalid cases for -r and -n options.
+* Extended capabilities of verbose mode.
 
 ## [v0.2.4](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.12.27
 

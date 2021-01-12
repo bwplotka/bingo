@@ -150,8 +150,14 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		return errors.Wrapf(err, "parse %v", rawTarget)
 	}
 
+	if c.update != runner.NoUpdatePolicy {
+		if versions[0] != "" || len(versions) > 1 {
+			return errors.Errorf("-u specified; upgrade cannot take version arguments (string after @), got %v", versions)
+		}
+	}
+
 	if c.rename != "" {
-		// Tream rename specially.
+		// Treat rename specially.
 		if pkgPath != "" {
 			return errors.Errorf("-r rename has to reference installed tool by name not path, got: %v", pkgPath)
 		}
@@ -321,8 +327,8 @@ func resolvePackage(
 ) (err error) {
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
-	// being commit sha as well. If nothing else will succeed, we will rely on output to find the target version.
-	out, gerr := runnable.GetD(update, target.String())
+	// being commit sha as well. If nothing else will succeed, we will rely on error to find the target version.
+	_, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mod, err := bingo.ModIndirectModule(tmpModFile)
 		if err != nil {
@@ -335,15 +341,8 @@ func resolvePackage(
 		return nil
 	}
 
-	defer func() {
-		// Wrap all with runnable output.
-		if err != nil {
-			err = errors.Wrapf(err, "resolve; go get -d output: %v", errors.Wrap(gerr, out).Error())
-		}
-	}()
-
 	if verbose {
-		logger.Println("tricky: Matching go output:", out)
+		logger.Println("tricky: Matching go get error output:", gerr.Error())
 	}
 
 	// TODO(bwplotka) Obviously hacky but reliable so far.
@@ -356,9 +355,9 @@ func resolvePackage(
 	if err != nil {
 		return errors.Wrapf(err, "regexp compile %v", downloadingRe)
 	}
-	if !re.MatchString(out) {
+	if !re.MatchString(gerr.Error()) {
 		re = regexp.MustCompile(upgradeRe)
-		if !re.MatchString(out) {
+		if !re.MatchString(gerr.Error()) {
 			re, err = regexp.Compile(foundVersionRe)
 			if err != nil {
 				return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
@@ -366,13 +365,13 @@ func resolvePackage(
 		}
 	}
 
-	groups := re.FindAllStringSubmatch(out, 1)
+	groups := re.FindAllStringSubmatch(gerr.Error(), 1)
 	if len(groups) == 0 || len(groups[0]) < 3 {
-		return errors.Errorf("go get did not found the package (or our regexps did not match: %v)", []string{
+		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v)", strings.Join([]string{
 			downloadingRe,
 			upgradeRe,
 			foundVersionRe,
-		})
+		}, ","))
 	}
 
 	target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, groups[0][1]), "/")
