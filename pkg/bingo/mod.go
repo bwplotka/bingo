@@ -42,8 +42,9 @@ func NameFromModFile(modFile string) (name string, oneOfMany bool) {
 type Package struct {
 	Module module.Version
 
-	// RelPath is a path that together with module compose a package path, like "/pkg/makefile".
+	// RelPath is a path that together with Module.Path composes a package path, like "/pkg/makefile".
 	// Empty if the module is a full package path.
+	// If Module.Path is empty and RelPath specified, it means that we don't know what is a module what is the package path.
 	RelPath string
 }
 

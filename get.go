@@ -235,8 +235,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	}
 
 	targets := make([]bingo.Package, 0, len(versions))
+	pathWasSpecified := pkgPath != ""
 	for i, v := range versions {
-		target := bingo.Package{Module: module.Version{Version: v}, RelPath: pkgPath}
+		target := bingo.Package{Module: module.Version{Version: v}, RelPath: pkgPath} // "Unknown" module mode.
+		fmt.Println(target.Path())
 		if len(existing) > i {
 			e := existing[i]
 
@@ -247,8 +249,12 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			defer errcapture.Close(&err, mf.Close, "close")
 
 			if mf.DirectPackage() != nil {
-				if target.RelPath != "" && target.Path() != mf.DirectPackage().Path() {
-					return errors.Errorf("found array mod file %v that has different path %q that previous in array %q. Manual edit?"+
+				if target.Path() != "" && target.Path() != mf.DirectPackage().Path() {
+					if pathWasSpecified {
+						return errors.Errorf("found mod file %v that has different package path %q than given %q"+
+							"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
+					}
+					return errors.Errorf("found array mod file %v that has different package path %q than previous in array %q. Manual edit?"+
 						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
 				}
 
@@ -259,6 +265,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 				}
 				target.RelPath = mf.DirectPackage().RelPath
 
+				// Save for future versions without potentially existing files.
+				pkgPath = target.Path()
 			} else if target.Path() == "" {
 				return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 			}

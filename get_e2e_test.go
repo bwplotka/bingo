@@ -406,6 +406,8 @@ func TestGet(t *testing.T) {
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
 							// Updating f4 to multiple versions with none should fail.
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.4.0,v1.1.0,none"))
+							// Installing by different path that would result in same name
+							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable"))
 							// Removing by path.
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@none"))
 							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable@none"))
