@@ -259,11 +259,11 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 				}
 				target.RelPath = mf.DirectPackage().RelPath
 
-			} else if target.RelPath == "" {
+			} else if target.Path() == "" {
 				return errors.Wrapf(err, "failed to install tool %v found empty mod file %v; Use full path to install tool again", targetName, e)
 			}
 		}
-		if target.RelPath == "" {
+		if target.Path() == "" {
 			return errors.Errorf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
 		}
 		targets = append(targets, target)
