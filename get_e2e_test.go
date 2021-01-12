@@ -736,7 +736,7 @@ func TestGet(t *testing.T) {
 
 							// Get array version with one go.
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2"))
-							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0"}, g.existingBinaries(t))
+							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
 							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})

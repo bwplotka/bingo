@@ -222,16 +222,22 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		return errors.Wrapf(err, "existing mod files for %v", targetName)
 	}
 
-	if versions[0] == "none" {
+	switch versions[0] {
+	case "none":
 		if pkgPath != "" {
 			return errors.Errorf("cannot delete tool by full path. Use just %v@none name instead", targetName)
 		}
 		if len(existing) == 0 {
 			return errors.Errorf("nothing to delete, tool %v is not installed", targetName)
 		}
-		// none means we no longer want to version this package.
+		// None means we no longer want to version this package.
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
+	case "":
+		if len(existing) > 1 && c.update == runner.NoUpdatePolicy {
+			// Edge case. If no version is specified and no update is requested, allow to pull all array versions at once.
+			versions = make([]string, len(existing))
+		}
 	}
 
 	targets := make([]bingo.Package, 0, len(versions))
@@ -259,8 +265,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 				}
 
 				target.Module.Path = mf.DirectPackage().Module.Path
-				if target.Module.Version == "" {
-					// If no version is requested pass the existing one.
+				if target.Module.Version == "" && c.update == runner.NoUpdatePolicy {
+					// If no version and no update is requested, use the existing version.
 					target.Module.Version = mf.DirectPackage().Module.Version
 				}
 				target.RelPath = mf.DirectPackage().RelPath

@@ -77,7 +77,6 @@ func main() {
 		exitOnUsageError(flags.Usage, "Failed to parse flags:", err)
 	}
 
-	*verbose = true
 	if *help {
 		flags.Usage()
 		os.Exit(0)
