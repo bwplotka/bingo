@@ -193,10 +193,24 @@ func (mf *ModFile) Reload() (err error) {
 	}
 
 	mf.autoReplaceDisabled = false
-	for _, c := range mf.m.Syntax.Comment().Suffix {
-		if c.Token == NoReplaceCommand {
-			mf.autoReplaceDisabled = true
-			break
+	for _, e := range mf.m.Syntax.Stmt {
+		for _, c := range e.Comment().Before {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
+		}
+		for _, c := range e.Comment().After {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
+		}
+		for _, c := range e.Comment().Suffix {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
 		}
 	}
 
