@@ -11,10 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 )
 
@@ -24,29 +23,26 @@ type Runner struct {
 	insecure bool
 
 	verbose   bool
-	goVersion string
+	goVersion *semver.Version
 }
 
-var semVerRegexp = regexp.MustCompile(`^go version go([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
-
-func isSupportedVersion(foundVersion string) error {
-	groups := semVerRegexp.FindAllStringSubmatch(foundVersion, -1)
-	if len(groups) > 0 && len(groups[0]) >= 2 {
-		major, err := strconv.ParseInt(groups[0][1], 10, 64)
-		if err == nil && major >= 1 {
-			foundVersion = fmt.Sprintf("v%v", strings.Join(groups[0][1:], ""))
-			if major >= 2 {
-				return nil
-			}
-			if len(groups[0]) >= 3 && len(groups[0][2]) > 1 {
-				minor, err := strconv.ParseInt(groups[0][2][1:], 10, 64)
-				if err == nil && minor >= 14 {
-					return nil
-				}
-			}
-		}
+func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
+	el := strings.Fields(strings.TrimRight(goVersionOutput, "\n"))
+	if len(el) < 2 {
+		return nil, errors.Errorf("unexpected go version output; expected 'go version go<semver> ...; found %v", strings.TrimRight(goVersionOutput, "\n"))
 	}
-	return errors.Errorf("found unsupported go version: %v; requires go1.14.x or higher", foundVersion)
+	goVersion, err := semver.NewVersion(strings.TrimPrefix(el[2], "go"))
+	if err != nil {
+		return nil, err
+	}
+	return goVersion, nil
+}
+
+func isSupportedVersion(v *semver.Version) error {
+	if !v.LessThan(semver.MustParse("1.14")) {
+		return nil
+	}
+	return errors.Errorf("found unsupported go version: %v; requires go 1.14.x or higher", v.String())
 }
 
 // NewRunner checks Go version compatibility then returns Runner.
@@ -60,11 +56,17 @@ func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error
 	if err := r.execGo(ctx, output, "", "", "version"); err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
-	r.goVersion = strings.TrimRight(output.String(), "\n")
+
+	goVersion, err := parseGoVersion(output.String())
+	if err != nil {
+		return nil, err
+	}
+
+	r.goVersion = goVersion
 	return r, isSupportedVersion(r.goVersion)
 }
 
-func (r *Runner) GoVersion() string {
+func (r *Runner) GoVersion() *semver.Version {
 	return r.goVersion
 }
 

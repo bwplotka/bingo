@@ -24,24 +24,29 @@ func TestParseTarget(t *testing.T) {
 			expectedErr: errors.New("target is empty, this should be filtered earlier"),
 		},
 		{
-			target:       "tool",
-			expectedName: "tool",
+			target:           "tool",
+			expectedName:     "tool",
+			expectedVersions: []string{""},
 		},
 		{
 			target:       "github.com/bwplotka/bingo",
 			expectedName: "bingo", expectedPkgPath: "github.com/bwplotka/bingo",
+			expectedVersions: []string{""},
 		},
 		{
 			target:       "sigs.k8s.io/kustomize/kustomize",
 			expectedName: "kustomize", expectedPkgPath: "sigs.k8s.io/kustomize/kustomize",
+			expectedVersions: []string{""},
 		},
 		{
 			target:       "sigs.k8s.io/kustomize/kustomize/v3",
 			expectedName: "kustomize", expectedPkgPath: "sigs.k8s.io/kustomize/kustomize/v3",
+			expectedVersions: []string{""},
 		},
 		{
 			target:       "github.com/bwplotka/bingo/v21314213532",
 			expectedName: "bingo", expectedPkgPath: "github.com/bwplotka/bingo/v21314213532",
+			expectedVersions: []string{""},
 		},
 		{
 			target:       "tool@version1",
