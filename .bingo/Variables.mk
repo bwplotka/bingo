@@ -35,11 +35,11 @@ $(FAILLINT): $(BINGO_DIR)/faillint.mod
 	@echo "(re)installing $(GOBIN)/faillint-v1.5.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=faillint.mod -o=$(GOBIN)/faillint-v1.5.0 "github.com/fatih/faillint"
 
-GOIMPORTS := $(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800
+GOIMPORTS := $(GOBIN)/goimports-v0.0.0-20210112230658-8b4aab62c064
 $(GOIMPORTS): $(BINGO_DIR)/goimports.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=goimports.mod -o=$(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800 "golang.org/x/tools/cmd/goimports"
+	@echo "(re)installing $(GOBIN)/goimports-v0.0.0-20210112230658-8b4aab62c064"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=goimports.mod -o=$(GOBIN)/goimports-v0.0.0-20210112230658-8b4aab62c064 "golang.org/x/tools/cmd/goimports"
 
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.26.0
 $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
@@ -64,10 +64,4 @@ $(PROXY): $(BINGO_DIR)/proxy.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/proxy-v0.10.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=proxy.mod -o=$(GOBIN)/proxy-v0.10.0 "github.com/gomods/athens/cmd/proxy"
-
-THANOS := $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51
-$(THANOS): $(BINGO_DIR)/thanos.mod
-	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=thanos.mod -o=$(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51 "github.com/thanos-io/thanos/cmd/thanos"
 

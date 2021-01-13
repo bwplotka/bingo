@@ -303,7 +303,7 @@ List enumerates all or one binary that are/is currently pinned in this project. 
 
 %s
 
-  Version
+  version
 
 Prints bingo Version.
 `

@@ -139,6 +139,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute) // TODO(bwplotka): Put as param?
 	defer cancel()
 
+	// Cleanup all bingo modules' tmp files for fresh start.
+	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
+		return err
+	}
 	if err := ensureModDirExists(logger, c.relModDir); err != nil {
 		return errors.Wrap(err, "ensure mod dir")
 	}
@@ -415,11 +419,6 @@ func resolvePackage(
 // capabilities and output.
 // TODO(bwplotka): Consider copying code for it? Of course it's would be easier if such tool would exist in Go project itself (:
 func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig, i int, name string, target bingo.Package) (err error) {
-	// Cleanup all bingo modules' tmp files for fresh start.
-	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
-		return err
-	}
-
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(c.modDir, name+".mod")
 	if i > 0 {

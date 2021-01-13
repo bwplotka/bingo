@@ -46,7 +46,9 @@ Recommended: Ideally you want to pin `bingo` tool to the single version too (inc
 bingo get -l github.com/bwplotka/bingo
 ```
 
-## Usage: Tools Management You Were Looking For!
+## Usage
+
+### `go get` but for binaries!
 
 The key idea is that you can manage your tools similar to your Go dependencies via `go get`:
 
@@ -54,10 +56,10 @@ The key idea is that you can manage your tools similar to your Go dependencies v
 bingo get [<package or binary>[@version1 or none,version2,version3...]]
 ```
 
-Once pinned, anyone can reliably install correct version of the tool by either doing:
+Once pinned, anyone can install correct version of the tool with correct dependencies by either doing:
 
 ```bash
-go build -modfile .bingo/<tool>.mod -o=<where you want to build> <tool package>
+go build -modfile .bingo/<tool>.mod -o=$GOBIN/<tool>-<version>
 ```
 
 or
@@ -70,11 +72,22 @@ bingo get <tool>
 
 ### Using Installed Tools
 
-Bingo `get` builds pinned tool in your `GOBIN` path. Binaries have a name following `<provided-tool-name>-<version>` pattern. While it's not the easiest for humans to read, it's essential to ensure your scripts use pinned version instead of some "unknown" latest version.
+`bingo get` builds pinned tool or tools in your `$GOBIN` path. Binaries have a name following `<provided-tool-name>-<version>` pattern. So after installation 
+you can do:
 
-While `bingo` [does not have `run` command](https://github.com/bwplotka/bingo/issues/52), it provides useful helper variables for script or adhoc use:
+* From shell:
 
-> NOTE: Below helper variables makes it super easy to install pinned binaries without even installing `bingo` (it will use just `go build`!) 💖
+```bash
+${GOBIN}/<tool>-<version> <args>
+```
+
+While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some "unknown" latest version.
+
+> NOTE: If you use `-l` option, bingo creates symlink to <tool>. Use it with care as it's easy to have side effects by having another binary with same name e.g on CI. 
+
+`bingo` does not have `run` command [(for a reason)](https://github.com/bwplotka/bingo/issues/52), it provides useful helper variables for script or adhoc use:
+
+> NOTE: Below helpers makes it super easy to install or use pinned binaries without even installing `bingo` (it will use just `go build`!) 💖
 
 * From shell:
 
@@ -91,14 +104,14 @@ run:
 	$(<PROVIDED_TOOL_NAME>) <args>
 ```
 
-### Examples
+### Real life examples!
 
-Let's show a few, real examples on popular `goimports` tool (which formats Go code including imports):
+Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities:
 
-1. Pinning latest `goimports`:
+1. It's very common in Go world to use `goimports`, popular `gofmt` replacement which formats Go code including imports. However, not many know that it's breaking compatibility a lot between versions (there are no releases). If you want to assert certain formatting of the Go code in the CI etc your only option is to pin `goimports` version. You can do it via `bingo get`:
 
    ```shell
-   bingo -u get golang.org/x/tools/cmd/goimports
+   bingo get -u golang.org/x/tools/cmd/goimports
    ```
 
    This will install (at the time of writing) binary: `${GOBIN}/goimports-v0.0.0-20200601175630-2caf76543d99`
