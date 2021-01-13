@@ -136,7 +136,9 @@ func main() {
 			defer func() {
 				if err == nil {
 					// Leave tmp files on error for debug purposes.
-					_ = cleanGoGetTmpFiles(modDir)
+					if cerr := cleanGoGetTmpFiles(modDir); cerr != nil {
+						log.Println("cannot clean tmp files", err)
+					}
 				}
 			}()
 
