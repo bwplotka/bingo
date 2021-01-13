@@ -21,6 +21,7 @@ At the end `bingo`, has following features:
 * Easy upgrade, downgrade, addition, or removal of the needed binary's version, with no risk of dependency conflicts.
   * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by the commit.
 * Immutable binary names, which gives a reliable way for users and CIs to use the expected version of the binaries, with reinstall on-demand only if needed.
+* Works with all buildable Go projects, including pre Go modules and complex projects with complex `replace` statements. (e.g Kuberentes) 
 * Optional, automatic integration with Makefiles.
 
 You can read full a story behind `bingo` [in this blog post](https://deploy-preview-16--bwplotka.netlify.app/2020/bingo/).
@@ -34,7 +35,7 @@ You can read full a story behind `bingo` [in this blog post](https://deploy-prev
 ## Installing
 
 ```shell
-go get github.com/bwplotka/bingo && go mod tidy
+go install github.com/bwplotka/bingo
 ```
 
 or if you already installed bingo and want to pin it (inception!):
