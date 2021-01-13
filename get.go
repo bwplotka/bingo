@@ -354,17 +354,43 @@ func resolvePackage(
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
 	// being commit sha as well. If nothing else will succeed, we will rely on error to find the target version.
-	_, gerr := runnable.GetD(update, target.String())
+	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
-		mod, err := bingo.ModIndirectModule(tmpModFile)
+		mods, err := bingo.ModIndirectModules(tmpModFile)
 		if err != nil {
 			return err
 		}
 
-		target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mod.Path), "/")
-		target.Module.Path = mod.Path
-		target.Module.Version = mod.Version
-		return nil
+		switch len(mods) {
+		case 0:
+			return errors.Errorf("no indirect module found on %v", tmpModFile)
+		case 1:
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mods[0].Path), "/")
+			target.Module = mods[0]
+			return nil
+		default:
+			if target.Module.Path != "" {
+				for _, m := range mods {
+					if m.Path == target.Module.Path {
+						target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, m.Path), "/")
+						target.Module = m
+						return nil
+					}
+				}
+				return errors.Errorf("no indirect module found on %v for %v module", tmpModFile, target.Module.Path)
+			}
+
+			for _, m := range mods {
+				if m.Path == target.Path() {
+					target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, m.Path), "/")
+					target.Module = m
+					return nil
+				}
+			}
+
+			// In this case rely on output parsing.
+			gerr = errors.New(out)
+		}
 	}
 
 	if verbose {
