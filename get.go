@@ -71,6 +71,7 @@ type installPackageConfig struct {
 	modDir    string
 	relModDir string
 	update    runner.GetUpdatePolicy
+	link      bool
 
 	verbose bool
 }
@@ -82,6 +83,7 @@ type getConfig struct {
 	update    runner.GetUpdatePolicy
 	name      string
 	rename    string
+	link      bool
 
 	verbose bool
 }
@@ -93,6 +95,7 @@ func (c getConfig) forPackage() installPackageConfig {
 		runner:    c.runner,
 		update:    c.update,
 		verbose:   c.verbose,
+		link:      c.link,
 	}
 }
 
@@ -136,6 +139,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute) // TODO(bwplotka): Put as param?
 	defer cancel()
 
+	// Cleanup all bingo modules' tmp files for fresh start.
+	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
+		return err
+	}
 	if err := ensureModDirExists(logger, c.relModDir); err != nil {
 		return errors.Wrap(err, "ensure mod dir")
 	}
@@ -347,17 +354,43 @@ func resolvePackage(
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
 	// being commit sha as well. If nothing else will succeed, we will rely on error to find the target version.
-	_, gerr := runnable.GetD(update, target.String())
+	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
-		mod, err := bingo.ModIndirectModule(tmpModFile)
+		mods, err := bingo.ModIndirectModules(tmpModFile)
 		if err != nil {
 			return err
 		}
 
-		target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mod.Path), "/")
-		target.Module.Path = mod.Path
-		target.Module.Version = mod.Version
-		return nil
+		switch len(mods) {
+		case 0:
+			return errors.Errorf("no indirect module found on %v", tmpModFile)
+		case 1:
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mods[0].Path), "/")
+			target.Module = mods[0]
+			return nil
+		default:
+			if target.Module.Path != "" {
+				for _, m := range mods {
+					if m.Path == target.Module.Path {
+						target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, m.Path), "/")
+						target.Module = m
+						return nil
+					}
+				}
+				return errors.Errorf("no indirect module found on %v for %v module", tmpModFile, target.Module.Path)
+			}
+
+			for _, m := range mods {
+				if m.Path == target.Path() {
+					target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, m.Path), "/")
+					target.Module = m
+					return nil
+				}
+			}
+
+			// In this case rely on output parsing.
+			gerr = errors.New(out)
+		}
 	}
 
 	if verbose {
@@ -412,11 +445,6 @@ func resolvePackage(
 // capabilities and output.
 // TODO(bwplotka): Consider copying code for it? Of course it's would be easier if such tool would exist in Go project itself (:
 func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig, i int, name string, target bingo.Package) (err error) {
-	// Cleanup all bingo modules' tmp files for fresh start.
-	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
-		return err
-	}
-
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(c.modDir, name+".mod")
 	if i > 0 {
@@ -487,7 +515,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile.FileName(), c.modDir)
-	if err := install(runnable, name, tmpModFile.DirectPackage()); err != nil {
+	if err := install(runnable, name, c.link, tmpModFile.DirectPackage()); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
@@ -498,7 +526,16 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	return nil
 }
 
-func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err error) {
+// gobin mimics the way go install finds where to install go tool.
+func gobin() string {
+	binPath := os.Getenv("GOBIN")
+	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
+		binPath = filepath.Join(gpath, "bin")
+	}
+	return binPath
+}
+
+func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Package) (err error) {
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
 	}
@@ -509,7 +546,26 @@ func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err err
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
-	return runnable.Build(pkg.Path(), fmt.Sprintf("%s-%s", name, pkg.Module.Version))
+
+	gobin := gobin()
+
+	// go install does not define -modfile flag so so we mimic go install with go build -o instead.
+	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
+	if err := runnable.Build(pkg.Path(), binPath); err != nil {
+		return errors.Wrap(err, "build versioned")
+	}
+
+	if !link {
+		return nil
+	}
+
+	if err := os.RemoveAll(filepath.Join(gobin, name)); err != nil {
+		return errors.Wrap(err, "rm")
+	}
+	if err := os.Symlink(binPath, filepath.Join(gobin, name)); err != nil {
+		return errors.Wrap(err, "build")
+	}
+	return nil
 }
 
 const modREADMEFmt = `# Project Development Dependencies.
