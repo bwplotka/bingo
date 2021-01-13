@@ -8,7 +8,7 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
-## [v0.3.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.01.06
+## [v0.3.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.01.13
 
 ### Added
 
