@@ -193,10 +193,24 @@ func (mf *ModFile) Reload() (err error) {
 	}
 
 	mf.autoReplaceDisabled = false
-	for _, c := range mf.m.Syntax.Comment().Suffix {
-		if c.Token == NoReplaceCommand {
-			mf.autoReplaceDisabled = true
-			break
+	for _, e := range mf.m.Syntax.Stmt {
+		for _, c := range e.Comment().Before {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
+		}
+		for _, c := range e.Comment().After {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
+		}
+		for _, c := range e.Comment().Suffix {
+			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+				mf.autoReplaceDisabled = true
+				break
+			}
 		}
 	}
 
@@ -394,7 +408,7 @@ func (p PackageRenderable) ToPackages() []Package {
 	return ret
 }
 
-// ListPinnedMainPackages lists all bingo pinned binaries (Go main packages) in sorted order (name, binary, package)
+// ListPinnedMainPackages lists all bingo pinned binaries (Go main packages) in the same order as seen in the filesystem.
 func ListPinnedMainPackages(logger *log.Logger, modDir string, remMalformed bool) (pkgs []PackageRenderable, _ error) {
 	modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
 	if err != nil {
@@ -448,7 +462,10 @@ ModLoop:
 			ModPath:     pkg.Module.Path,
 		})
 	}
-	// Sort.
+	return pkgs, nil
+}
+
+func SortRenderables(pkgs []PackageRenderable) {
 	for _, p := range pkgs {
 		sort.Slice(p.Versions, func(i, j int) bool {
 			return p.Versions[i].Version < p.Versions[j].Version
@@ -460,5 +477,4 @@ ModLoop:
 		}
 		return pkgs[i].Name < pkgs[j].Name
 	})
-	return pkgs, nil
 }

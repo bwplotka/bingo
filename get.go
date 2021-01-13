@@ -251,7 +251,6 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	pathWasSpecified := pkgPath != ""
 	for i, v := range versions {
 		target := bingo.Package{Module: module.Version{Version: v}, RelPath: pkgPath} // "Unknown" module mode.
-		fmt.Println(target.Path())
 		if len(existing) > i {
 			e := existing[i]
 
@@ -327,6 +326,9 @@ func validateNewName(versions []string, old, new string) error {
 func cleanGoGetTmpFiles(modDir string) error {
 	// Remove all sum and tmp files
 	if err := removeAllGlob(filepath.Join(modDir, "*.sum")); err != nil {
+		return err
+	}
+	if err := removeAllGlob(filepath.Join(modDir, "*.*.tmp.*")); err != nil {
 		return err
 	}
 	return removeAllGlob(filepath.Join(modDir, "*.tmp.*"))
@@ -445,18 +447,25 @@ func resolvePackage(
 // capabilities and output.
 // TODO(bwplotka): Consider copying code for it? Of course it's would be easier if such tool would exist in Go project itself (:
 func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig, i int, name string, target bingo.Package) (err error) {
+	if c.verbose {
+		logger.Println("getting target", target.String(), "(module", target.Module.Path, ")")
+	}
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(c.modDir, name+".mod")
+	tmpEmptyModFilePath := filepath.Join(c.modDir, name+"-e.tmp.mod")
+	tmpModFilePath := filepath.Join(c.modDir, name+".tmp.mod")
 	if i > 0 {
 		// Handle array go modules.
 		outModFile = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.mod", name, i))
+		tmpEmptyModFilePath = filepath.Join(c.modDir, fmt.Sprintf("%s.%d-e.tmp.mod", name, i))
+		tmpModFilePath = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.tmp.mod", name, i))
 	}
 
 	// If we don't have all information or update is set, resolve version.
 	var replaceStmts []*modfile.Replace
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
 		// Set up totally empty mod file to get clear version to install.
-		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", filepath.Join(c.modDir, name+"-e.tmp.mod"))
+		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", tmpEmptyModFilePath)
 		if err != nil {
 			return errors.Wrap(err, "create empty tmp mod file")
 		}
@@ -494,7 +503,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
-	tmpModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, outModFile, filepath.Join(c.modDir, name+".tmp.mod"))
+	tmpModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, outModFile, tmpModFilePath)
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
 	}
