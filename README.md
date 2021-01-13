@@ -21,7 +21,7 @@ At the end `bingo`, has following features:
 * Easy upgrade, downgrade, addition, or removal of the needed binary's version, with no risk of dependency conflicts.
   * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by the commit.
 * Immutable binary names, which gives a reliable way for users and CIs to use the expected version of the binaries, with reinstall on-demand only if needed.
-* Works with all buildable Go projects, including pre Go modules and complex projects with complex `replace` statements. (e.g Kuberentes) 
+* Works with all buildable Go projects, including pre Go modules and complex projects with complex `replace` statements. (e.g Kuberentes)
 * Optional, automatic integration with Makefiles.
 
 You can read full a story behind `bingo` [in this blog post](https://deploy-preview-16--bwplotka.netlify.app/2020/bingo/).
@@ -40,17 +40,13 @@ In your repository (does not need to be a Go project)
 go get -u github.com/bwplotka/bingo
 ```
 
-Recommended: Ideally you want to pin `bingo` tool to the latest version too (inception!). Do it via:
+Recommended: Ideally you want to pin `bingo` tool to the single version too (inception!). Do it via:
 
 ```shell
-bingo get -u github.com/bwplotka/bingo
+bingo get -l github.com/bwplotka/bingo
 ```
 
-NOTE: Pinned command will be available in your `${GOBIN}` as `bingo-<version>` 
-
-## Usage
-
-### Installing Tools
+## Usage: Tools Management You Were Looking For!
 
 The key idea is that you can manage your tools similar to your Go dependencies via `go get`:
 
@@ -233,6 +229,7 @@ It will NOT install correct Version if missing.
     	Path to the go command. (default "go")
   -insecure
     	Use -insecure flag when using 'go get'
+  -l	If enabled, bingo will also create soft link called <tool> that links to the current<tool>-<version> binary. Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.
   -moddir string
     	Directory where separate modules for each binary will be maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
   -n string
@@ -301,6 +298,7 @@ It will NOT install correct Version if missing.
     	Path to the go command. (default "go")
   -insecure
     	Use -insecure flag when using 'go get'
+  -l	If enabled, bingo will also create soft link called <tool> that links to the current<tool>-<version> binary. Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.
   -moddir string
     	Directory where separate modules for each binary will be maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
   -n string

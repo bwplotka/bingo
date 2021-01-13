@@ -12,7 +12,7 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ### Added
 
-* `-no-suffix` flag which also installs the tool under non versioned <tool> binary name.
+* `-l` flag which also creates a soft link to the currently pinned tool under non versioned <tool> binary name.
 * Support easier path changing upgrades of tools with the same name.
 * [Automatic download of `replace` entries](https://github.com/bwplotka/bingo/issues/7) for the pinned version of the tool. This is very often required by big projects to fight with deps hell ([Go Modules are hard](https://twitter.com/bwplotka/status/1347104281120403458)).
 

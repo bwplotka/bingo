@@ -203,13 +203,6 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) (string, err
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
-func (r *runnable) Build(pkg, outPath string) error {
-	// go install does not define -o so we mimic go install with go build instead.
-	binPath := os.Getenv("GOBIN")
-	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
-		binPath = filepath.Join(gpath, "bin")
-	}
-	outPath = filepath.Join(binPath, outPath)
-
-	return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + outPath}, pkg)...)
+func (r *runnable) Build(pkg, out string) error {
+	return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + out}, pkg)...)
 }

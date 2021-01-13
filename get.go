@@ -67,35 +67,35 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 }
 
 type installPackageConfig struct {
-	runner            *runner.Runner
-	modDir            string
-	relModDir         string
-	update            runner.GetUpdatePolicy
-	alsoBuildNoSuffix bool
+	runner    *runner.Runner
+	modDir    string
+	relModDir string
+	update    runner.GetUpdatePolicy
+	link      bool
 
 	verbose bool
 }
 
 type getConfig struct {
-	runner            *runner.Runner
-	modDir            string
-	relModDir         string
-	update            runner.GetUpdatePolicy
-	name              string
-	rename            string
-	alsoBuildNoSuffix bool
+	runner    *runner.Runner
+	modDir    string
+	relModDir string
+	update    runner.GetUpdatePolicy
+	name      string
+	rename    string
+	link      bool
 
 	verbose bool
 }
 
 func (c getConfig) forPackage() installPackageConfig {
 	return installPackageConfig{
-		modDir:            c.modDir,
-		relModDir:         c.relModDir,
-		runner:            c.runner,
-		update:            c.update,
-		verbose:           c.verbose,
-		alsoBuildNoSuffix: c.alsoBuildNoSuffix,
+		modDir:    c.modDir,
+		relModDir: c.relModDir,
+		runner:    c.runner,
+		update:    c.update,
+		verbose:   c.verbose,
+		link:      c.link,
 	}
 }
 
@@ -490,7 +490,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile.FileName(), c.modDir)
-	if err := install(runnable, name, c.alsoBuildNoSuffix, tmpModFile.DirectPackage()); err != nil {
+	if err := install(runnable, name, c.link, tmpModFile.DirectPackage()); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
@@ -501,7 +501,16 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	return nil
 }
 
-func install(runnable runner.Runnable, name string, alsoBuildNoSuffix bool, pkg *bingo.Package) (err error) {
+// gobin mimics the way go install finds where to install go tool.
+func gobin() string {
+	binPath := os.Getenv("GOBIN")
+	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
+		binPath = filepath.Join(gpath, "bin")
+	}
+	return binPath
+}
+
+func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Package) (err error) {
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
 	}
@@ -513,15 +522,22 @@ func install(runnable runner.Runnable, name string, alsoBuildNoSuffix bool, pkg 
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
 
-	if err := runnable.Build(pkg.Path(), fmt.Sprintf("%s-%s", name, pkg.Module.Version)); err != nil {
+	gobin := gobin()
+
+	// go install does not define -modfile flag so so we mimic go install with go build -o instead.
+	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
+	if err := runnable.Build(pkg.Path(), binPath); err != nil {
 		return errors.Wrap(err, "build versioned")
 	}
 
-	if !alsoBuildNoSuffix {
+	if !link {
 		return nil
 	}
 
-	if err := runnable.Build(pkg.Path(), name); err != nil {
+	if err := os.RemoveAll(filepath.Join(gobin, name)); err != nil {
+		return errors.Wrap(err, "rm")
+	}
+	if err := os.Symlink(binPath, filepath.Join(gobin, name)); err != nil {
 		return errors.Wrap(err, "build")
 	}
 	return nil
