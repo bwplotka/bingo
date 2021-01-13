@@ -173,7 +173,7 @@ func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) 
 	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(a, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
-	return strings.TrimRight(out.String(), "\n"), nil
+	return strings.Trim(out.String(), "\n"), nil
 }
 
 // GoEnv runs `go env` with given args.
@@ -182,7 +182,7 @@ func (r *runnable) GoEnv(args ...string) (string, error) {
 	if err := r.r.execGo(r.ctx, out, r.dir, "", append([]string{"env"}, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
-	return strings.TrimRight(out.String(), "\n"), nil
+	return strings.Trim(out.String(), "\n"), nil
 }
 
 // GetD runs 'go get -d' against separate go modules file with given arguments.
@@ -199,10 +199,21 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) (string, err
 	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(args, packages...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
-	return strings.TrimRight(out.String(), "\n"), nil
+	return strings.Trim(out.String(), "\n"), nil
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
 func (r *runnable) Build(pkg, out string) error {
-	return r.r.execGo(r.ctx, os.Stdout, r.dir, r.modFile, append([]string{"build", "-o=" + out}, pkg)...)
+	output := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, output, r.dir, r.modFile, append([]string{"build", "-o=" + out}, pkg)...); err != nil {
+		return errors.Wrap(err, output.String())
+	}
+
+	trimmed := strings.TrimSpace(output.String())
+	if r.r.verbose && trimmed != "" {
+		// TODO(bwplotka): Pass logger.
+		fmt.Println(trimmed)
+	}
+	return nil
+
 }

@@ -137,7 +137,7 @@ func main() {
 				if err == nil {
 					// Leave tmp files on error for debug purposes.
 					if cerr := cleanGoGetTmpFiles(modDir); cerr != nil {
-						log.Println("cannot clean tmp files", err)
+						logger.Println("cannot clean tmp files", err)
 					}
 				}
 			}()
@@ -194,6 +194,8 @@ func main() {
 			if err != nil {
 				return err
 			}
+
+			bingo.SortRenderables(pkgs)
 
 			w := new(tabwriter.Writer)
 			w.Init(os.Stdout, 4, 4, 1, '\t', 0)
