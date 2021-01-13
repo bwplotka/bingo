@@ -28,6 +28,12 @@ $(F2_ARRAY): .bingo/f2.mod .bingo/f2.1.mod .bingo/f2.2.mod .bingo/f2.3.mod
 	@echo "(re)installing $(GOBIN)/f2-v1.0.0"
 	@cd .bingo && $(GO) build -mod=mod -modfile=f2.3.mod -o=$(GOBIN)/f2-v1.0.0 "github.com/fatih/faillint"
 
+BUILDABLE := $(GOBIN)/buildable-v0.0.0-20210109094001-375d0606849d
+$(BUILDABLE): .bingo/buildable.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/buildable-v0.0.0-20210109094001-375d0606849d"
+	@cd .bingo && $(GO) build -mod=mod -modfile=buildable.mod -o=$(GOBIN)/buildable-v0.0.0-20210109094001-375d0606849d "github.com/bwplotka/bingo/testdata/module/buildable"
+
 FAILLINT := $(GOBIN)/faillint-v1.3.0
 $(FAILLINT): .bingo/faillint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
@@ -52,3 +58,8 @@ $(GOIMPORTS2): .bingo/goimports2.mod
 	@echo "(re)installing $(GOBIN)/goimports2-v0.0.0-20200519175826-7521f6f42533"
 	@cd .bingo && $(GO) build -mod=mod -modfile=goimports2.mod -o=$(GOBIN)/goimports2-v0.0.0-20200519175826-7521f6f42533 "golang.org/x/tools/cmd/goimports"
 
+WR_BUILDABLE := $(GOBIN)/wr_buildable-v0.0.0-20210109165512-ccbd4039b94a
+$(WR_BUILDABLE): .bingo/wr_buildable.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"
+	@cd .bingo && $(GO) build -mod=mod -modfile=wr_buildable.mod -o=$(GOBIN)/wr_buildable-v0.0.0-20210109165512-ccbd4039b94a "github.com/bwplotka/bingo/testdata/module_with_replace/buildable"

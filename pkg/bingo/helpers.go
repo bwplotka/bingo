@@ -13,20 +13,32 @@ import (
 
 // RemoveHelpers deletes helpers from mod directory.
 func RemoveHelpers(modDir string) error {
-	if err := os.RemoveAll(filepath.Join(modDir, MakefileBinVarsName)); err != nil {
-		return err
+	for ext := range templatesByFileExt {
+		v := "variables." + ext
+		if ext == "mk" {
+			// Exception: for backward compatibility.
+			v = "Variables.mk"
+		}
+		if err := os.RemoveAll(filepath.Join(modDir, v)); err != nil {
+			return err
+		}
 	}
-	return os.RemoveAll(filepath.Join(modDir, EnvBinVarsName))
+	return nil
 }
 
 // GenHelpers generates helpers to allows reliable binaries use. Regenerate if needed.
 // It is expected to have at least one mod file.
-func GenHelpers(relModDir, version string, pkgs []MainPackage) error {
-	if err := genHelper(MakefileBinVarsName, makefileBinVarsTmpl, relModDir, version, pkgs); err != nil {
-		return errors.Wrap(err, MakefileBinVarsName)
-	}
-	if err := genHelper(EnvBinVarsName, envBinVarsTmpl, relModDir, version, pkgs); err != nil {
-		return errors.Wrap(err, EnvBinVarsName)
+// TODO(bwplotka): Allow installing those optionally?
+func GenHelpers(relModDir, version string, pkgs []PackageRenderable) error {
+	for ext, tmpl := range templatesByFileExt {
+		v := "variables." + ext
+		if ext == "mk" {
+			// Exception: for backward compatibility.
+			v = "Variables.mk"
+		}
+		if err := genHelper(v, tmpl, relModDir, version, pkgs); err != nil {
+			return errors.Wrap(err, v)
+		}
 	}
 	return nil
 }
@@ -34,11 +46,11 @@ func GenHelpers(relModDir, version string, pkgs []MainPackage) error {
 type templateData struct {
 	Version      string
 	GobinPath    string
-	MainPackages []MainPackage
+	MainPackages []PackageRenderable
 	RelModDir    string
 }
 
-func genHelper(f, tmpl, relModDir, version string, pkgs []MainPackage) error {
+func genHelper(f, tmpl, relModDir, version string, pkgs []PackageRenderable) error {
 	t, err := template.New(f).Parse(tmpl)
 	if err != nil {
 		return errors.Wrap(err, "parse template")

@@ -6,22 +6,23 @@ package runner
 import (
 	"testing"
 
-	"github.com/bwplotka/bingo/pkg/testutil"
+	"github.com/efficientgo/tools/core/pkg/merrors"
+	"github.com/efficientgo/tools/core/pkg/testutil"
 	"github.com/pkg/errors"
 )
 
-func TestIsSupportedVersion(t *testing.T) {
+func TestParseAndIsSupportedVersion(t *testing.T) {
 	for _, tcase := range []struct {
 		output string
-		err    error
+		errs   error
 	}{
-		{output: "", err: errors.New("found unsupported go version: ; requires go1.14.x or higher")},
-		{output: "go version go1.1 linux/amd64", err: errors.New("found unsupported go version: v1.1; requires go1.14.x or higher")},
-		{output: "go version go1 linux/amd64", err: errors.New("found unsupported go version: v1; requires go1.14.x or higher")},
-		{output: "go version go1.1.2 linux/amd64", err: errors.New("found unsupported go version: v1.1.2; requires go1.14.x or higher")},
-		{output: "go version go1.12 linux/amd64", err: errors.New("found unsupported go version: v1.12; requires go1.14.x or higher")},
-		{output: "go version go1.13 linux/amd64", err: errors.New("found unsupported go version: v1.13; requires go1.14.x or higher")},
-		{output: "go version go1.13.2 linux/amd64", err: errors.New("found unsupported go version: v1.13.2; requires go1.14.x or higher")},
+		{output: "", errs: errors.New("unexpected go version output; expected 'go version go<semver> ...; found ")},
+		{output: "go version go1.1 linux/amd64", errs: errors.New("found unsupported go version: 1.1.0; requires go 1.14.x or higher")},
+		{output: "go version go1 linux/amd64", errs: errors.New("found unsupported go version: 1.0.0; requires go 1.14.x or higher")},
+		{output: "go version go1.1.2 linux/amd64", errs: errors.New("found unsupported go version: 1.1.2; requires go 1.14.x or higher")},
+		{output: "go version go1.12 linux/amd64", errs: errors.New("found unsupported go version: 1.12.0; requires go 1.14.x or higher")},
+		{output: "go version go1.13 linux/amd64", errs: errors.New("found unsupported go version: 1.13.0; requires go 1.14.x or higher")},
+		{output: "go version go1.13.2 linux/amd64", errs: errors.New("found unsupported go version: 1.13.2; requires go 1.14.x or higher")},
 		{output: "go version go1.14 linux/amd64"},
 		{output: "go version go1.14.2 linux/amd64"},
 		{output: "go version go1.15 linux/amd64"},
@@ -30,13 +31,23 @@ func TestIsSupportedVersion(t *testing.T) {
 		{output: "go version go2.1 linux/amd64"},
 	} {
 		t.Run(tcase.output, func(t *testing.T) {
-			err := isSupportedVersion(tcase.output)
-			if tcase.err != nil {
-				testutil.NotOk(t, err)
-				testutil.Equals(t, tcase.err.Error(), err.Error())
+			errs := merrors.New()
+			v, err := parseGoVersion(tcase.output)
+			if err != nil {
+				errs.Add(err)
+			}
+
+			if v != nil {
+				if err := isSupportedVersion(v); err != nil {
+					errs.Add(err)
+				}
+			}
+			if tcase.errs != nil {
+				testutil.NotOk(t, errs.Err())
+				testutil.Equals(t, tcase.errs.Error(), errs.Err().Error())
 				return
 			}
-			testutil.Ok(t, err)
+			testutil.Ok(t, errs.Err())
 		})
 	}
 }

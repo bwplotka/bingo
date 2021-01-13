@@ -1,5 +1,6 @@
-# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.2.4. DO NOT EDIT.
+# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.3.0. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
+BINGO_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 GOPATH ?= $(shell go env GOPATH)
 GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO     ?= $(shell which go)
@@ -16,45 +17,57 @@ GO     ?= $(shell which go)
 #	@echo "Running copyright"
 #	@$(COPYRIGHT) <flags/args..>
 #
-COPYRIGHT := $(GOBIN)/copyright-v0.9.0
-$(COPYRIGHT): .bingo/copyright.mod
+COPYRIGHT := $(GOBIN)/copyright-v0.0.0-20210112004814-138d5e5695fe
+$(COPYRIGHT): $(BINGO_DIR)/copyright.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/copyright-v0.9.0"
-	@cd .bingo && $(GO) build -mod=mod -modfile=copyright.mod -o=$(GOBIN)/copyright-v0.9.0 "github.com/bwplotka/flagarize/scripts/copyright"
+	@echo "(re)installing $(GOBIN)/copyright-v0.0.0-20210112004814-138d5e5695fe"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=copyright.mod -o=$(GOBIN)/copyright-v0.0.0-20210112004814-138d5e5695fe "github.com/efficientgo/tools/copyright"
 
 EMBEDMD := $(GOBIN)/embedmd-v1.0.0
-$(EMBEDMD): .bingo/embedmd.mod
+$(EMBEDMD): $(BINGO_DIR)/embedmd.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/embedmd-v1.0.0"
-	@cd .bingo && $(GO) build -mod=mod -modfile=embedmd.mod -o=$(GOBIN)/embedmd-v1.0.0 "github.com/campoy/embedmd"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=embedmd.mod -o=$(GOBIN)/embedmd-v1.0.0 "github.com/campoy/embedmd"
 
 FAILLINT := $(GOBIN)/faillint-v1.5.0
-$(FAILLINT): .bingo/faillint.mod
+$(FAILLINT): $(BINGO_DIR)/faillint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/faillint-v1.5.0"
-	@cd .bingo && $(GO) build -mod=mod -modfile=faillint.mod -o=$(GOBIN)/faillint-v1.5.0 "github.com/fatih/faillint"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=faillint.mod -o=$(GOBIN)/faillint-v1.5.0 "github.com/fatih/faillint"
 
 GOIMPORTS := $(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800
-$(GOIMPORTS): .bingo/goimports.mod
+$(GOIMPORTS): $(BINGO_DIR)/goimports.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800"
-	@cd .bingo && $(GO) build -mod=mod -modfile=goimports.mod -o=$(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800 "golang.org/x/tools/cmd/goimports"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=goimports.mod -o=$(GOBIN)/goimports-v0.0.0-20200519204825-e64124511800 "golang.org/x/tools/cmd/goimports"
 
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.26.0
-$(GOLANGCI_LINT): .bingo/golangci-lint.mod
+$(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/golangci-lint-v1.26.0"
-	@cd .bingo && $(GO) build -mod=mod -modfile=golangci-lint.mod -o=$(GOBIN)/golangci-lint-v1.26.0 "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=golangci-lint.mod -o=$(GOBIN)/golangci-lint-v1.26.0 "github.com/golangci/golangci-lint/cmd/golangci-lint"
 
 MDOX := $(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326
-$(MDOX): .bingo/mdox.mod
+$(MDOX): $(BINGO_DIR)/mdox.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326"
-	@cd .bingo && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326 "github.com/bwplotka/mdox"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.1.1-0.20201227133330-19093fdd9326 "github.com/bwplotka/mdox"
 
 MISSPELL := $(GOBIN)/misspell-v0.3.4
-$(MISSPELL): .bingo/misspell.mod
+$(MISSPELL): $(BINGO_DIR)/misspell.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/misspell-v0.3.4"
-	@cd .bingo && $(GO) build -mod=mod -modfile=misspell.mod -o=$(GOBIN)/misspell-v0.3.4 "github.com/client9/misspell/cmd/misspell"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=misspell.mod -o=$(GOBIN)/misspell-v0.3.4 "github.com/client9/misspell/cmd/misspell"
+
+PROXY := $(GOBIN)/proxy-v0.10.0
+$(PROXY): $(BINGO_DIR)/proxy.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/proxy-v0.10.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=proxy.mod -o=$(GOBIN)/proxy-v0.10.0 "github.com/gomods/athens/cmd/proxy"
+
+THANOS := $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51
+$(THANOS): $(BINGO_DIR)/thanos.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=thanos.mod -o=$(GOBIN)/thanos-v0.13.1-0.20210108102609-f85e4003ba51 "github.com/thanos-io/thanos/cmd/thanos"
 

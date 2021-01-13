@@ -128,24 +128,30 @@ func main() {
 			exitOnUsageError(flags.Usage, *getRename, "-r name contains not allowed characters")
 		}
 
-		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
+		cmdFunc = func(ctx context.Context, r *runner.Runner) (err error) {
 			relModDir := *getModDir
 			modDir, err := filepath.Abs(relModDir)
 			if err != nil {
 				return errors.Wrap(err, "abs")
 			}
-			defer func() { _ = cleanGoGetTmpFiles(modDir) }()
+			defer func() {
+				if err == nil {
+					// Leave tmp files on error for debug purposes.
+					_ = cleanGoGetTmpFiles(modDir)
+				}
+			}()
 
-			// Like go get, but package aware and without go source files.
-			if err := get(ctx, logger, getConfig{
+			cfg := getConfig{
 				runner:    r,
 				modDir:    modDir,
 				relModDir: relModDir,
 				update:    upPolicy,
 				name:      *getName,
 				rename:    *getRename,
-				rawTarget: target,
-			}); err != nil {
+				verbose:   *verbose,
+			}
+
+			if err := get(ctx, logger, cfg, target); err != nil {
 				return errors.Wrap(err, "get")
 			}
 
@@ -188,17 +194,17 @@ func main() {
 			}
 
 			w := new(tabwriter.Writer)
-			w.Init(os.Stdout, 4, 5, 1, '\t', 0)
+			w.Init(os.Stdout, 4, 4, 1, '\t', 0)
 			defer func() { _ = w.Flush() }()
 
-			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version\t")
-			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------\t")
+			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version")
+			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------")
 			for _, p := range pkgs {
 				if target != "" && p.Name != target {
 					continue
 				}
 				for _, v := range p.Versions {
-					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s\t", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
+					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
 				}
 				if target != "" {
 					return nil
