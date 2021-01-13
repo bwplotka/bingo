@@ -67,32 +67,35 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 }
 
 type installPackageConfig struct {
-	runner    *runner.Runner
-	modDir    string
-	relModDir string
-	update    runner.GetUpdatePolicy
+	runner            *runner.Runner
+	modDir            string
+	relModDir         string
+	update            runner.GetUpdatePolicy
+	alsoBuildNoSuffix bool
 
 	verbose bool
 }
 
 type getConfig struct {
-	runner    *runner.Runner
-	modDir    string
-	relModDir string
-	update    runner.GetUpdatePolicy
-	name      string
-	rename    string
+	runner            *runner.Runner
+	modDir            string
+	relModDir         string
+	update            runner.GetUpdatePolicy
+	name              string
+	rename            string
+	alsoBuildNoSuffix bool
 
 	verbose bool
 }
 
 func (c getConfig) forPackage() installPackageConfig {
 	return installPackageConfig{
-		modDir:    c.modDir,
-		relModDir: c.relModDir,
-		runner:    c.runner,
-		update:    c.update,
-		verbose:   c.verbose,
+		modDir:            c.modDir,
+		relModDir:         c.relModDir,
+		runner:            c.runner,
+		update:            c.update,
+		verbose:           c.verbose,
+		alsoBuildNoSuffix: c.alsoBuildNoSuffix,
 	}
 }
 
@@ -487,7 +490,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 
 	runnable := c.runner.With(ctx, tmpModFile.FileName(), c.modDir)
-	if err := install(runnable, name, tmpModFile.DirectPackage()); err != nil {
+	if err := install(runnable, name, c.alsoBuildNoSuffix, tmpModFile.DirectPackage()); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
@@ -498,7 +501,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	return nil
 }
 
-func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err error) {
+func install(runnable runner.Runnable, name string, alsoBuildNoSuffix bool, pkg *bingo.Package) (err error) {
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
 	}
@@ -509,7 +512,19 @@ func install(runnable runner.Runnable, name string, pkg *bingo.Package) (err err
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
-	return runnable.Build(pkg.Path(), fmt.Sprintf("%s-%s", name, pkg.Module.Version))
+
+	if err := runnable.Build(pkg.Path(), fmt.Sprintf("%s-%s", name, pkg.Module.Version)); err != nil {
+		return errors.Wrap(err, "build versioned")
+	}
+
+	if !alsoBuildNoSuffix {
+		return nil
+	}
+
+	if err := runnable.Build(pkg.Path(), name); err != nil {
+		return errors.Wrap(err, "build")
+	}
+	return nil
 }
 
 const modREADMEFmt = `# Project Development Dependencies.

@@ -52,6 +52,8 @@ func main() {
 	getUpdate := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	getUpdatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
 	getInsecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
+	getAlsoBuildNoSuffix := getFlags.Bool("no-suffix", false, "If enabled, bingo will also install binary called <tool> on top of versioned"+
+		" <tool>-<version> binary. It's not recommended for majority of cases as you never know what version of the tool you are running.")
 
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `get` command.
 	getVerbose := getFlags.Bool("v", false, "Print more'")
@@ -142,13 +144,14 @@ func main() {
 			}()
 
 			cfg := getConfig{
-				runner:    r,
-				modDir:    modDir,
-				relModDir: relModDir,
-				update:    upPolicy,
-				name:      *getName,
-				rename:    *getRename,
-				verbose:   *verbose,
+				runner:            r,
+				modDir:            modDir,
+				relModDir:         relModDir,
+				update:            upPolicy,
+				name:              *getName,
+				rename:            *getRename,
+				verbose:           *verbose,
+				alsoBuildNoSuffix: *getAlsoBuildNoSuffix,
 			}
 
 			if err := get(ctx, logger, cfg, target); err != nil {

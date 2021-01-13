@@ -34,15 +34,19 @@ You can read full a story behind `bingo` [in this blog post](https://deploy-prev
 
 ## Installing
 
+In your repository (does not need to be a Go project)
+
 ```shell
-go install github.com/bwplotka/bingo
+go get -u github.com/bwplotka/bingo
 ```
 
-or if you already installed bingo and want to pin it (inception!):
+Recommended: Ideally you want to pin `bingo` tool to the latest version too (inception!). Do it via:
 
 ```shell
 bingo get -u github.com/bwplotka/bingo
 ```
+
+NOTE: Pinned command will be available in your `${GOBIN}` as `bingo-<version>` 
 
 ## Usage
 
