@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
@@ -63,7 +64,7 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 			name = pkgSplit[len(pkgSplit)-2]
 		}
 	}
-	return name, pkgPath, versions, nil
+	return strings.ToLower(name), pkgPath, versions, nil
 }
 
 type installPackageConfig struct {
@@ -477,25 +478,10 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 
 		if !strings.HasSuffix(target.Module.Version, "+incompatible") {
-			// autoReplace is reproducing replace statements to be exactly the same as the target module we want to install.
-			// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
-			// Since we always download single tool dependency module per tool module, we can
-			// copy its replace if exists to fix this common case.
-			gopath, err := runnable.GoEnv("GOPATH")
+			replaceStmts, err = autoFetchReplaceStatements(runnable, target)
 			if err != nil {
-				return errors.Wrap(err, "go env")
+				return err
 			}
-
-			// We leverage fact that when go get runs if downloads the version we find as relevant locally
-			// in the GOPATH/pkg/mod/...
-			targetModFile := filepath.Join(gopath, "pkg", "mod", target.Module.String(), "go.mod")
-			targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
-			if err != nil {
-				return errors.Wrapf(err, "parse target mod file %v", targetModFile)
-			}
-
-			// Store replace to auto-update if needed.
-			replaceStmts = targetModParsed.Replace
 		}
 	}
 
@@ -533,6 +519,51 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return errors.Wrap(err, "rename")
 	}
 	return nil
+}
+
+func localGoModFileAfterGet(gopath string, target bingo.Package) string {
+	modulePath := target.Module.String()
+
+	// Go get uses special notation for non-supported names. See https://github.com/bwplotka/bingo/issues/65.
+	var b strings.Builder
+	b.Grow(len(modulePath))
+	for i := 0; i < len(modulePath); i++ {
+		c := rune(modulePath[i])
+		if 'A' <= c && c <= 'Z' {
+			b.WriteByte('!')
+			c = unicode.To(unicode.LowerCase, c)
+		}
+		b.WriteRune(c)
+	}
+	return filepath.Join(gopath, "pkg", "mod", b.String(), "go.mod")
+}
+
+// autoFetchReplaceStatements is reproducing replace statements to be exactly the same as the target module we want to install.
+// It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
+// Since we always download single tool dependency module per tool module, we can copy its replace if exists to fix this common case.
+func autoFetchReplaceStatements(runnable runner.Runnable, target bingo.Package) ([]*modfile.Replace, error) {
+	gopath, err := runnable.GoEnv("GOPATH")
+	if err != nil {
+		return nil, errors.Wrap(err, "go env")
+	}
+
+	// We leverage fact that when go get runs if downloads the version we find as relevant locally
+	// in the GOPATH/pkg/mod/...
+	targetModFile := localGoModFileAfterGet(gopath, target)
+	if _, err := os.Stat(targetModFile); err != nil {
+		if os.IsNotExist(err) {
+			// Pre module package.
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "stat target mod directory %v", targetModFile)
+	}
+
+	targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parse target mod file %v", targetModFile)
+	}
+	return targetModParsed.Replace, nil
+
 }
 
 // gobin mimics the way go install finds where to install go tool.
