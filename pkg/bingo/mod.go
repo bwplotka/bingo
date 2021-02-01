@@ -83,7 +83,7 @@ func OpenModFile(modFile string) (_ *ModFile, err error) {
 	}
 	defer func() {
 		if err != nil {
-			errcapture.Close(&err, f.Close, "close")
+			errcapture.Do(&err, f.Close, "close")
 		}
 	}()
 	mf := &ModFile{f: f, filename: modFile}
@@ -195,19 +195,19 @@ func (mf *ModFile) Reload() (err error) {
 	mf.autoReplaceDisabled = false
 	for _, e := range mf.m.Syntax.Stmt {
 		for _, c := range e.Comment().Before {
-			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+			if strings.Contains(c.Token, NoReplaceCommand) {
 				mf.autoReplaceDisabled = true
 				break
 			}
 		}
 		for _, c := range e.Comment().After {
-			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+			if strings.Contains(c.Token, NoReplaceCommand) {
 				mf.autoReplaceDisabled = true
 				break
 			}
 		}
 		for _, c := range e.Comment().Suffix {
-			if strings.Index(c.Token, NoReplaceCommand) != -1 {
+			if strings.Contains(c.Token, NoReplaceCommand) {
 				mf.autoReplaceDisabled = true
 				break
 			}
@@ -325,7 +325,7 @@ func ModDirectPackage(modFile string) (pkg Package, err error) {
 	if err != nil {
 		return Package{}, err
 	}
-	defer errcapture.Close(&err, mf.Close, "close")
+	defer errcapture.Do(&err, mf.Close, "close")
 
 	if mf.directPackage == nil {
 		return Package{}, errors.Errorf("no direct package found in %s; empty module?", mf.filename)
