@@ -198,7 +198,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
-			defer errcapture.Close(&err, mf.Close, "close")
+			defer errcapture.Do(&err, mf.Close, "close")
 
 			if mf.DirectPackage() == nil {
 				return errors.Wrapf(err, "failed to rename tool %v to %v name; found empty mod file %v; Use full path to install tool again", name, c.rename, e)
@@ -258,7 +258,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
-			defer errcapture.Close(&err, mf.Close, "close")
+			defer errcapture.Do(&err, mf.Close, "close")
 
 			if mf.DirectPackage() != nil {
 				if target.Path() != "" && target.Path() != mf.DirectPackage().Path() {
@@ -469,7 +469,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		if err != nil {
 			return errors.Wrap(err, "create empty tmp mod file")
 		}
-		defer errcapture.Close(&err, tmpEmptyModFile.Close, "close")
+		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
 		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir)
 		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, c.update, &target); err != nil {
@@ -507,7 +507,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
 	}
-	defer errcapture.Close(&err, tmpModFile.Close, "close")
+	defer errcapture.Do(&err, tmpModFile.Close, "close")
 
 	if !tmpModFile.AutoReplaceDisabled() && len(replaceStmts) > 0 {
 		if err := tmpModFile.SetReplace(replaceStmts...); err != nil {
