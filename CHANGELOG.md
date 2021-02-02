@@ -8,7 +8,13 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
-## [v0.3.0](https://github.com/bwplotka/bingo/releases/tag/v0.2.4) - 2020.01.13
+## [v0.3.1](https://github.com/bwplotka/bingo/releases/tag/v0.3.1) - 2021.02.02
+
+### Fixed
+
+* [Fixed](https://github.com/bwplotka/bingo/issues/65) support for tools with names that have capital letters.
+
+## [v0.3.0](https://github.com/bwplotka/bingo/releases/tag/v0.3.0) - 2021.01.13
 
 ### Added
 

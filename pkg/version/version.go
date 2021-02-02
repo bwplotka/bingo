@@ -4,4 +4,4 @@
 package version
 
 // Version returns 'bingo' version.
-const Version = "v0.3.0"
+const Version = "v0.3.1"
