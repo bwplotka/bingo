@@ -14,7 +14,7 @@ GOPATH ?= $(shell go env GOPATH)
 GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO     ?= $(shell which go)
 
-# Bellow generated variables ensure that every time a tool under each variable is invoked, the correct version
+# Below generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
 # For example for {{ with (index .MainPackages 0) }}{{ .Name }}{{ end }} variable:
 #
