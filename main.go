@@ -236,7 +236,7 @@ func main() {
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		g.Add(func() error {
-			r, err := runner.NewRunner(ctx, *getInsecure, *goCmd)
+			r, err := runner.NewRunner(ctx, logger, *getInsecure, *goCmd)
 			if err != nil {
 				return err
 			}

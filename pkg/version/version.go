@@ -3,5 +3,12 @@
 
 package version
 
+import "github.com/Masterminds/semver"
+
 // Version returns 'bingo' version.
-const Version = "v0.3.1"
+const Version = "v0.3.2"
+
+var (
+	Go114 = semver.MustParse("1.14")
+	Go116 = semver.MustParse("1.16")
+)

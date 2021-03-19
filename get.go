@@ -19,6 +19,7 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
@@ -422,11 +423,11 @@ func resolvePackage(
 
 	groups := re.FindAllStringSubmatch(gerr.Error(), 1)
 	if len(groups) == 0 || len(groups[0]) < 3 {
-		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v)", strings.Join([]string{
+		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v): %v", strings.Join([]string{
 			downloadingRe,
 			upgradeRe,
 			foundVersionRe,
-		}, ","))
+		}, ","), gerr.Error())
 	}
 
 	target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, groups[0][1]), "/")
@@ -578,6 +579,14 @@ func gobin() string {
 func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Package) (err error) {
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
+	}
+
+	// Run go mod download to make sure a proper go.sum file is populated for the module.
+	// Otherwise the next `go list` will fail in Go 1.16
+	if !runnable.GoVersion().LessThan(version.Go116) {
+		if err := runnable.ModDownload(); err != nil {
+			return err
+		}
 	}
 
 	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!

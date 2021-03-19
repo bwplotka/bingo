@@ -4,12 +4,14 @@
 package main_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/testutil"
 )
@@ -40,6 +42,10 @@ func TestGet(t *testing.T) {
 
 	g := newIsolatedGoEnv(t, defaultGoProxy)
 	defer g.Close(t)
+
+	r, err := runner.NewRunner(context.Background(), nil, false, "go")
+	testutil.Ok(t, err)
+	goVersion := r.GoVersion()
 
 	if ok := t.Run("empty project with advanced cases", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
@@ -603,6 +609,10 @@ func TestGet(t *testing.T) {
 						// Regression test against https://github.com/bwplotka/bingo/issues/65.
 						name: "get tool with capital letters in name (pre modules)",
 						do: func(t *testing.T) {
+							if !goVersion.LessThan(version.Go116) {
+								t.Skip("skipping pre-modules test in Go >= 1.16. See: https://blog.golang.org/go116-module-changes#TOC_3.")
+							}
+
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/githubnemo/CompileDaemon@v1.2.1"))
 						},
 						expectRows: []row{
@@ -642,16 +652,25 @@ func TestGet(t *testing.T) {
 							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
 							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
 						},
-						expectBinaries: []string{
-							"buildable",
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
+						expectBinaries: func() []string {
+							binaries := []string{
+								"buildable",
+								"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+								"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							}
+
+							if goVersion.LessThan(version.Go116) {
+								// Skip pre-modules binary in Go >= 1.16. See: https://blog.golang.org/go116-module-changes#TOC_3.
+								binaries = append(binaries, "compiledaemon-v1.2.1")
+							}
+
+							return append(binaries, "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
+								"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+								"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+								"go-bindata-v3.1.1+incompatible",
+								"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+							)
+						}(),
 					},
 					{
 						name: "Remove rest of tools",
@@ -670,6 +689,16 @@ func TestGet(t *testing.T) {
 					{
 						name: "Get tricky case with replace (thanos)",
 						do: func(t *testing.T) {
+							// In Go 1.16, to get does not give hints about the versions it finds:
+							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
+							//             github.com/thanos-io/thanos/cmd/thanos imports
+							//             github.com/cortexproject/cortex/pkg/frontend imports
+							//             github.com/cortexproject/cortex/pkg/util imports
+							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
+							if !goVersion.LessThan(version.Go116) {
+								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
+							}
+
 							// Out test module_with_replace is easy. The build without replaces would fail.
 							// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
@@ -692,6 +721,16 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u to upgrade thanos package",
 						do: func(t *testing.T) {
+							// In Go 1.16, to get does not give hints about the versions it finds:
+							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
+							//             github.com/thanos-io/thanos/cmd/thanos imports
+							//             github.com/cortexproject/cortex/pkg/frontend imports
+							//             github.com/cortexproject/cortex/pkg/util imports
+							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
+							if !goVersion.LessThan(version.Go116) {
+								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
+							}
+
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-u", "thanos"))
 						},
 						expectRows: []row{
@@ -713,6 +752,16 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u=patch to upgrade thanos package",
 						do: func(t *testing.T) {
+							// In Go 1.16, to get does not give hints about the versions it finds:
+							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
+							//             github.com/thanos-io/thanos/cmd/thanos imports
+							//             github.com/cortexproject/cortex/pkg/frontend imports
+							//             github.com/cortexproject/cortex/pkg/util imports
+							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
+							if !goVersion.LessThan(version.Go116) {
+								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
+							}
+
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "--upatch", "thanos"))
 						},
 						expectRows: []row{
@@ -751,8 +800,27 @@ func TestGet(t *testing.T) {
 	t.Run("Compatibility test", func(t *testing.T) {
 		dirs, err := filepath.Glob("testdata/testproject*")
 		testutil.Ok(t, err)
+
+		// These projects are configured with modules but the generated Makefiles do not contain the
+		// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
+		// let's skip those tests as the later ones should be good enough to ensure backwards-compatibility.
+		go116InCompatibleProjects := []string {
+			"v0_1_1",
+			"v0_2_0",
+			"v0_2_1",
+			"v0_2_2",
+		}
+
 		for _, dir := range dirs {
 			t.Run(dir, func(t *testing.T) {
+				if !goVersion.LessThan(version.Go116) {
+					for _, v := range go116InCompatibleProjects {
+						if strings.HasSuffix(dir, v) {
+							t.Skipf("skipping %q in Go >= 1.16 because the generated Makefile is missing the '-mod-mod' flag and it is needed in Go >= 1.16", dir)
+						}
+					}
+				}
+
 				for _, isGoProject := range []bool{false, true} {
 					t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 						t.Run("Via bingo get all", func(t *testing.T) {
@@ -834,6 +902,15 @@ func TestGet(t *testing.T) {
 
 							// Get all binaries by doing native go build.
 							if isGoProject {
+								// In Go 1.16 we need to explicitly call go mod download to get the go.sum file created. Eagerly call them before go build.
+								if !goVersion.LessThan(version.Go116) {
+									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
+									goModDownload(t, p.root, filepath.Join(defaultModDir, "faillint.mod"))
+									goModDownload(t, p.root, filepath.Join(defaultModDir, "wr_buildable.mod"))
+									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
+									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
+								}
+
 								// This should work without cd even.
 								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
@@ -848,6 +925,15 @@ func TestGet(t *testing.T) {
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							} else {
+								// In Go 1.16 we need to explicitly call go mod download to get the go.sum file created. Eagerly call them before go build.
+								if !goVersion.LessThan(version.Go116) {
+									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
+									goModDownload(t, filepath.Join(p.root, defaultModDir), "faillint.mod")
+									goModDownload(t, filepath.Join(p.root, defaultModDir), "wr_buildable.mod")
+									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
+									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
+								}
+
 								// For no go projects we have this "bug" that requires go.mod to be present.
 								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=buildable.mod",
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
@@ -924,6 +1010,11 @@ func TestGet(t *testing.T) {
 			})
 		}
 	})
+}
+
+func goModDownload(t *testing.T, root string, modFile string) {
+	_, err := execCmd(root, nil, "go", "mod", "download", "-modfile="+modFile)
+	testutil.Ok(t, err)
 }
 
 type row struct {

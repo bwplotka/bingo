@@ -8,12 +8,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/pkg/errors"
 )
 
@@ -24,6 +26,8 @@ type Runner struct {
 
 	verbose   bool
 	goVersion *semver.Version
+
+	logger *log.Logger
 }
 
 func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
@@ -39,18 +43,19 @@ func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
 }
 
 func isSupportedVersion(v *semver.Version) error {
-	if !v.LessThan(semver.MustParse("1.14")) {
+	if !v.LessThan(version.Go114) {
 		return nil
 	}
 	return errors.Errorf("found unsupported go version: %v; requires go 1.14.x or higher", v.String())
 }
 
 // NewRunner checks Go version compatibility then returns Runner.
-func NewRunner(ctx context.Context, insecure bool, goCmd string) (*Runner, error) {
+func NewRunner(ctx context.Context, logger *log.Logger, insecure bool, goCmd string) (*Runner, error) {
 	output := &bytes.Buffer{}
 	r := &Runner{
 		goCmd:    goCmd,
 		insecure: insecure,
+		logger:   logger,
 	}
 
 	if err := r.execGo(ctx, output, "", "", "version"); err != nil {
@@ -115,16 +120,18 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command 
 		return errors.Errorf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
 	}
 	if r.verbose {
-		fmt.Printf("exec '%s %s'\n", command, strings.Join(args, " "))
+		r.logger.Printf("exec '%s %s'\n", command, strings.Join(args, " "))
 	}
 	return nil
 }
 
 type Runnable interface {
+	GoVersion() *semver.Version
 	List(update GetUpdatePolicy, args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) (string, error)
 	Build(pkg, out string) error
 	GoEnv(args ...string) (string, error)
+	ModDownload() error
 }
 
 type runnable struct {
@@ -162,6 +169,10 @@ const (
 	UpdatePolicy      = GetUpdatePolicy("-u")
 	UpdatePatchPolicy = GetUpdatePolicy("-u=patch")
 )
+
+func (r *runnable) GoVersion() *semver.Version {
+	return r.r.GoVersion()
+}
 
 // List runs `go list` against separate go modules files if any.
 func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) {
@@ -211,9 +222,27 @@ func (r *runnable) Build(pkg, out string) error {
 
 	trimmed := strings.TrimSpace(output.String())
 	if r.r.verbose && trimmed != "" {
-		// TODO(bwplotka): Pass logger.
-		fmt.Println(trimmed)
+		r.r.logger.Println(trimmed)
 	}
 	return nil
+}
 
+// ModDownload runs 'go mod download' against separate go modules file with given arguments.
+func (r *runnable) ModDownload() error {
+	args := []string{"mod", "download"}
+	if r.r.verbose {
+		args = append(args, "-x")
+	}
+	args = append(args, fmt.Sprintf("-modfile=%s", r.modFile))
+
+	out := &bytes.Buffer{}
+	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, args...); err != nil {
+		return errors.Wrap(err, out.String())
+	}
+
+	trimmed := strings.TrimSpace(out.String())
+	if r.r.verbose && trimmed != "" {
+		r.r.logger.Println(trimmed)
+	}
+	return nil
 }
