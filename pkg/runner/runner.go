@@ -227,7 +227,7 @@ func (r *runnable) Build(pkg, out string) error {
 	return nil
 }
 
-// ModDownload runs 'go mod download' against separate go modules file with given arguments.
+// ModDownload runs 'go mod download' against separate go modules file.
 func (r *runnable) ModDownload() error {
 	args := []string{"mod", "download"}
 	if r.r.verbose {
