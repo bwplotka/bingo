@@ -581,8 +581,8 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 		return errors.Wrap(err, pkg.String())
 	}
 
-	// Run go mod download to make sure a proper go.sum file is populated for the module.
-	// Otherwise the next `go list` will fail in Go 1.16
+	// Run `go mod download` to make sure a proper go.sum file is populated for the module.
+	// Otherwise, the next `go list` will fail in Go 1.16
 	if !runnable.GoVersion().LessThan(version.Go116) {
 		if err := runnable.ModDownload(); err != nil {
 			return err

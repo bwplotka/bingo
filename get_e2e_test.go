@@ -689,14 +689,14 @@ func TestGet(t *testing.T) {
 					{
 						name: "Get tricky case with replace (thanos)",
 						do: func(t *testing.T) {
-							// In Go 1.16, to get does not give hints about the versions it finds:
+							// In Go 1.16, 'go get' does not give hints about the versions it finds:
 							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
 							//             github.com/thanos-io/thanos/cmd/thanos imports
 							//             github.com/cortexproject/cortex/pkg/frontend imports
 							//             github.com/cortexproject/cortex/pkg/util imports
 							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
 							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
+								t.Skip("skipping pre-modules test in Go >= 1.16; the output of 'go get' does not give hints on the resolved versions")
 							}
 
 							// Out test module_with_replace is easy. The build without replaces would fail.
@@ -721,7 +721,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u to upgrade thanos package",
 						do: func(t *testing.T) {
-							// In Go 1.16, to get does not give hints about the versions it finds:
+							// In Go 1.16, 'go get' does not give hints about the versions it finds:
 							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
 							//             github.com/thanos-io/thanos/cmd/thanos imports
 							//             github.com/cortexproject/cortex/pkg/frontend imports
@@ -752,14 +752,14 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u=patch to upgrade thanos package",
 						do: func(t *testing.T) {
-							// In Go 1.16, to get does not give hints about the versions it finds:
+							// In Go 1.16, 'go get' does not give hints about the versions it finds:
 							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
 							//             github.com/thanos-io/thanos/cmd/thanos imports
 							//             github.com/cortexproject/cortex/pkg/frontend imports
 							//             github.com/cortexproject/cortex/pkg/util imports
 							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
 							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
+								t.Skip("skipping pre-modules test in Go >= 1.16; the output of 'go get' does not give hints on the resolved versions")
 							}
 
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "--upatch", "thanos"))
@@ -902,7 +902,7 @@ func TestGet(t *testing.T) {
 
 							// Get all binaries by doing native go build.
 							if isGoProject {
-								// In Go 1.16 we need to explicitly call go mod download to get the go.sum file created. Eagerly call them before go build.
+								// In Go 1.16, we need to explicitly call 'go mod download' to get the go.sum file created: Eagerly call them before go build.
 								if !goVersion.LessThan(version.Go116) {
 									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
 									goModDownload(t, p.root, filepath.Join(defaultModDir, "faillint.mod"))
@@ -925,7 +925,7 @@ func TestGet(t *testing.T) {
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							} else {
-								// In Go 1.16 we need to explicitly call go mod download to get the go.sum file created. Eagerly call them before go build.
+								// In Go 1.16, we need to explicitly call 'go mod download' to get the go.sum file created: Eagerly call them before go build.
 								if !goVersion.LessThan(version.Go116) {
 									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
 									goModDownload(t, filepath.Join(p.root, defaultModDir), "faillint.mod")
