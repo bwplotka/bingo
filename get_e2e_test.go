@@ -53,8 +53,8 @@ func TestGet(t *testing.T) {
 				g.Clear(t)
 
 				// We manually build bingo binary to make sure GOCACHE will not hit us.
-				goBinPath := filepath.Join(g.tmpDir, bingoBin)
-				buildInitialGobin(t, goBinPath)
+				bingoPath := filepath.Join(g.tmpDir, bingoBin)
+				buildInitialGobin(t, bingoPath)
 
 				testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
 				p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), isGoProject)
@@ -73,8 +73,8 @@ func TestGet(t *testing.T) {
 					{
 						name: "get github.com/fatih/faillint@v1.4.0",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/fatih/faillint@v1.4.0"))
-							testutil.Equals(t, g.ExecOutput(t, p.root, goBinPath, "list", "faillint"), g.ExecOutput(t, p.root, goBinPath, "list"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/fatih/faillint@v1.4.0"))
+							testutil.Equals(t, g.ExecOutput(t, p.root, bingoPath, "list", "faillint"), g.ExecOutput(t, p.root, bingoPath, "list"))
 						},
 						expectRows:     []row{{name: "faillint", binName: "faillint-v1.4.0", pkgVersion: "github.com/fatih/faillint@v1.4.0"}},
 						expectBinaries: []string{"faillint-v1.4.0"},
@@ -82,7 +82,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85")))
 						},
@@ -96,7 +96,7 @@ func TestGet(t *testing.T) {
 						name: "get same tool; should be noop",
 						do: func(t *testing.T) {
 							// TODO(bwplotka): Assert if actually noop.
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
@@ -107,7 +107,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686 (update by path)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109093942-2e6391144e85")))
@@ -122,7 +122,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get faillint@v1.5.0 (update by name)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.5.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "faillint@v1.5.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -133,7 +133,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get faillint@v1.3.0 (downgrade by name)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.3.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "faillint@v1.3.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -144,7 +144,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get -n=buildable_old github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686 (get buildable from same module under different name)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=buildable_old", "github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-n=buildable_old", "github.com/bwplotka/bingo/testdata/module/buildable@375d0606849d58d106888f5c5ed80887eb899686"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109094001-375d0606849d")))
@@ -165,7 +165,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get buildable_old@2e6391144e85de14181f8e47b77d64b94a7ca3a8 (downgrade buildable from same module under different name)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable_old@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109093942-2e6391144e85")))
@@ -187,7 +187,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get github.com/go-bindata/go-bindata/go-bindata@v3.1.1 (pre go module project)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/go-bindata/go-bindata/go-bindata@v3.1.1"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/go-bindata/go-bindata/go-bindata@v3.1.1"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -205,7 +205,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get github.com/bwplotka/bingo/testdata/module/buildable2@2e6391144e85de14181f8e47b77d64b94a7ca3a8 (get buildable2 from same module from different version!)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable2@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable2@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109094001-375d0606849d")))
@@ -230,7 +230,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get -n=wr_buildable github.com/bwplotka/bingo/testdata/module_with_replace/buildable@ab990d1be30bcbad4d35220e0c98e8f57289f113 (get buildable from same module with relevant replaces)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n=wr_buildable", "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@ab990d1be30bcbad4d35220e0c98e8f57289f113"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-n=wr_buildable", "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@ab990d1be30bcbad4d35220e0c98e8f57289f113"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module_with_replace.buildable 2.8\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210110214650-ab990d1be30b")))
@@ -254,7 +254,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get wr_buildable@ccbd4039b94aac79d926ba5eebfe6a132a728ed8 (dowgrade buildable with different replaces - trickier than you think!)",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@ccbd4039b94aac79d926ba5eebfe6a132a728ed8"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "wr_buildable@ccbd4039b94aac79d926ba5eebfe6a132a728ed8"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module_with_replace.buildable 2.8\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210110214650-ab990d1be30b")))
@@ -279,7 +279,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Get array of 4 versions of faillint under f2 name",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-n", "f2", "github.com/fatih/faillint@v1.5.0,v1.1.0,v1.2.0,v1.0.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-n", "f2", "github.com/fatih/faillint@v1.5.0,v1.1.0,v1.2.0,v1.0.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -320,7 +320,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Get array of 2 versions of normal faillint, despite being non array before, should work",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "faillint@v1.1.0,v1.0.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "faillint@v1.1.0,v1.0.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -347,7 +347,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Updating f2 to different version should work",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2@v1.3.0,v1.4.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "f2@v1.3.0,v1.4.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -372,7 +372,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Rename buildable2 to buildable3",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-r=buildable3", "buildable2"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-r=buildable3", "buildable2"))
 							testutil.Equals(t, "module.buildable2 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable2-v0.0.0-20210109093942-2e6391144e85")))
 							testutil.Equals(t, "module.buildable2 2\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable3-v0.0.0-20210109093942-2e6391144e85")))
 						},
@@ -400,24 +400,24 @@ func TestGet(t *testing.T) {
 						name: "error cases",
 						do: func(t *testing.T) {
 							// Installing different tool with name clash should fail
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/totally-not-bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/totally-not-bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
 							// Installing package with go name should fail. (this is due to clash with go.mod).
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/something/go"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/something/go"))
 							// Naive installing package that would result with `cmd` name fails - different name is suggested.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/promeval@v0.3.0"))
 							// Updating f4 to multiple versions with none should fail.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.4.0,v1.1.0,none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "f2@v1.4.0,v1.1.0,none"))
 							// Installing by different path that would result in same name
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/bingo/some/module/buildable"))
 							// Removing by path.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@none"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "github.com/bwplotka/bingo/some/module/buildable@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/bingo/some/module/buildable@none"))
 							// Removing non existing tool.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "buildable2@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "buildable2@none"))
 							// Upgrade non existing tool.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-u", "lol"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-u", "lol"))
 							// Upgrade with version.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-u", "buildable@v0.0.0-20210109094001-375d0606849d"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-u", "buildable@v0.0.0-20210109094001-375d0606849d"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -435,9 +435,9 @@ func TestGet(t *testing.T) {
 					{
 						name: "-n name error cases",
 						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "f2@v1.1.0,v1.4.0,v1.1.0")) // Updating to the same array versions.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-n", "f3", "x"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-n", "f2-clone", "f2")) // Cloning.
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "f2@v1.1.0,v1.4.0,v1.1.0")) // Updating to the same array versions.
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-n", "f3", "x"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-n", "f2-clone", "f2")) // Cloning.
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -455,15 +455,15 @@ func TestGet(t *testing.T) {
 					{
 						name: "-r rename error cases",
 						do: func(t *testing.T) {
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@none"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "buildable2@none"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=buildable4", "buildable2@v0.0.0-20210109093942-2e6391144e85"))
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=faillint", "buildable2")) // Renaming to existing name.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r=faiLLint", "buildable2")) // Renaming to existing name (it's not case sensitive).
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r", "f3", "x"))             // Renaming not existing.
-							testutil.NotOk(t, g.ExpectErr(p.root, goBinPath, "get", "-r", "f4", "f3@v1.1.0,v1.0.0"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=buildable4", "github.com/bwplotka/bingo/testdata/module/buildable2@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=buildable4", "buildable2@none"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=buildable4", "buildable2@v0.0.0-20210109093942-2e6391144e85"))
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=faillint", "buildable2")) // Renaming to existing name.
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r=faiLLint", "buildable2")) // Renaming to existing name (it's not case sensitive).
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r", "f3", "x"))             // Renaming not existing.
+							testutil.NotOk(t, g.ExpectErr(p.root, bingoPath, "get", "-r", "f4", "f3@v1.1.0,v1.0.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -481,7 +481,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Renaming f2 to f3 should work",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-r", "f3", "f2"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-r", "f3", "f2"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -506,7 +506,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Updating f3 back to non array version should work",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@v1.1.0"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "f3@v1.1.0"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -530,7 +530,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Remove buildable3 by name",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable3@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable3@none"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
@@ -546,7 +546,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get buildable without suffix as well",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-l", "buildable"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-l", "buildable"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109094001-375d0606849d")))
@@ -577,7 +577,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "get buildable different version without suffix as well",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-l", "buildable@v0.0.0-20210109093942-2e6391144e85"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-l", "buildable@v0.0.0-20210109093942-2e6391144e85"))
 
 							// Check if installed tool is what we expect.
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable_old-v0.0.0-20210109094001-375d0606849d")))
@@ -609,11 +609,7 @@ func TestGet(t *testing.T) {
 						// Regression test against https://github.com/bwplotka/bingo/issues/65.
 						name: "get tool with capital letters in name (pre modules)",
 						do: func(t *testing.T) {
-							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16. See: https://blog.golang.org/go116-module-changes#TOC_3.")
-							}
-
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/githubnemo/CompileDaemon@v1.2.1"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@v1.2.1"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
@@ -640,7 +636,7 @@ func TestGet(t *testing.T) {
 						// Regression test against https://github.com/bwplotka/bingo/issues/65.
 						name: "get tool with capital letters in name",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/githubnemo/CompileDaemon@39b144afa93c8bc1b8da4d498cd72c9927c1ce49"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@39b144afa93c8bc1b8da4d498cd72c9927c1ce49"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
@@ -652,36 +648,27 @@ func TestGet(t *testing.T) {
 							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
 							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
 						},
-						expectBinaries: func() []string {
-							binaries := []string{
-								"buildable",
-								"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-								"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							}
-
-							if goVersion.LessThan(version.Go116) {
-								// Skip pre-modules binary in Go >= 1.16. See: https://blog.golang.org/go116-module-changes#TOC_3.
-								binaries = append(binaries, "compiledaemon-v1.2.1")
-							}
-
-							return append(binaries, "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
-								"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-								"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-								"go-bindata-v3.1.1+incompatible",
-								"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-							)
-						}(),
+						expectBinaries: []string{
+							"buildable",
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"compiledaemon-v1.2.1", "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
 					},
 					{
 						name: "Remove rest of tools",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "compiledaemon@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "FaIllint@none")) // case should not matter.
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable_old@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f3@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "buildable@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "compiledaemon@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "FaIllint@none")) // case should not matter.
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable_old@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "f3@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "wr_buildable@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "go-bindata@none"))
 						},
 						expectRows:                 []row(nil),
 						expectSameBinariesAsBefore: true,
@@ -689,19 +676,9 @@ func TestGet(t *testing.T) {
 					{
 						name: "Get tricky case with replace (thanos)",
 						do: func(t *testing.T) {
-							// In Go 1.16, 'go get' does not give hints about the versions it finds:
-							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
-							//             github.com/thanos-io/thanos/cmd/thanos imports
-							//             github.com/cortexproject/cortex/pkg/frontend imports
-							//             github.com/cortexproject/cortex/pkg/util imports
-							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
-							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16; the output of 'go get' does not give hints on the resolved versions")
-							}
-
 							// Out test module_with_replace is easy. The build without replaces would fail.
 							// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
 						},
 						expectRows: []row{
 							{name: "thanos", binName: "thanos-v0.13.1-0.20210108102609-f85e4003ba51", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.13.1-0.20210108102609-f85e4003ba51"},
@@ -721,17 +698,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u to upgrade thanos package",
 						do: func(t *testing.T) {
-							// In Go 1.16, 'go get' does not give hints about the versions it finds:
-							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
-							//             github.com/thanos-io/thanos/cmd/thanos imports
-							//             github.com/cortexproject/cortex/pkg/frontend imports
-							//             github.com/cortexproject/cortex/pkg/util imports
-							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
-							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16; he output of 'go get' does not give hints on the resolved versions")
-							}
-
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "-u", "thanos"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-u", "thanos"))
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
@@ -752,17 +719,7 @@ func TestGet(t *testing.T) {
 					{
 						name: "Use -u=patch to upgrade thanos package",
 						do: func(t *testing.T) {
-							// In Go 1.16, 'go get' does not give hints about the versions it finds:
-							//     $ go get -modfile=thanos.mod -d github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74
-							//             github.com/thanos-io/thanos/cmd/thanos imports
-							//             github.com/cortexproject/cortex/pkg/frontend imports
-							//             github.com/cortexproject/cortex/pkg/util imports
-							//             google.golang.org/grpc/naming: cannot find module providing package google.golang.org/grpc/naming
-							if !goVersion.LessThan(version.Go116) {
-								t.Skip("skipping pre-modules test in Go >= 1.16; the output of 'go get' does not give hints on the resolved versions")
-							}
-
-							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "--upatch", "thanos"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "--upatch", "thanos"))
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
@@ -776,7 +733,7 @@ func TestGet(t *testing.T) {
 
 						tcase.do(t)
 
-						expectBingoListRows(t, tcase.expectRows, g.ExecOutput(t, p.root, goBinPath, "list"))
+						expectBingoListRows(t, tcase.expectRows, g.ExecOutput(t, p.root, bingoPath, "list"))
 
 						binaries := g.existingBinaries(t)
 						if tcase.expectSameBinariesAsBefore {
@@ -804,7 +761,7 @@ func TestGet(t *testing.T) {
 		// These projects are configured with modules but the generated Makefiles do not contain the
 		// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
 		// let's skip those tests as the later ones should be good enough to ensure backwards-compatibility.
-		go116InCompatibleProjects := []string {
+		go116InCompatibleProjects := []string{
 			"v0_1_1",
 			"v0_2_0",
 			"v0_2_1",

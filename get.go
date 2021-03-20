@@ -19,7 +19,6 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
-	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
@@ -581,17 +580,11 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 		return errors.Wrap(err, pkg.String())
 	}
 
-	// Run `go mod download` to make sure a proper go.sum file is populated for the module.
-	// Otherwise, the next `go list` will fail in Go 1.16
-	if !runnable.GoVersion().LessThan(version.Go116) {
-		if err := runnable.ModDownload(); err != nil {
-			return err
-		}
-	}
-
-	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
-	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-f={{.Name}}", pkg.Path()); err != nil {
-		return err
+	// Two purposes of doing list with mod=mod:
+	// * Check if path is pointing to non-buildable package.
+	// * Rebuild go.sum and go.mod (tidy) which is required to build with -mod=readonly (default) to work.
+	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-mod=mod", "-f={{.Name}}", pkg.Path()); err != nil {
+		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
@@ -612,7 +605,7 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 		return errors.Wrap(err, "rm")
 	}
 	if err := os.Symlink(binPath, filepath.Join(gobin, name)); err != nil {
-		return errors.Wrap(err, "build")
+		return errors.Wrap(err, "symlink")
 	}
 	return nil
 }
