@@ -19,7 +19,6 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
-	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
@@ -358,9 +357,8 @@ func resolvePackage(
 	target *bingo.Package,
 ) (err error) {
 	// Do initial go get -d and remember output.
-	// NOTE: We have to use get -d to resolve version as this is the only one (apart from go install) that understand
-	// the `pkg@version` notation with version being commit sha as well. If nothing else will succeed, we will rely on
-	// error to find the target version.
+	// NOTE: We have to use get -d to resolve version and tell us what is the module and what package.
+	// If nothing else will succeed, we will rely on error to find the target version.
 	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
@@ -406,26 +404,34 @@ func resolvePackage(
 
 	// TODO(bwplotka) Obviously hacky but reliable so far.
 	// Try to match strings announcing what version was found (if we got to this stage).
-	downloadingRe := fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Module.Path)
-	upgradeRe := `go: (\S*) upgrade => (\S*)`
-	foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Module.Path)
-	if runnable.GoVersion().LessThan(version.Go116) {
-		// In the past relative path was included in output.
-		downloadingRe = fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Path())
-		foundVersionRe = fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
-	}
+	var (
+		attempted  []string
+		modulePath = target.Path()
+		re         *regexp.Regexp
+	)
 
-	re, err := regexp.Compile(downloadingRe)
+	attempted = append(attempted, fmt.Sprintf(`go: found %v in (\S*) (\S*)`, modulePath))
+	re, err = regexp.Compile(attempted[len(attempted)-1])
 	if err != nil {
-		return errors.Wrapf(err, "regexp compile %v", downloadingRe)
+		return errors.Wrapf(err, "regexp compile %v", attempted[len(attempted)-1])
 	}
 	if !re.MatchString(gerr.Error()) {
-		re = regexp.MustCompile(upgradeRe)
-		if !re.MatchString(gerr.Error()) {
-			re, err = regexp.Compile(foundVersionRe)
+		// Since we don't know which part of full path is package, which part is module, start from longest and go until we find one.
+		for i := len(strings.Split(target.Path(), "/")); i > 3; i-- {
+			modulePath = filepath.Dir(modulePath)
+
+			attempted = append(attempted, fmt.Sprintf(`go: downloading (%v) (\S*)`, modulePath))
+			re, err = regexp.Compile(attempted[len(attempted)-1])
 			if err != nil {
-				return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
+				return errors.Wrapf(err, "regexp compile %v", attempted[len(attempted)-1])
 			}
+			if re.MatchString(gerr.Error()) {
+				break
+			}
+		}
+		if !re.MatchString(gerr.Error()) {
+			attempted = append(attempted, `go: (\S*) upgrade => (\S*)`)
+			re = regexp.MustCompile(attempted[len(attempted)-1])
 		}
 	}
 
@@ -435,11 +441,7 @@ func resolvePackage(
 			logger.Println("tricky: Error output does not contain hints; looking in local module cache")
 		}
 
-		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v): %v", strings.Join([]string{
-			downloadingRe,
-			upgradeRe,
-			foundVersionRe,
-		}, ","), gerr.Error())
+		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v): %v", strings.Join(attempted, ","), gerr.Error())
 	}
 
 	target.Module.Path = groups[0][1]
@@ -448,6 +450,7 @@ func resolvePackage(
 	if verbose {
 		logger.Println("tricky: Matched", re.String(), "Module:", target.Module.Path, "Version:", target.Module.Version, "Together:", target)
 	}
+
 	return nil
 }
 
