@@ -678,7 +678,7 @@ func TestGet(t *testing.T) {
 						do: func(t *testing.T) {
 							// Out test module_with_replace is easy. The build without replaces would fail.
 							// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-v", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
 						},
 						expectRows: []row{
 							{name: "thanos", binName: "thanos-v0.13.1-0.20210108102609-f85e4003ba51", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.13.1-0.20210108102609-f85e4003ba51"},
@@ -758,26 +758,8 @@ func TestGet(t *testing.T) {
 		dirs, err := filepath.Glob("testdata/testproject*")
 		testutil.Ok(t, err)
 
-		// These projects are configured with modules but the generated Makefiles do not contain the
-		// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
-		// let's skip those tests as the later ones should be good enough to ensure backwards-compatibility.
-		go116InCompatibleProjects := []string{
-			"v0_1_1",
-			"v0_2_0",
-			"v0_2_1",
-			"v0_2_2",
-		}
-
 		for _, dir := range dirs {
 			t.Run(dir, func(t *testing.T) {
-				if !goVersion.LessThan(version.Go116) {
-					for _, v := range go116InCompatibleProjects {
-						if strings.HasSuffix(dir, v) {
-							t.Skipf("skipping %q in Go >= 1.16 because the generated Makefile is missing the '-mod-mod' flag and it is needed in Go >= 1.16", dir)
-						}
-					}
-				}
-
 				for _, isGoProject := range []bool{false, true} {
 					t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 						t.Run("Via bingo get all", func(t *testing.T) {
@@ -847,6 +829,17 @@ func TestGet(t *testing.T) {
 							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
 						t.Run("Via go", func(t *testing.T) {
+							if !goVersion.LessThan(version.Go116) {
+								// These projects are configured with modules but the generated Makefiles do not contain the
+								// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
+								// Let's run bingo get to simulate
+								for _, v := range []string{"v0_1_1", "v0_2_0", "v0_2_1", "v0_2_2"} {
+									if strings.HasSuffix(dir, v) {
+										t.Skipf("skipping %q in Go >= 1.16 because the generated Makefile is missing the '-mod-mod' flag and it is needed in Go >= 1.16", dir)
+									}
+								}
+							}
+
 							g.Clear(t)
 
 							// Copy testproject at the beginning to temp dir.
@@ -859,15 +852,6 @@ func TestGet(t *testing.T) {
 
 							// Get all binaries by doing native go build.
 							if isGoProject {
-								// In Go 1.16, we need to explicitly call 'go mod download' to get the go.sum file created: Eagerly call them before go build.
-								if !goVersion.LessThan(version.Go116) {
-									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
-									goModDownload(t, p.root, filepath.Join(defaultModDir, "faillint.mod"))
-									goModDownload(t, p.root, filepath.Join(defaultModDir, "wr_buildable.mod"))
-									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
-									goModDownload(t, p.root, filepath.Join(defaultModDir, "buildable.mod"))
-								}
-
 								// This should work without cd even.
 								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
@@ -882,15 +866,6 @@ func TestGet(t *testing.T) {
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							} else {
-								// In Go 1.16, we need to explicitly call 'go mod download' to get the go.sum file created: Eagerly call them before go build.
-								if !goVersion.LessThan(version.Go116) {
-									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
-									goModDownload(t, filepath.Join(p.root, defaultModDir), "faillint.mod")
-									goModDownload(t, filepath.Join(p.root, defaultModDir), "wr_buildable.mod")
-									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
-									goModDownload(t, filepath.Join(p.root, defaultModDir), "buildable.mod")
-								}
-
 								// For no go projects we have this "bug" that requires go.mod to be present.
 								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=buildable.mod",
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
