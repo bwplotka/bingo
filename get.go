@@ -19,13 +19,18 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
-var goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
+var (
+	goModVersionRegexp     = regexp.MustCompile("^v[0-9]*$")
+	cachedVersionRegexp    = regexp.MustCompile("@([^/]+)")
+	abortWalkOnModuleFound = errors.New("aborting cache walk. Module found")
+)
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
 	if rawTarget == "" {
@@ -355,8 +360,9 @@ func resolvePackage(
 	target *bingo.Package,
 ) (err error) {
 	// Do initial go get -d and remember output.
-	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
-	// being commit sha as well. If nothing else will succeed, we will rely on error to find the target version.
+	// NOTE: We have to use get -d to resolve version as this is the only one (apart from go install) that understand
+	// the `pkg@version` notation with version being commit sha as well. If nothing else will succeed, we will rely on
+	// local go module cache that is left after go get operation.
 	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
@@ -391,7 +397,7 @@ func resolvePackage(
 				}
 			}
 
-			// In this case rely on output parsing.
+			// In this case it is not successful from our perspective.
 			gerr = errors.New(out)
 		}
 	}
@@ -402,9 +408,14 @@ func resolvePackage(
 
 	// TODO(bwplotka) Obviously hacky but reliable so far.
 	// Try to match strings announcing what version was found (if we got to this stage).
-	downloadingRe := fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Path())
+	downloadingRe := fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Module.Path)
 	upgradeRe := `go: (\S*) upgrade => (\S*)`
-	foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
+	foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Module.Path)
+	if runnable.GoVersion().LessThan(version.Go116) {
+		// In the past relative path was included in output.
+		downloadingRe = fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Path())
+		foundVersionRe = fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
+	}
 
 	re, err := regexp.Compile(downloadingRe)
 	if err != nil {
@@ -424,12 +435,6 @@ func resolvePackage(
 	if len(groups) == 0 || len(groups[0]) < 3 {
 		if verbose {
 			logger.Println("tricky: Error output does not contain hints; looking in local module cache")
-		}
-		if findInGoModCache(target) {
-			if verbose {
-				logger.Println("tricky: Found in cache! Module:", target.Module.Path, "Version:", target.Module.Version, "Together:", target)
-			}
-			return nil
 		}
 
 		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v): %v", strings.Join([]string{
@@ -706,51 +711,4 @@ func removeAllGlob(glob string) error {
 		}
 	}
 	return nil
-}
-
-
-var cachedVersionRegexp = regexp.MustCompile("@([^/]+)")
-
-var abortWalkOnModuleFound = errors.New("aborting cache walk. Module found")
-
-// findInGoModCache will try to find a referenced module in the Go modules cache.
-func findInGoModCache(target *bingo.Package) bool {
-	gomodcache := gomodcache()
-	modToFind := target.String()
-
-
-	err := filepath.Walk(gomodcache, func(path string, info os.FileInfo, err error) error {
-		// Ignore files. We're just looking for a module, which must be a directory
-		if !info.IsDir() {
-			return nil
-		}
-
-		// Get the name of the folder relative to the go mod cache
-		rel, err := filepath.Rel(gomodcache, path)
-		if err != nil {
-			return err
-		}
-
-		// Remove any go mod version from the folder name so we can compare it with the name of
-		// the module we're looking for
-		withoutVersion := cachedVersionRegexp.ReplaceAllString(rel, "")
-
-		// If the module we're looking for is the same, or a subdirectory of the module, check if we have
-		// a version match. This way we can find modules that are specified as subfolders of modules such as:
-		//     github.com/thanos-io/thanos@v0.13.1-0.20210108102609-f85e4003ba51/cmd/thanos
-		// This check also discards root folders such as `github.com` and continues processing
-		if strings.HasPrefix(modToFind, withoutVersion) {
-			groups := cachedVersionRegexp.FindAllStringSubmatch(rel, 1)
-			if len(groups) > 0 {
-				target.Module.Path = withoutVersion
-				target.Module.Version = groups[0][1] // Version without the leading '@'
-				target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
-				return abortWalkOnModuleFound // Eagerly terminate the `Walk` function to skip the rest of pending directories
-			}
-		}
-
-		return nil
-	})
-
-	return err == abortWalkOnModuleFound
 }
