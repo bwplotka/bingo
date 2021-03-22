@@ -27,9 +27,7 @@ import (
 )
 
 var (
-	goModVersionRegexp     = regexp.MustCompile("^v[0-9]*$")
-	cachedVersionRegexp    = regexp.MustCompile("@([^/]+)")
-	abortWalkOnModuleFound = errors.New("aborting cache walk. Module found")
+	goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
 )
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
@@ -362,7 +360,7 @@ func resolvePackage(
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version as this is the only one (apart from go install) that understand
 	// the `pkg@version` notation with version being commit sha as well. If nothing else will succeed, we will rely on
-	// local go module cache that is left after go get operation.
+	// error to find the target version.
 	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
@@ -588,14 +586,6 @@ func gobin() string {
 		binPath = filepath.Join(gpath, "bin")
 	}
 	return binPath
-}
-
-func gomodcache() string {
-	cachepath := os.Getenv("GOMODCACHE")
-	if gpath := os.Getenv("GOPATH"); gpath != "" && cachepath == "" {
-		cachepath = filepath.Join(gpath, "pkg/mod")
-	}
-	return cachepath
 }
 
 func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Package) (err error) {
