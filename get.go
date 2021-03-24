@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -358,7 +359,8 @@ func resolvePackage(
 ) (err error) {
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version and tell us what is the module and what package.
-	// If nothing else will succeed, we will rely on error to find the target version.
+	// If go get will not succeed, or will not update go mod, we will try manual lookup.
+	// This is required to support modules depending on broken modules (and using exclude/replace statements).
 	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
@@ -398,60 +400,103 @@ func resolvePackage(
 		}
 	}
 
-	if verbose {
-		logger.Println("tricky: Matching go get error output:", gerr.Error())
+	// We fallback only if go-get failed which happens when it does not know what version to choose.
+	// In this case
+	if err := resolveInGoModCache(update, target); err != nil {
+		return errors.Wrapf(err, "fallback to local go mod cache resolution failed after go get failure: %v", gerr)
 	}
-
-	// TODO(bwplotka) Obviously hacky but reliable so far.
-	// Try to match strings announcing what version was found (if we got to this stage).
-	var (
-		attempted  []string
-		modulePath = target.Path()
-		re         *regexp.Regexp
-	)
-
-	attempted = append(attempted, fmt.Sprintf(`go: found %v in (\S*) (\S*)`, modulePath))
-	re, err = regexp.Compile(attempted[len(attempted)-1])
-	if err != nil {
-		return errors.Wrapf(err, "regexp compile %v", attempted[len(attempted)-1])
-	}
-	if !re.MatchString(gerr.Error()) {
-		// Since we don't know which part of full path is package, which part is module, start from longest and go until we find one.
-		for i := len(strings.Split(target.Path(), "/")); i > 3; i-- {
-			modulePath = filepath.Dir(modulePath)
-
-			attempted = append(attempted, fmt.Sprintf(`go: downloading (%v) (\S*)`, modulePath))
-			re, err = regexp.Compile(attempted[len(attempted)-1])
-			if err != nil {
-				return errors.Wrapf(err, "regexp compile %v", attempted[len(attempted)-1])
-			}
-			if re.MatchString(gerr.Error()) {
-				break
-			}
-		}
-		if !re.MatchString(gerr.Error()) {
-			attempted = append(attempted, `go: (\S*) upgrade => (\S*)`)
-			re = regexp.MustCompile(attempted[len(attempted)-1])
-		}
-	}
-
-	groups := re.FindAllStringSubmatch(gerr.Error(), 1)
-	if len(groups) == 0 || len(groups[0]) < 3 {
-		if verbose {
-			logger.Println("tricky: Error output does not contain hints; looking in local module cache")
-		}
-
-		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v): %v", strings.Join(attempted, ","), gerr.Error())
-	}
-
-	target.Module.Path = groups[0][1]
-	target.Module.Version = groups[0][2]
-	target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
-	if verbose {
-		logger.Println("tricky: Matched", re.String(), "Module:", target.Module.Path, "Version:", target.Module.Version, "Together:", target)
-	}
-
 	return nil
+}
+
+func gomodcache() string {
+	cachepath := os.Getenv("GOMODCACHE")
+	if gpath := os.Getenv("GOPATH"); gpath != "" && cachepath == "" {
+		cachepath = filepath.Join(gpath, "pkg/mod")
+	}
+	return cachepath
+}
+
+func latestModVersion(listFile string) (_ string, err error) {
+	f, err := os.Open(listFile)
+	if err != nil {
+		return "", err
+	}
+	defer errcapture.Do(&err, f.Close, "list file close")
+
+	scanner := bufio.NewScanner(f)
+	if !scanner.Scan() {
+		return "", errors.New("empty file")
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return scanner.Text(), nil
+}
+
+// resolveInGoModCache will try to find a referenced module in the Go modules cache.
+func resolveInGoModCache(update runner.GetUpdatePolicy, target *bingo.Package) error {
+	modMetaCache := filepath.Join(gomodcache(), "cache/download")
+	modulePath := target.Path()
+
+	// Since we don't know which part of full path is package, which part is module.
+	// Start from longest and go until we find one.
+	for ; len(strings.Split(modulePath, "/")) > 3; modulePath = filepath.Dir(modulePath) {
+		modMetaDir := filepath.Join(modMetaCache, modulePath, "@v")
+		if _, err := os.Stat(modMetaDir); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+
+		// There are 2 major cases:
+		// 1. We have -u flag or version is not pinned: find latest module having this package.
+		if update != runner.NoUpdatePolicy || target.Module.Version == "" {
+			latest, err := latestModVersion(filepath.Join(modMetaDir, "list"))
+			if err != nil {
+				return errors.Wrapf(err, "get latest version from %v", filepath.Join(modMetaDir, "list"))
+			}
+
+			target.Module.Path = modulePath
+			target.Module.Version = latest
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+			return nil
+		}
+
+		// 2. We don't have update flag and have version pinned: find exact version then.
+		// Look for .info files that have exact version or sha.
+		if strings.HasPrefix(target.Module.Version, "v") {
+			if _, err := os.Stat(target.Module.Version + ".info"); err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return err
+			}
+			target.Module.Path = modulePath
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+			return nil
+		}
+
+		// We have commit sha.
+		files, err := ioutil.ReadDir(modMetaDir)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(f.Name(), fmt.Sprintf("%v.info", target.Module.Version[:12])) {
+				target.Module.Path = modulePath
+				fmt.Println(f.Name())
+				target.Module.Version = strings.TrimSuffix(f.Name(), ".info")
+				target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+				return nil
+			}
+		}
+	}
+	return errors.Errorf("no module was cached matching given package %v", target.Path())
 }
 
 // getPackage takes package array index, tool name and package path (also module path and version which are optional) and
