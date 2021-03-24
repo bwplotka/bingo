@@ -402,7 +402,7 @@ func resolvePackage(
 
 	// We fallback only if go-get failed which happens when it does not know what version to choose.
 	// In this case
-	if err := resolveInGoModCache(update, target); err != nil {
+	if err := resolveInGoModCache(logger, verbose, update, target); err != nil {
 		return errors.Wrapf(err, "fallback to local go mod cache resolution failed after go get failure: %v", gerr)
 	}
 	return nil
@@ -434,19 +434,25 @@ func latestModVersion(listFile string) (_ string, err error) {
 }
 
 // resolveInGoModCache will try to find a referenced module in the Go modules cache.
-func resolveInGoModCache(update runner.GetUpdatePolicy, target *bingo.Package) error {
+func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpdatePolicy, target *bingo.Package) error {
 	modMetaCache := filepath.Join(gomodcache(), "cache/download")
 	modulePath := target.Path()
 
 	// Since we don't know which part of full path is package, which part is module.
 	// Start from longest and go until we find one.
-	for ; len(strings.Split(modulePath, "/")) > 3; modulePath = filepath.Dir(modulePath) {
+	for ; len(strings.Split(modulePath, "/")) > 2; modulePath = filepath.Dir(modulePath) {
 		modMetaDir := filepath.Join(modMetaCache, modulePath, "@v")
 		if _, err := os.Stat(modMetaDir); err != nil {
 			if os.IsNotExist(err) {
+				if verbose {
+					logger.Println("resolveInGoModCache:", modMetaDir, "directory does not exists")
+				}
 				continue
 			}
 			return err
+		}
+		if verbose {
+			logger.Println("resolveInGoModCache: Found", modMetaDir, "directory")
 		}
 
 		// There are 2 major cases:
@@ -466,8 +472,12 @@ func resolveInGoModCache(update runner.GetUpdatePolicy, target *bingo.Package) e
 		// 2. We don't have update flag and have version pinned: find exact version then.
 		// Look for .info files that have exact version or sha.
 		if strings.HasPrefix(target.Module.Version, "v") {
-			if _, err := os.Stat(target.Module.Version + ".info"); err != nil {
+			if _, err := os.Stat(filepath.Join(modMetaDir, target.Module.Version+".info")); err != nil {
 				if os.IsNotExist(err) {
+					if verbose {
+						logger.Println("resolveInGoModCache:", filepath.Join(modMetaDir, target.Module.Version+".info"),
+							"file not exists. Looking for different module")
+					}
 					continue
 				}
 				return err
@@ -489,11 +499,15 @@ func resolveInGoModCache(update runner.GetUpdatePolicy, target *bingo.Package) e
 			}
 			if strings.HasSuffix(f.Name(), fmt.Sprintf("%v.info", target.Module.Version[:12])) {
 				target.Module.Path = modulePath
-				fmt.Println(f.Name())
 				target.Module.Version = strings.TrimSuffix(f.Name(), ".info")
 				target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
 				return nil
 			}
+		}
+
+		if verbose {
+			logger.Println("resolveInGoModCache: .info file for sha", target.Module.Version[:12],
+				"does not exists. Looking for different module")
 		}
 	}
 	return errors.Errorf("no module was cached matching given package %v", target.Path())
