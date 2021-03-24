@@ -833,17 +833,6 @@ func TestGet(t *testing.T) {
 							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
 						t.Run("Via go", func(t *testing.T) {
-							if !goVersion.LessThan(version.Go116) {
-								// These projects are configured with modules but the generated Makefiles do not contain the
-								// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
-								// Let's run bingo get to simulate
-								for _, v := range []string{"v0_1_1", "v0_2_0", "v0_2_1", "v0_2_2"} {
-									if strings.HasSuffix(dir, v) {
-										t.Skipf("skipping %q in Go >= 1.16 because the generated Makefile is missing the '-mod-mod' flag and it is needed in Go >= 1.16", dir)
-									}
-								}
-							}
-
 							g.Clear(t)
 
 							// Copy testproject at the beginning to temp dir.
@@ -857,29 +846,29 @@ func TestGet(t *testing.T) {
 							// Get all binaries by doing native go build.
 							if isGoProject {
 								// This should work without cd even.
-								_, err := execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
+								_, err := execCmd(p.root, nil, "go", "build", "-mod=mod", "-modfile="+filepath.Join(defaultModDir, "buildable.mod"),
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
 
-								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"),
+								_, err = execCmd(p.root, nil, "go", "build", "-mod=mod", "-modfile="+filepath.Join(defaultModDir, "faillint.mod"),
 									"-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 								testutil.Ok(t, err)
-								_, err = execCmd(p.root, nil, "go", "build", "-modfile="+filepath.Join(defaultModDir, "wr_buildable.mod"),
+								_, err = execCmd(p.root, nil, "go", "build", "-mod=mod", "-modfile="+filepath.Join(defaultModDir, "wr_buildable.mod"),
 									"-o="+filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"), "github.com/bwplotka/bingo/testdata/module_with_replace/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
 							} else {
 								// For no go projects we have this "bug" that requires go.mod to be present.
-								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=buildable.mod",
+								_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-mod=mod", "-modfile=buildable.mod",
 									"-o="+filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d"), "github.com/bwplotka/bingo/testdata/module/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
 
-								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=faillint.mod",
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-mod=mod", "-modfile=faillint.mod",
 									"-o="+filepath.Join(g.gobin, "faillint-v1.3.0"), "github.com/fatih/faillint")
 								testutil.Ok(t, err)
-								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-modfile=wr_buildable.mod",
+								_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-mod=mod", "-modfile=wr_buildable.mod",
 									"-o="+filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"), "github.com/bwplotka/bingo/testdata/module_with_replace/buildable")
 								testutil.Ok(t, err)
 								testutil.Equals(t, "module_with_replace.buildable 2.7\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a")))
