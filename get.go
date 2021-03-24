@@ -424,13 +424,17 @@ func latestModVersion(listFile string) (_ string, err error) {
 	defer errcapture.Do(&err, f.Close, "list file close")
 
 	scanner := bufio.NewScanner(f)
-	if !scanner.Scan() {
-		return "", errors.New("empty file")
+	var lastVersion string
+	for scanner.Scan() {
+		lastVersion = scanner.Text()
 	}
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
-	return scanner.Text(), nil
+	if lastVersion == "" {
+		return "", errors.New("empty file")
+	}
+	return lastVersion, nil
 }
 
 // resolveInGoModCache will try to find a referenced module in the Go modules cache.
