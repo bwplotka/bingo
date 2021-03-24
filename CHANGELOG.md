@@ -8,6 +8,12 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
+## (Under development)
+
+## [v0.4.0](https://github.com/bwplotka/bingo/releases/tag/v0.4.0) - 2021.03.24
+
+* Added support for Go 1.16, following the changes it introduces in the module system: https://blog.golang.org/go116-module-changes
+
 ## [v0.3.1](https://github.com/bwplotka/bingo/releases/tag/v0.3.1) - 2021.02.02
 
 ### Fixed

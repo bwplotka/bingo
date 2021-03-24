@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -25,7 +26,9 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
+var (
+	goModVersionRegexp = regexp.MustCompile("^v[0-9]*$")
+)
 
 func parseTarget(rawTarget string) (name string, pkgPath string, versions []string, err error) {
 	if rawTarget == "" {
@@ -355,8 +358,9 @@ func resolvePackage(
 	target *bingo.Package,
 ) (err error) {
 	// Do initial go get -d and remember output.
-	// NOTE: We have to use get -d to resolve version as this is the only one that understand the magic `pkg@version` notation with version
-	// being commit sha as well. If nothing else will succeed, we will rely on error to find the target version.
+	// NOTE: We have to use get -d to resolve version and tell us what is the module and what package.
+	// If go get will not succeed, or will not update go mod, we will try manual lookup.
+	// This is required to support modules depending on broken modules (and using exclude/replace statements).
 	out, gerr := runnable.GetD(update, target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
@@ -391,51 +395,126 @@ func resolvePackage(
 				}
 			}
 
-			// In this case rely on output parsing.
+			// In this case it is not successful from our perspective.
 			gerr = errors.New(out)
 		}
 	}
 
-	if verbose {
-		logger.Println("tricky: Matching go get error output:", gerr.Error())
-	}
-
-	// TODO(bwplotka) Obviously hacky but reliable so far.
-	// Try to match strings announcing what version was found (if we got to this stage).
-	downloadingRe := fmt.Sprintf(`go: downloading (%v) (\S*)`, target.Path())
-	upgradeRe := `go: (\S*) upgrade => (\S*)`
-	foundVersionRe := fmt.Sprintf(`go: found %v in (\S*) (\S*)`, target.Path())
-
-	re, err := regexp.Compile(downloadingRe)
-	if err != nil {
-		return errors.Wrapf(err, "regexp compile %v", downloadingRe)
-	}
-	if !re.MatchString(gerr.Error()) {
-		re = regexp.MustCompile(upgradeRe)
-		if !re.MatchString(gerr.Error()) {
-			re, err = regexp.Compile(foundVersionRe)
-			if err != nil {
-				return errors.Wrapf(err, "regexp compile %v", foundVersionRe)
-			}
-		}
-	}
-
-	groups := re.FindAllStringSubmatch(gerr.Error(), 1)
-	if len(groups) == 0 || len(groups[0]) < 3 {
-		return errors.Errorf("go get did not found the package (or none of our regexps matches: %v)", strings.Join([]string{
-			downloadingRe,
-			upgradeRe,
-			foundVersionRe,
-		}, ","))
-	}
-
-	target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, groups[0][1]), "/")
-	target.Module.Path = groups[0][1]
-	target.Module.Version = groups[0][2]
-	if verbose {
-		logger.Println("tricky: Matched", re.String(), "Module:", groups[0][1], "Version:", groups[0][2], "Together:", target)
+	// We fallback only if go-get failed which happens when it does not know what version to choose.
+	// In this case
+	if err := resolveInGoModCache(logger, verbose, update, target); err != nil {
+		return errors.Wrapf(err, "fallback to local go mod cache resolution failed after go get failure: %v", gerr)
 	}
 	return nil
+}
+
+func gomodcache() string {
+	cachepath := os.Getenv("GOMODCACHE")
+	if gpath := os.Getenv("GOPATH"); gpath != "" && cachepath == "" {
+		cachepath = filepath.Join(gpath, "pkg/mod")
+	}
+	return cachepath
+}
+
+func latestModVersion(listFile string) (_ string, err error) {
+	f, err := os.Open(listFile)
+	if err != nil {
+		return "", err
+	}
+	defer errcapture.Do(&err, f.Close, "list file close")
+
+	scanner := bufio.NewScanner(f)
+	var lastVersion string
+	for scanner.Scan() {
+		lastVersion = scanner.Text()
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	if lastVersion == "" {
+		return "", errors.New("empty file")
+	}
+	return lastVersion, nil
+}
+
+// resolveInGoModCache will try to find a referenced module in the Go modules cache.
+func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpdatePolicy, target *bingo.Package) error {
+	modMetaCache := filepath.Join(gomodcache(), "cache/download")
+	modulePath := target.Path()
+
+	// Since we don't know which part of full path is package, which part is module.
+	// Start from longest and go until we find one.
+	for ; len(strings.Split(modulePath, "/")) > 2; modulePath = filepath.Dir(modulePath) {
+		modMetaDir := filepath.Join(modMetaCache, modulePath, "@v")
+		if _, err := os.Stat(modMetaDir); err != nil {
+			if os.IsNotExist(err) {
+				if verbose {
+					logger.Println("resolveInGoModCache:", modMetaDir, "directory does not exists")
+				}
+				continue
+			}
+			return err
+		}
+		if verbose {
+			logger.Println("resolveInGoModCache: Found", modMetaDir, "directory")
+		}
+
+		// There are 2 major cases:
+		// 1. We have -u flag or version is not pinned: find latest module having this package.
+		if update != runner.NoUpdatePolicy || target.Module.Version == "" {
+			latest, err := latestModVersion(filepath.Join(modMetaDir, "list"))
+			if err != nil {
+				return errors.Wrapf(err, "get latest version from %v", filepath.Join(modMetaDir, "list"))
+			}
+
+			target.Module.Path = modulePath
+			target.Module.Version = latest
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+			return nil
+		}
+
+		// 2. We don't have update flag and have version pinned: find exact version then.
+		// Look for .info files that have exact version or sha.
+		if strings.HasPrefix(target.Module.Version, "v") {
+			if _, err := os.Stat(filepath.Join(modMetaDir, target.Module.Version+".info")); err != nil {
+				if os.IsNotExist(err) {
+					if verbose {
+						logger.Println("resolveInGoModCache:", filepath.Join(modMetaDir, target.Module.Version+".info"),
+							"file not exists. Looking for different module")
+					}
+					continue
+				}
+				return err
+			}
+			target.Module.Path = modulePath
+			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+			return nil
+		}
+
+		// We have commit sha.
+		files, err := ioutil.ReadDir(modMetaDir)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(f.Name(), fmt.Sprintf("%v.info", target.Module.Version[:12])) {
+				target.Module.Path = modulePath
+				target.Module.Version = strings.TrimSuffix(f.Name(), ".info")
+				target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
+				return nil
+			}
+		}
+
+		if verbose {
+			logger.Println("resolveInGoModCache: .info file for sha", target.Module.Version[:12],
+				"does not exists. Looking for different module")
+		}
+	}
+	return errors.Errorf("no module was cached matching given package %v", target.Path())
 }
 
 // getPackage takes package array index, tool name and package path (also module path and version which are optional) and
@@ -580,9 +659,11 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 		return errors.Wrap(err, pkg.String())
 	}
 
-	// Check if path is pointing to non-buildable package. Fail it is non-buildable. Hacky!
-	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-f={{.Name}}", pkg.Path()); err != nil {
-		return err
+	// Two purposes of doing list with mod=mod:
+	// * Check if path is pointing to non-buildable package.
+	// * Rebuild go.sum and go.mod (tidy) which is required to build with -mod=readonly (default) to work.
+	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-mod=mod", "-f={{.Name}}", pkg.Path()); err != nil {
+		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
@@ -603,7 +684,7 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 		return errors.Wrap(err, "rm")
 	}
 	if err := os.Symlink(binPath, filepath.Join(gobin, name)); err != nil {
-		return errors.Wrap(err, "build")
+		return errors.Wrap(err, "symlink")
 	}
 	return nil
 }
