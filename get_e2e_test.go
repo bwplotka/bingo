@@ -888,6 +888,17 @@ func TestGet(t *testing.T) {
 						})
 						// TODO(bwplotka): Test variables.env as well.
 						t.Run("Makefile", func(t *testing.T) {
+							if !goVersion.LessThan(version.Go116) {
+								// These projects are configured with modules but the generated Makefiles do not contain the
+								// `-mod=mod` argument, and that makes those Makefiles incompatible with Go modules in 1.16.
+								// Let's run bingo get to simulate
+								for _, v := range []string{"v0_1_1", "v0_2_0", "v0_2_1", "v0_2_2"} {
+									if strings.HasSuffix(dir, v) {
+										t.Skipf("skipping %q in Go >= 1.16 because the generated Makefile is missing the '-mod-mod' flag and it is needed in Go >= 1.16", dir)
+									}
+								}
+							}
+
 							// Make is one of test requirement.
 							makePath := makePath(t)
 
@@ -946,11 +957,6 @@ func TestGet(t *testing.T) {
 			})
 		}
 	})
-}
-
-func goModDownload(t *testing.T, root string, modFile string) {
-	_, err := execCmd(root, nil, "go", "mod", "download", "-modfile="+modFile)
-	testutil.Ok(t, err)
 }
 
 type row struct {
