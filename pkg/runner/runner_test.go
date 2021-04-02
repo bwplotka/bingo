@@ -20,6 +20,7 @@ func TestParseAndIsSupportedVersion(t *testing.T) {
 		{output: "go version go1.1 linux/amd64", errs: errors.New("found unsupported go version: 1.1.0; requires go 1.14.x or higher")},
 		{output: "go version go1 linux/amd64", errs: errors.New("found unsupported go version: 1.0.0; requires go 1.14.x or higher")},
 		{output: "go version go1.1.2 linux/amd64", errs: errors.New("found unsupported go version: 1.1.2; requires go 1.14.x or higher")},
+		{output: "go version go1.12rc1 linux/amd64", errs: errors.New("found unsupported go version: 1.12.0; requires go 1.14.x or higher")},
 		{output: "go version go1.12 linux/amd64", errs: errors.New("found unsupported go version: 1.12.0; requires go 1.14.x or higher")},
 		{output: "go version go1.13 linux/amd64", errs: errors.New("found unsupported go version: 1.13.0; requires go 1.14.x or higher")},
 		{output: "go version go1.13.2 linux/amd64", errs: errors.New("found unsupported go version: 1.13.2; requires go 1.14.x or higher")},
@@ -27,6 +28,8 @@ func TestParseAndIsSupportedVersion(t *testing.T) {
 		{output: "go version go1.14.2 linux/amd64"},
 		{output: "go version go1.15 linux/amd64"},
 		{output: "go version go1.15.44 linux/amd64"},
+		{output: "go version go1.16beta1 linux/amd64"},
+		{output: "go version go1.16rc1 linux/amd64"},
 		{output: "go version go2 linux/amd64"},
 		{output: "go version go2.1 linux/amd64"},
 	} {

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -30,16 +31,20 @@ type Runner struct {
 	logger *log.Logger
 }
 
+var versionRegexp = regexp.MustCompile(`go?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
+
+// parseGoVersion ignores pre-release identifiers immediately following the
+// patch version since we don't expect goVersionOutput to be SemVer-compliant.
 func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
 	el := strings.Fields(strings.TrimRight(goVersionOutput, "\n"))
 	if len(el) < 2 {
 		return nil, errors.Errorf("unexpected go version output; expected 'go version go<semver> ...; found %v", strings.TrimRight(goVersionOutput, "\n"))
 	}
-	goVersion, err := semver.NewVersion(strings.TrimPrefix(el[2], "go"))
-	if err != nil {
-		return nil, err
+	goVersion := versionRegexp.FindString(el[2])
+	if goVersion == "" {
+		return nil, errors.New("unexpected go version format")
 	}
-	return goVersion, nil
+	return semver.NewVersion(strings.TrimPrefix(goVersion, "go"))
 }
 
 func isSupportedVersion(v *semver.Version) error {
@@ -64,7 +69,7 @@ func NewRunner(ctx context.Context, logger *log.Logger, insecure bool, goCmd str
 
 	goVersion, err := parseGoVersion(output.String())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parse go version")
 	}
 
 	r.goVersion = goVersion
