@@ -739,7 +739,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	if err := ioutil.WriteFile(
 		filepath.Join(relModDir, bingo.FakeRootModFileName),
 		[]byte("module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files."),
-		os.ModePerm,
+		0666,
 	); err != nil {
 		return err
 	}
@@ -748,12 +748,12 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	if err := ioutil.WriteFile(
 		filepath.Join(relModDir, "README.md"),
 		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir, relModDir)),
-		os.ModePerm,
+		0666,
 	); err != nil {
 		return err
 	}
 	// gitignore.
-	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), os.ModePerm)
+	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), 0666)
 }
 
 func removeAllGlob(glob string) error {
