@@ -17,19 +17,19 @@ At the end `bingo`, has following features:
 * It allows maintaining separate, hidden, nested Go modules for Go buildable packages you need **without obfuscating your own module or worrying with tool's cross dependencies**!
 * Package level versioning, which allows versioning different (or the same!) package multiple times from a single module in different versions.
 * Works also for non-Go projects. It only requires the tools to be written in Go.
-* No need to install `bingo` in order to **use** pinned tools. This avoids the `chicken & egg` problem. Only `go build` required.
-* Easy upgrade, downgrade, addition, or removal of the needed binary's version, with no risk of dependency conflicts.
-  * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by the commit.
-* Immutable binary names, which gives a reliable way for users and CIs to use the expected version of the binaries, with reinstall on-demand only if needed.
+* No need to install `bingo` in order to **use** pinned tools. This avoids the "chicken & egg" problem. You only need `go build`.
+* Easy upgrade, downgrade, addition, and removal of the needed binary's version, with no risk of dependency conflicts.
+  * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by commit ID.
+* Immutable binary names. This creates a reliable way for users and CIs to use expected version of the binaries, reinstalling on-demand only if needed.
 * Works with all buildable Go projects, including pre Go modules and complex projects with complex `replace` statements. (e.g Kuberentes)
 * Optional, automatic integration with Makefiles.
 
-You can read full a story behind `bingo` [in this blog post](https://deploy-preview-16--bwplotka.netlify.app/2020/bingo/).
+You can read full a story behind `bingo` [in this blog post](https://www.bwplotka.dev/2020/bingo/).
 
 ## Requirements
 
 * Go 1.14+
-* Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26), should be trivial!)
+* Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26))
 * All tools that you wish to "pin" have to be built in Go (they don't need to use Go modules at all).
 
 ## Installing
@@ -80,7 +80,7 @@ bingo get <tool>
 ${GOBIN}/<tool>-<version> <args>
 ```
 
-While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some "unknown" latest version.
+While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some indeterministic "latest version".
 
 > NOTE: If you use `-l` option, bingo creates symlink to <tool>. Use it with care as it's easy to have side effects by having another binary with same name e.g on CI.
 
