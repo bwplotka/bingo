@@ -32,7 +32,7 @@ $({{ $p.EnvVarName }}):{{- range $p.Versions }} $(BINGO_DIR)/{{ .ModFile }}{{- e
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 {{- range $p.Versions }}
 	@echo "(re)installing $(GOBIN)/{{ $p.Name }}-{{ .Version }}"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
+	@cd $(BINGO_DIR) && {{ range $p.BuildEnvVars }}{{ . }} {{ end }}$(GO) build {{ range $p.BuildFlags }}{{ . }} {{ end }}-mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
 {{- end }}
 {{ end}}
 `,

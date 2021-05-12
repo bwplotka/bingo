@@ -50,6 +50,7 @@ func main() {
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
 	getUpdate := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
 	getUpdatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
+
 	getInsecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
 	getLink := getFlags.Bool("l", false, "If enabled, bingo will also create soft link called <tool> that links to the current"+
 		"<tool>-<version> binary. Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.")
