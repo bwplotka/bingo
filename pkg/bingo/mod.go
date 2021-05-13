@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/efficientgo/tools/core/pkg/merrors"
@@ -46,6 +47,11 @@ type Package struct {
 	// Empty if the module is a full package path.
 	// If Module.Path is empty and RelPath specified, it means that we don't know what is a module what is the package path.
 	RelPath string
+
+	// BuildEnvs are environment variables to be used during go build process.
+	BuildEnvs envars.EnvSlice
+	// BuildFlags are flags to be used during go build process.
+	BuildFlags []string
 }
 
 // String returns a representation of the Package suitable for `go` tools and logging.
@@ -223,7 +229,7 @@ func (mf *ModFile) Reload() (err error) {
 
 		mf.directPackage = &Package{Module: r.Mod}
 		if len(r.Syntax.Suffix) > 0 {
-			mf.directPackage.RelPath = strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n")
+			mf.directPackage.RelPath, mf.directPackage.BuildEnvs, mf.directPackage.BuildFlags = parseDirectPackageMeta(strings.Trim(r.Syntax.Suffix[0].Token[3:], "\n"))
 		}
 		break
 	}
@@ -233,6 +239,27 @@ func (mf *ModFile) Reload() (err error) {
 		return mf.SetDirectRequire(*mf.directPackage)
 	}
 	return nil
+}
+
+func parseDirectPackageMeta(line string) (relPath string, buildEnv []string, buildFlags []string) {
+	elem := strings.Split(line, " ")
+	for i, l := range elem {
+		if l == "" {
+			continue
+		}
+
+		if l[0] == '-' {
+			buildFlags = elem[i:]
+			break
+		}
+
+		if !strings.Contains(l, "=") {
+			relPath = l
+			continue
+		}
+		buildEnv = append(buildEnv, l)
+	}
+	return relPath, buildEnv, buildFlags
 }
 
 func (mf *ModFile) DirectPackage() *Package {
@@ -260,11 +287,19 @@ func (mf *ModFile) SetDirectRequire(target Package) (err error) {
 	mf.dropAllRequire()
 	mf.m.AddNewRequire(target.Module.Path, target.Module.Version, false)
 
+	var meta []string
 	// Add sub package info if needed.
 	if target.RelPath != "" && target.RelPath != "." {
-		r := mf.m.Require[0]
-		r.Syntax.Suffix = append(r.Syntax.Suffix[:0], modfile.Comment{Suffix: true, Token: "// " + target.RelPath})
+		meta = append(meta, target.RelPath)
 	}
+	meta = append(meta, target.BuildEnvs...)
+	meta = append(meta, target.BuildFlags...)
+
+	if len(meta) > 0 {
+		r := mf.m.Require[0]
+		r.Syntax.Suffix = append(r.Syntax.Suffix[:0], modfile.Comment{Suffix: true, Token: "// " + strings.Join(meta, " ")})
+	}
+
 	mf.m.Cleanup()
 	mf.directPackage = &target
 	return nil
@@ -333,7 +368,7 @@ func ModDirectPackage(modFile string) (pkg Package, err error) {
 	return *mf.directPackage, nil
 }
 
-// ModIndirectPackage return the all indirect mod from any module file.
+// ModIndirectModules return the all indirect mod from any module file.
 func ModIndirectModules(modFile string) (mods []module.Version, err error) {
 	m, err := ParseModFileOrReader(modFile, nil)
 	if err != nil {
@@ -390,6 +425,9 @@ type PackageRenderable struct {
 	PackagePath string
 	EnvVarName  string
 	Versions    []PackageVersionRenderable
+
+	BuildFlags   []string
+	BuildEnvVars []string
 }
 
 func (p PackageRenderable) ToPackages() []Package {
@@ -457,6 +495,9 @@ ModLoop:
 			Versions: []PackageVersionRenderable{
 				{Version: pkg.Module.Version, ModFile: filepath.Base(f)},
 			},
+			BuildFlags:   pkg.BuildFlags,
+			BuildEnvVars: pkg.BuildEnvs,
+
 			EnvVarName:  varName,
 			PackagePath: pkg.Path(),
 			ModPath:     pkg.Module.Path,

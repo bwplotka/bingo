@@ -10,9 +10,23 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## (Under development)
 
+## [v0.4.1](https://github.com/bwplotka/bingo/releases/tag/v0.4.1) - 2021.05.12
+
+### Added
+
+* Added support for build flags and envs via go.mod file.
+  
+### Fixed
+
+* Generated files have limited permission.
+* Support for Go pre-released versions. 
+
+
 ## [v0.4.0](https://github.com/bwplotka/bingo/releases/tag/v0.4.0) - 2021.03.24
 
-* Added support for Go 1.16, following the changes it introduces in the module system: https://blog.golang.org/go116-module-changes
+### Added
+
+* Added support for Go 1.16, following the changes it introduces in the module system: https://blog.golang.org/go116-module-changes.
 
 ## [v0.3.1](https://github.com/bwplotka/bingo/releases/tag/v0.3.1) - 2021.02.02
 

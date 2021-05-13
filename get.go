@@ -280,6 +280,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 					target.Module.Version = mf.DirectPackage().Module.Version
 				}
 				target.RelPath = mf.DirectPackage().RelPath
+				target.BuildFlags = mf.DirectPackage().BuildFlags
+				target.BuildEnvs = mf.DirectPackage().BuildEnvs
 
 				// Save for future versions without potentially existing files.
 				pkgPath = target.Path()
@@ -530,6 +532,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	if c.verbose {
 		logger.Println("getting target", target.String(), "(module", target.Module.Path, ")")
 	}
+
 	// The out module file we generate/maintain keep in modDir.
 	outModFile := filepath.Join(c.modDir, name+".mod")
 	tmpEmptyModFilePath := filepath.Join(c.modDir, name+"-e.tmp.mod")
@@ -551,7 +554,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
-		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir)
+		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir, nil)
 		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, c.update, &target); err != nil {
 			return err
 		}
@@ -588,8 +591,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return err
 	}
 
-	runnable := c.runner.With(ctx, tmpModFile.FileName(), c.modDir)
-	if err := install(runnable, name, c.link, tmpModFile.DirectPackage()); err != nil {
+	if err := install(ctx, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
@@ -642,7 +644,6 @@ func autoFetchReplaceStatements(runnable runner.Runnable, target bingo.Package) 
 		return nil, errors.Wrapf(err, "parse target mod file %v", targetModFile)
 	}
 	return targetModParsed.Replace, nil
-
 }
 
 // gobin mimics the way go install finds where to install go tool.
@@ -654,7 +655,8 @@ func gobin() string {
 	return binPath
 }
 
-func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Package) (err error) {
+func install(ctx context.Context, r *runner.Runner, modDir string, name string, link bool, modFile *bingo.ModFile) (err error) {
+	pkg := modFile.DirectPackage()
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
 	}
@@ -662,7 +664,10 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 	// Two purposes of doing list with mod=mod:
 	// * Check if path is pointing to non-buildable package.
 	// * Rebuild go.sum and go.mod (tidy) which is required to build with -mod=readonly (default) to work.
-	if listOutput, err := runnable.List(runner.NoUpdatePolicy, "-mod=mod", "-f={{.Name}}", pkg.Path()); err != nil {
+	var listArgs []string
+	listArgs = append(listArgs, modFile.DirectPackage().BuildFlags...)
+	listArgs = append(listArgs, "-mod=mod", "-f={{.Name}}", pkg.Path())
+	if listOutput, err := r.With(ctx, modFile.FileName(), modDir, nil).List(runner.NoUpdatePolicy, listArgs...); err != nil {
 		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
@@ -672,7 +677,7 @@ func install(runnable runner.Runnable, name string, link bool, pkg *bingo.Packag
 
 	// go install does not define -modfile flag so so we mimic go install with go build -o instead.
 	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
-	if err := runnable.Build(pkg.Path(), binPath); err != nil {
+	if err := r.With(ctx, modFile.FileName(), modDir, pkg.BuildEnvs).Build(pkg.Path(), binPath, pkg.BuildFlags...); err != nil {
 		return errors.Wrap(err, "build versioned")
 	}
 

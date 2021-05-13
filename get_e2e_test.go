@@ -702,7 +702,7 @@ func TestGet(t *testing.T) {
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.19.0", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.19.0"},
+							{name: "thanos", binName: "thanos-v0.20.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.20.1"},
 						},
 						expectBinaries: []string{
 							"buildable",
@@ -712,7 +712,7 @@ func TestGet(t *testing.T) {
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
-							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.19.0",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.20.1",
 							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
 					},
@@ -727,7 +727,7 @@ func TestGet(t *testing.T) {
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.19.0", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.19.0"},
+							{name: "thanos", binName: "thanos-v0.20.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.20.1"},
 						},
 						expectSameBinariesAsBefore: true,
 					},

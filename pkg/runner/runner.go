@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/pkg/errors"
 )
@@ -63,7 +64,7 @@ func NewRunner(ctx context.Context, logger *log.Logger, insecure bool, goCmd str
 		logger:   logger,
 	}
 
-	if err := r.execGo(ctx, output, "", "", "version"); err != nil {
+	if err := r.execGo(ctx, output, nil, "", "", "version"); err != nil {
 		return nil, errors.Wrap(err, "exec go to detect the version")
 	}
 
@@ -92,7 +93,7 @@ var cmdsSupportingModFileArg = map[string]struct{}{
 	"build":   {},
 }
 
-func (r *Runner) execGo(ctx context.Context, output io.Writer, cd string, modFile string, args ...string) error {
+func (r *Runner) execGo(ctx context.Context, output io.Writer, e envars.EnvSlice, cd string, modFile string, args ...string) error {
 	if modFile != "" {
 		for i, arg := range args {
 			if _, ok := cmdsSupportingModFileArg[arg]; ok {
@@ -105,14 +106,16 @@ func (r *Runner) execGo(ctx context.Context, output io.Writer, cd string, modFil
 			}
 		}
 	}
-	return r.exec(ctx, output, cd, r.goCmd, args...)
+	return r.exec(ctx, output, e, cd, r.goCmd, args...)
 }
 
-func (r *Runner) exec(ctx context.Context, output io.Writer, cd string, command string, args ...string) error {
+func (r *Runner) exec(ctx context.Context, output io.Writer, e envars.EnvSlice, cd string, command string, args ...string) error {
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = filepath.Join(cmd.Dir, cd)
 	// TODO(bwplotka): Might be surprising, let's return err when this env variable is altered.
-	cmd.Env = append(os.Environ(), "GO111MODULE=on")
+	e = envars.MergeEnvSlices(os.Environ(), e...)
+	e.Set("GO111MODULE=on")
+	cmd.Env = e
 	cmd.Stdout = output
 	cmd.Stderr = output
 	if err := cmd.Run(); err != nil {
@@ -134,7 +137,7 @@ type Runnable interface {
 	GoVersion() *semver.Version
 	List(update GetUpdatePolicy, args ...string) (string, error)
 	GetD(update GetUpdatePolicy, packages ...string) (string, error)
-	Build(pkg, out string) error
+	Build(pkg, out string, args ...string) error
 	GoEnv(args ...string) (string, error)
 	ModDownload() error
 }
@@ -142,27 +145,29 @@ type Runnable interface {
 type runnable struct {
 	r *Runner
 
-	ctx     context.Context
-	modFile string
-	dir     string
+	ctx          context.Context
+	modFile      string
+	dir          string
+	extraEnvVars envars.EnvSlice
 }
 
 // ModInit runs `go mod init` against separate go modules files if any.
 func (r *Runner) ModInit(ctx context.Context, cd, modFile, moduleName string) error {
 	out := &bytes.Buffer{}
-	if err := r.execGo(ctx, out, cd, modFile, append([]string{"mod", "init"}, moduleName)...); err != nil {
+	if err := r.execGo(ctx, out, nil, cd, modFile, append([]string{"mod", "init"}, moduleName)...); err != nil {
 		return errors.Wrap(err, out.String())
 	}
 	return nil
 }
 
-// With returns runner that will be ran against give modFile (if any) and in given directory (if any).
-func (r *Runner) With(ctx context.Context, modFile string, dir string) Runnable {
+// With returns runner that will be ran against give modFile (if any), in given directory (if any), with given extraEnvVars on top of Environ.
+func (r *Runner) With(ctx context.Context, modFile string, dir string, extraEnvVars envars.EnvSlice) Runnable {
 	ru := &runnable{
-		r:       r,
-		modFile: modFile,
-		dir:     dir,
-		ctx:     ctx,
+		r:            r,
+		modFile:      modFile,
+		dir:          dir,
+		extraEnvVars: extraEnvVars,
+		ctx:          ctx,
 	}
 	return ru
 }
@@ -186,7 +191,7 @@ func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) 
 		a = append(a, string(update))
 	}
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(a, args...)...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, append(a, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
 	return strings.Trim(out.String(), "\n"), nil
@@ -195,7 +200,7 @@ func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) 
 // GoEnv runs `go env` with given args.
 func (r *runnable) GoEnv(args ...string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, "", append([]string{"env"}, args...)...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, "", append([]string{"env"}, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
 	return strings.Trim(out.String(), "\n"), nil
@@ -212,16 +217,17 @@ func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) (string, err
 	}
 
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, append(args, packages...)...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, append(args, packages...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
 	}
 	return strings.Trim(out.String(), "\n"), nil
 }
 
 // Build runs 'go build' against separate go modules file with given packages.
-func (r *runnable) Build(pkg, out string) error {
+func (r *runnable) Build(pkg, out string, args ...string) error {
+	args = append([]string{"build", "-o=" + out}, args...)
 	output := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, output, r.dir, r.modFile, append([]string{"build", "-o=" + out}, pkg)...); err != nil {
+	if err := r.r.execGo(r.ctx, output, r.extraEnvVars, r.dir, r.modFile, append(args, pkg)...); err != nil {
 		return errors.Wrap(err, output.String())
 	}
 
@@ -241,7 +247,7 @@ func (r *runnable) ModDownload() error {
 	args = append(args, fmt.Sprintf("-modfile=%s", r.modFile))
 
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.dir, r.modFile, args...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, args...); err != nil {
 		return errors.Wrap(err, out.String())
 	}
 
