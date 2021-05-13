@@ -501,7 +501,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 			if f.IsDir() {
 				continue
 			}
-			if strings.HasSuffix(f.Name(), fmt.Sprintf("%v.info", target.Module.Version[:12])) {
+			if len(target.Module.Version) > 12 && strings.HasSuffix(f.Name(), fmt.Sprintf("%v.info", target.Module.Version[:12])) {
 				target.Module.Path = modulePath
 				target.Module.Version = strings.TrimSuffix(f.Name(), ".info")
 				target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")

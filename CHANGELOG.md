@@ -10,6 +10,10 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## Unreleased
 
+### Fixed
+
+* Fixed panic when calling wrong version with short module name.
+
 ## [v0.4.2](https://github.com/bwplotka/bingo/releases/tag/v0.4.2) - 2021.05.13
 
 ### Added
