@@ -8,13 +8,24 @@ NOTE: As semantic versioning states all 0.y.z releases can contain breaking chan
 
 We use *breaking* word for marking changes that are not backward compatible (relates only to v0.y.z releases.)
 
-## (Under development)
+## Unreleased
+
+## [v0.4.2](https://github.com/bwplotka/bingo/releases/tag/v0.4.2) - 2021.05.13
+
+### Added
+
+* bingo list now lists pinned build flags and environment variables.
+
+### Fixed
+
+* Fixed preserving build flags and env files via bingo .mod files.
+* Fixed formatting of bingo list
 
 ## [v0.4.1](https://github.com/bwplotka/bingo/releases/tag/v0.4.1) - 2021.05.12
 
 ### Added
 
-* Added support for build flags and envs via go.mod file.
+* Added support for build flags and environment variables via go.mod file.
   
 ### Fixed
 

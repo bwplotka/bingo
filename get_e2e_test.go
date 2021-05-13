@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/testutil"
@@ -22,18 +23,33 @@ const (
 	defaultGoProxy = "https://proxy.golang.org"
 )
 
-var bingoExpectedCompatibilityOutput = []row{
-	{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
-	{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
-	{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-	{name: "f2", binName: "f2-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-	{name: "f2", binName: "f2-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-	{name: "f2", binName: "f2-v1.2.0", pkgVersion: "github.com/fatih/faillint@v1.2.0"},
-	{name: "f2", binName: "f2-v1.5.0", pkgVersion: "github.com/fatih/faillint@v1.5.0"},
-	{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
-	{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-	{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-}
+var (
+	bingoExpectedCompatibilityOutput = []row{
+		{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+		{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
+		{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+		{name: "f2", binName: "f2-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+		{name: "f2", binName: "f2-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+		{name: "f2", binName: "f2-v1.2.0", pkgVersion: "github.com/fatih/faillint@v1.2.0"},
+		{name: "f2", binName: "f2-v1.5.0", pkgVersion: "github.com/fatih/faillint@v1.5.0"},
+		{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0"},
+		{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+		{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
+	}
+
+	bingoExpectedCompatibilityOutput_0_4_1 = []row{
+		{name: "buildable", binName: "buildable-v0.0.0-20210109094001-375d0606849d", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109094001-375d0606849d"},
+		{name: "buildable2", binName: "buildable2-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable2@v0.0.0-20210109093942-2e6391144e85"},
+		{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+		{name: "f2", binName: "f2-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+		{name: "f2", binName: "f2-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+		{name: "f2", binName: "f2-v1.2.0", pkgVersion: "github.com/fatih/faillint@v1.2.0"},
+		{name: "f2", binName: "f2-v1.5.0", pkgVersion: "github.com/fatih/faillint@v1.5.0"},
+		{name: "faillint", binName: "faillint-v1.3.0", pkgVersion: "github.com/fatih/faillint@v1.3.0", buildEnvVars: "CGO_ENABLED=1", buildFlags: "-tags=extended"},
+		{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+		{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
+	}
+)
 
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 // $GOBIN has to be set for this test to run properly.
@@ -764,6 +780,15 @@ func TestGet(t *testing.T) {
 
 		for _, dir := range dirs {
 			t.Run(dir, func(t *testing.T) {
+				compatibilityOutput := bingoExpectedCompatibilityOutput
+
+				// Special test case. failint.mod for v0.4.1 version contains line syntax, allowing go build to add those build flags (which does nothing to failint).
+				// Yet, check if they will get preserved.
+				// TODO(bwplotka): Design test module that tests better those edge cases instead of installing different 3rdparty real modules.
+				if dir == "testdata/testproject_with_bingo_v0_4_1" {
+					compatibilityOutput = bingoExpectedCompatibilityOutput_0_4_1
+				}
+
 				for _, isGoProject := range []bool{false, true} {
 					t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 						t.Run("Via bingo get all", func(t *testing.T) {
@@ -778,7 +803,7 @@ func TestGet(t *testing.T) {
 							p.assertNotChanged(t, defaultModDir)
 
 							testutil.Equals(t, []string{}, g.existingBinaries(t))
-							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
+							expectBingoListRows(t, compatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 
 							defer p.assertNotChanged(t, defaultModDir)
 
@@ -792,7 +817,7 @@ func TestGet(t *testing.T) {
 								"faillint-v1.3.0", "go-bindata-v3.1.1+incompatible",
 								"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a",
 							}, g.existingBinaries(t))
-							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
+							expectBingoListRows(t, compatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 
 							// Expect binaries works:
 							testutil.Equals(t, "module.buildable 2.1\n", g.ExecOutput(t, p.root, filepath.Join(g.gobin, "buildable-v0.0.0-20210109094001-375d0606849d")))
@@ -830,7 +855,7 @@ func TestGet(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "f2"))
 							testutil.Equals(t, []string{"buildable-v0.0.0-20210109094001-375d0606849d", "f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.5.0", "faillint-v1.3.0", "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a"}, g.existingBinaries(t))
 
-							expectBingoListRows(t, bingoExpectedCompatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
+							expectBingoListRows(t, compatibilityOutput, g.ExecOutput(t, p.root, goBinPath, "list"))
 						})
 						t.Run("Via go", func(t *testing.T) {
 							g.Clear(t)
@@ -935,7 +960,7 @@ func TestGet(t *testing.T) {
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "wr_buildable@none"))
 								fmt.Println(g.ExecOutput(t, p.root, goBinPath, "get", "go-bindata@none"))
 
-								testutil.Equals(t, "Name\tBinary Name\tPackage @ Version\n----\t-----------\t-----------------", g.ExecOutput(t, p.root, goBinPath, "list"))
+								expectBingoListRows(t, nil, g.ExecOutput(t, p.root, goBinPath, "list"))
 
 								_, err := os.Stat(filepath.Join(p.root, ".bingo", "Variables.mk"))
 								testutil.NotOk(t, err)
@@ -949,14 +974,16 @@ func TestGet(t *testing.T) {
 }
 
 type row struct {
-	name, binName, pkgVersion string
+	name, binName, pkgVersion, buildEnvVars, buildFlags string
 }
 
 func expectBingoListRows(t testing.TB, expect []row, output string) {
 	t.Helper()
 
-	trimmed := strings.TrimLeft(output, "Name\tBinary Name\tPackage @ Version\n----\t-----------\t-----------------\n") // nolint
-	var got []row
+	var (
+		trimmed = strings.TrimLeft(output, bingo.PackageRenderablesPrintHeader)
+		got     []row
+	)
 	for _, line := range strings.Split(trimmed, "\n") {
 		s := strings.Fields(line)
 		if len(s) == 0 {
@@ -969,6 +996,12 @@ func expectBingoListRows(t testing.TB, expect []row, output string) {
 		if len(s) > 2 {
 			r.pkgVersion = s[2]
 		}
+		if len(s) > 3 {
+			r.buildEnvVars = s[3]
+		}
+		if len(s) > 4 {
+			r.buildFlags = s[4]
+		}
 		got = append(got, r)
 	}
 	testutil.Equals(t, expect, got)
@@ -976,10 +1009,23 @@ func expectBingoListRows(t testing.TB, expect []row, output string) {
 
 func TestExpectBingoListRows(t *testing.T) {
 	expectBingoListRows(t, []row{
-		{name: "f4", binName: "f4-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-		{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-		{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-		{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-		{name: "goimports", binName: "goimports-v0.0.0-20200522201501-cb1345f3a375", pkgVersion: "golang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375"},
-	}, "Name\t\t\tBinary Name\t\t\t\t\t\t\tPackage @ Version\n----\t\t\t-----------\t\t\t\t\t\t\t-----------------\nf4\t\t\tf4-v1.1.0\t\t\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.1.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.1.0\t\t\t\t\t\t\t\nfaillint\t\tfaillint-v1.0.0\t\t\t\t\t\tgithub.com/fatih/faillint@v1.0.0\t\t\t\t\t\t\t\ngo-bindata\tgo-bindata-v3.1.1+incompatible\t\t\tgithub.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible\t\ngoimports\t\tgoimports-v0.0.0-20200522201501-cb1345f3a375\tgolang.org/x/tools/cmd/goimports@v0.0.0-20200522201501-cb1345f3a375")
+		{name: "pyright", binName: "copyright-v0.0.0-20210112004814-138d5e5695fe", pkgVersion: "github.com/efficientgo/tools/copyright@v0.0.0-20210112004814-138d5e5695fe"},
+		{name: "embedmd", binName: "embedmd-v1.0.0", pkgVersion: "github.com/campoy/embedmd@v1.0.0", buildEnvVars: "CGO_ENABLED=1", buildFlags: "-tags=lol"},
+		{name: "faillint", binName: "faillint-v1.5.0", pkgVersion: "github.com/fatih/faillint@v1.5.0"},
+		{name: "goimports", binName: "goimports-v0.0.0-20210112230658-8b4aab62c064", pkgVersion: "golang.org/x/tools/cmd/goimports@v0.0.0-20210112230658-8b4aab62c064"},
+		{name: "golangci-lint", binName: "golangci-lint-v1.26.0", pkgVersion: "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.26.0"},
+		{name: "mdox", binName: "mdox-v0.2.1", pkgVersion: "github.com/bwplotka/mdox@v0.2.1"},
+		{name: "misspell", binName: "misspell-v0.3.4", pkgVersion: "github.com/client9/misspell/cmd/misspell@v0.3.4"},
+		{name: "proxy", binName: "proxy-v0.10.0", pkgVersion: "github.com/gomods/athens/cmd/proxy@v0.10.0"},
+	}, `Name		Binary Name					Package @ Version								Build EnvVars	Build Flags
+----		-----------					-----------------								-------------	-----------
+copyright	copyright-v0.0.0-20210112004814-138d5e5695fe	github.com/efficientgo/tools/copyright@v0.0.0-20210112004814-138d5e5695fe			
+embedmd		embedmd-v1.0.0					github.com/campoy/embedmd@v1.0.0						CGO_ENABLED=1	-tags=lol
+faillint	faillint-v1.5.0					github.com/fatih/faillint@v1.5.0								
+goimports	goimports-v0.0.0-20210112230658-8b4aab62c064	golang.org/x/tools/cmd/goimports@v0.0.0-20210112230658-8b4aab62c064				
+golangci-lint	golangci-lint-v1.26.0				github.com/golangci/golangci-lint/cmd/golangci-lint@v1.26.0					
+mdox		mdox-v0.2.1					github.com/bwplotka/mdox@v0.2.1									
+misspell	misspell-v0.3.4					github.com/client9/misspell/cmd/misspell@v0.3.4							
+proxy		proxy-v0.10.0					github.com/gomods/athens/cmd/proxy@v0.10.0
+`)
 }

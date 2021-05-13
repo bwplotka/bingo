@@ -5,6 +5,7 @@ package bingo
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/runner"
@@ -27,6 +29,9 @@ const (
 	FakeRootModFileName = "go.mod"
 
 	NoReplaceCommand = "bingo:no_replace_fetch"
+
+	PackageRenderablesPrintHeader = "Name\tBinary Name\tPackage @ Version\tBuild EnvVars\tBuild Flags\n" +
+		"----\t-----------\t-----------------\t-------------\t-----------\n"
 )
 
 // NameFromModFile returns binary name from module file path.
@@ -446,8 +451,41 @@ func (p PackageRenderable) ToPackages() []Package {
 	return ret
 }
 
+type PackageRenderables []PackageRenderable
+
+func (pkgs PackageRenderables) PrintTab(target string, w io.Writer) error {
+	tw := new(tabwriter.Writer)
+	tw.Init(w, 1, 8, 1, '\t', tabwriter.AlignRight)
+	defer func() { _ = tw.Flush() }()
+
+	_, _ = fmt.Fprint(tw, PackageRenderablesPrintHeader)
+	for _, p := range pkgs {
+		if target != "" && p.Name != target {
+			continue
+		}
+		for _, v := range p.Versions {
+			fields := []string{
+				p.Name,
+				p.Name + "-" + v.Version,
+				p.PackagePath + "@" + v.Version,
+				strings.Join(p.BuildEnvVars, " "),
+				strings.Join(p.BuildFlags, " "),
+			}
+			_, _ = fmt.Fprintln(tw, strings.Join(fields, "\t"))
+		}
+		if target != "" {
+			return nil
+		}
+	}
+
+	if target != "" {
+		return errors.Errorf("Pinned tool %s not found", target)
+	}
+	return nil
+}
+
 // ListPinnedMainPackages lists all bingo pinned binaries (Go main packages) in the same order as seen in the filesystem.
-func ListPinnedMainPackages(logger *log.Logger, modDir string, remMalformed bool) (pkgs []PackageRenderable, _ error) {
+func ListPinnedMainPackages(logger *log.Logger, modDir string, remMalformed bool) (pkgs PackageRenderables, _ error) {
 	modFiles, err := filepath.Glob(filepath.Join(modDir, "*.mod"))
 	if err != nil {
 		return nil, err

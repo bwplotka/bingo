@@ -280,8 +280,6 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 					target.Module.Version = mf.DirectPackage().Module.Version
 				}
 				target.RelPath = mf.DirectPackage().RelPath
-				target.BuildFlags = mf.DirectPackage().BuildFlags
-				target.BuildEnvs = mf.DirectPackage().BuildEnvs
 
 				// Save for future versions without potentially existing files.
 				pkgPath = target.Path()
@@ -583,6 +581,11 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 	}
 
+	// Currently user can't specify build flags and envvars from CLI, take if from optionally, manually updated mod file.
+	if old := tmpModFile.DirectPackage(); old != nil {
+		target.BuildEnvs = old.BuildEnvs
+		target.BuildFlags = old.BuildFlags
+	}
 	if err := tmpModFile.SetDirectRequire(target); err != nil {
 		return err
 	}
