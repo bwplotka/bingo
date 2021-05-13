@@ -219,6 +219,9 @@ go 1.16
 require github.com/gohugoio/hugo v0.83.1 // CGO_ENABLED=1 -tags=extended
 ```
 
+Run `bingo list` to see if build options are parsed correctly.
+Run `bingo get` to install all binaries including the modified one with new build flags.
+
 ## Production Usage
 
 To see production example see:

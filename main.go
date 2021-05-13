@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
@@ -197,29 +196,7 @@ func main() {
 			}
 
 			bingo.SortRenderables(pkgs)
-
-			w := new(tabwriter.Writer)
-			w.Init(os.Stdout, 4, 4, 1, '\t', 0)
-			defer func() { _ = w.Flush() }()
-
-			_, _ = fmt.Fprintf(w, "Name\tBinary Name\tPackage @ Version")
-			_, _ = fmt.Fprintf(w, "\n----\t-----------\t-----------------")
-			for _, p := range pkgs {
-				if target != "" && p.Name != target {
-					continue
-				}
-				for _, v := range p.Versions {
-					_, _ = fmt.Fprintf(w, "\n%s\t%s-%s\t%s@%s", p.Name, p.Name, v.Version, p.PackagePath, v.Version)
-				}
-				if target != "" {
-					return nil
-				}
-			}
-
-			if target != "" {
-				return errors.Errorf("Pinned tool %s not found", target)
-			}
-			return nil
+			return pkgs.PrintTab(target, os.Stdout)
 		}
 	case "version":
 		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
