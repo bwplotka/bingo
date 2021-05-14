@@ -8,23 +8,25 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"text/scanner"
 
-	"github.com/mvdan/sh/interp"
-	"github.com/mvdan/sh/syntax"
 	"github.com/pkg/errors"
+	"mvdan.cc/sh/v3/expand"
+	"mvdan.cc/sh/v3/interp"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // EvalVariables evaluates dot env file in similar way `bash source` would do and returns all environment variables available at end of the
 // execution of the script.
 // Currently it supports any bash script and can cause side effects.
-// TODO(bwplotka): Walk over syntex and allow list few syntax elements only?
+// TODO(bwplotka): Walk over syntax and allow list few syntax elements only?
 func EvalVariables(ctx context.Context, r io.Reader, envSlice ...string) (ret EnvSlice, _ error) {
 	const prefix = "[[dotenv.EvalVariables]]:"
 
-	s, err := syntax.Parse(r, "", 0)
+	s, err := syntax.NewParser().Parse(r, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "parse")
 	}
@@ -58,8 +60,12 @@ func EvalVariables(ctx context.Context, r io.Reader, envSlice ...string) (ret En
 	)
 
 	b := bytes.Buffer{}
-	ru := &interp.Runner{Context: ctx, File: s, Env: envSlice, Stderr: &b, Stdout: &b}
-	if err := ru.Run(); err != nil {
+	ru, err := interp.New(interp.StdIO(os.Stdin, &b, &b), interp.Env(expand.ListEnviron(envSlice...)))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ru.Run(ctx, s); err != nil {
 		return nil, err
 	}
 
@@ -82,6 +88,9 @@ func listVarNames(ast *syntax.File) (vars []string) {
 		syntax.Walk(s, func(node syntax.Node) bool {
 			switch n := node.(type) {
 			case *syntax.Assign:
+				if n.Name == nil {
+					return false
+				}
 				if _, ok := dup[n.Name.Value]; ok {
 					return false
 				}
