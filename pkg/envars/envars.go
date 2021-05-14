@@ -5,6 +5,8 @@ package envars
 
 import (
 	"strings"
+
+	"mvdan.cc/sh/v3/expand"
 )
 
 type EnvSlice []string
@@ -21,4 +23,24 @@ func (e EnvSlice) Lookup(k string) (string, bool) {
 
 func (e *EnvSlice) Set(kvs ...string) {
 	*e = MergeEnvSlices(*e, kvs...)
+}
+
+// Get retrieves a variable by its name. To check if the variable is
+// set, use Variable.IsSet.
+func (e *EnvSlice) Get(name string) expand.Variable {
+	return expand.ListEnviron(*e...).Get(name)
+}
+
+// Each iterates over all the currently set variables, calling the
+// supplied function on each variable. Iteration is stopped if the
+// function returns false.
+//
+// The names used in the calls aren't required to be unique or sorted.
+// If a variable name appears twice, the latest occurrence takes
+// priority.
+//
+// Each is required to forward exported variables when executing
+// programs.
+func (e *EnvSlice) Each(f func(name string, vr expand.Variable) bool) {
+	expand.ListEnviron(*e...).Each(f)
 }

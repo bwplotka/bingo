@@ -66,8 +66,7 @@ func TestEval(t *testing.T) {
 			"HOME="+os.Getenv("HOME"),
 		)
 		testutil.Ok(t, err)
-		// TODO(bwplotka): Support this assignments on decl statements.
-		testutil.Equals(t, EnvSlice{"GOBIN=/home/something/bin", "PROXY=", "X="}, e)
+		testutil.Equals(t, EnvSlice{"GOBIN=/home/something/bin", "PROXY=/home/something/bin/proxy-v0.10.0", "X=/home/something/bin/proxy-v0.12.0"}, e)
 	})
 
 }
