@@ -37,7 +37,7 @@ You can read full a story behind `bingo` [in this blog post](https://www.bwplotk
 In your repository (does not need to be a Go project)
 
 ```shell
-go get -u github.com/bwplotka/bingo
+go get github.com/bwplotka/bingo
 ```
 
 Recommended: Ideally you want to pin `bingo` tool to the single version too (inception!). Do it via:
