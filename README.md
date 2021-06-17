@@ -59,7 +59,7 @@ bingo get [<package or binary>[@version1 or none,version2,version3...]]
 After this, make sure to commit `.bingo` directory in git repository, so the tools will stay versioned! Once pinned, anyone can install correct version of the tool with correct dependencies by either doing:
 
 ```bash
-go build -modfile .bingo/<tool>.mod -o=$GOBIN/<tool>-<version>
+go build -mod=mod -modfile .bingo/<tool>.mod -o=$GOBIN/<tool>-<version>
 ```
 
 or
