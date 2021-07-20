@@ -20,9 +20,9 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/tools/core/pkg/errcapture"
 	"github.com/pkg/errors"
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
@@ -510,8 +510,11 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 		}
 
 		if verbose {
-			logger.Println("resolveInGoModCache: .info file for sha", target.Module.Version[:12],
-				"does not exists. Looking for different module")
+			ver := target.Module.Version
+			if len(ver) > 12 {
+				ver = ver[:12]
+			}
+			logger.Println("resolveInGoModCache: .info file for sha", ver, "does not exists. Looking for different module")
 		}
 	}
 	return errors.Errorf("no module was cached matching given package %v", target.Path())
@@ -543,7 +546,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 
 	// If we don't have all information or update is set, resolve version.
-	var replaceStmts []*modfile.Replace
+	var fetchedDirectives bingo.NonRequireDirectives
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
 		// Set up totally empty mod file to get clear version to install.
 		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", tmpEmptyModFilePath)
@@ -558,7 +561,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 
 		if !strings.HasSuffix(target.Module.Version, "+incompatible") {
-			replaceStmts, err = autoFetchReplaceStatements(runnable, target)
+			fetchedDirectives, err = autoFetchDirectives(runnable, target)
 			if err != nil {
 				return err
 			}
@@ -575,8 +578,8 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 	defer errcapture.Do(&err, tmpModFile.Close, "close")
 
-	if !tmpModFile.AutoReplaceDisabled() && len(replaceStmts) > 0 {
-		if err := tmpModFile.SetReplace(replaceStmts...); err != nil {
+	if !tmpModFile.IsDirectivesAutoFetchDisabled() && fetchedDirectives.NonEmpty() {
+		if err := tmpModFile.SetDirectives(fetchedDirectives); err != nil {
 			return err
 		}
 	}
@@ -622,13 +625,14 @@ func localGoModFileAfterGet(gopath string, target bingo.Package) string {
 	return filepath.Join(gopath, "pkg", "mod", b.String(), "go.mod")
 }
 
-// autoFetchReplaceStatements is reproducing replace statements to be exactly the same as the target module we want to install.
+// autoFetchDirectives is returning all non-require directives, that allows bingo to use exactly the same exclude, replace and retract statement
+// as the target module we want to install.
 // It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
-// Since we always download single tool dependency module per tool module, we can copy its replace if exists to fix this common case.
-func autoFetchReplaceStatements(runnable runner.Runnable, target bingo.Package) ([]*modfile.Replace, error) {
+// Since we always download single tool dependency module per tool module, we can copy its non-require statements if exists to fix this common case.
+func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d bingo.NonRequireDirectives, _ error) {
 	gopath, err := runnable.GoEnv("GOPATH")
 	if err != nil {
-		return nil, errors.Wrap(err, "go env")
+		return d, errors.Wrap(err, "go env")
 	}
 
 	// We leverage fact that when go get runs if downloads the version we find as relevant locally
@@ -637,16 +641,23 @@ func autoFetchReplaceStatements(runnable runner.Runnable, target bingo.Package) 
 	if _, err := os.Stat(targetModFile); err != nil {
 		if os.IsNotExist(err) {
 			// Pre module package.
-			return nil, nil
+			return d, nil
 		}
-		return nil, errors.Wrapf(err, "stat target mod directory %v", targetModFile)
+		return d, errors.Wrapf(err, "stat target mod directory %v", targetModFile)
 	}
 
 	targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parse target mod file %v", targetModFile)
+		return d, errors.Wrapf(err, "parse target mod file %v", targetModFile)
 	}
-	return targetModParsed.Replace, nil
+	d.ReplaceStmts = targetModParsed.Replace
+	d.ExcludeStmts = targetModParsed.Exclude
+	d.RetractStmts = targetModParsed.Retract
+
+	if len(d.RetractStmts) > 0 && runnable.GoVersion().LessThan(version.Go116) {
+		return d, errors.Errorf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
+	}
+	return d, nil
 }
 
 // gobin mimics the way go install finds where to install go tool.

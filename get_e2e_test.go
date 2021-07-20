@@ -6,6 +6,7 @@ package main_test
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,8 @@ var (
 // TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
 // $GOBIN has to be set for this test to run properly.
 func TestGet(t *testing.T) {
+	t.Parallel()
+
 	currTestCaseDir := fmt.Sprintf("testdata/testproject_with_bingo_%s", strings.ReplaceAll(version.Version, ".", "_"))
 
 	g := newIsolatedGoEnv(t, defaultGoProxy)
@@ -63,7 +66,7 @@ func TestGet(t *testing.T) {
 	testutil.Ok(t, err)
 	goVersion := r.GoVersion()
 
-	if ok := t.Run("empty project with advanced cases", func(t *testing.T) {
+	if ok := t.Run("empty project with sequential, advanced cases", func(t *testing.T) {
 		for _, isGoProject := range []bool{false, true} {
 			if ok := t.Run(fmt.Sprintf("isGoProject=%v", isGoProject), func(t *testing.T) {
 				g.Clear(t)
@@ -622,63 +625,8 @@ func TestGet(t *testing.T) {
 						},
 					},
 					{
-						// Regression test against https://github.com/bwplotka/bingo/issues/65.
-						name: "get tool with capital letters in name (pre modules)",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@v1.2.1"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "compiledaemon", binName: "compiledaemon-v1.2.1", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.2.1"},
-							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable",
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
-						// Regression test against https://github.com/bwplotka/bingo/issues/65.
-						name: "get tool with capital letters in name",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@87e39427f4ba26da4400abf3b26b2e58bfc9ebe6"))
-						},
-						expectRows: []row{
-							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "compiledaemon", binName: "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.3.1-0.20210706185141-87e39427f4ba"},
-							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
-							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
-							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
-							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
-						},
-						expectBinaries: []string{
-							"buildable",
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
 						name: "Remove rest of tools",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "compiledaemon@none"))
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "FaIllint@none")) // case should not matter.
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable_old@none"))
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "f3@none"))
@@ -687,64 +635,6 @@ func TestGet(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "go-bindata@none"))
 						},
 						expectRows:                 []row(nil),
-						expectSameBinariesAsBefore: true,
-					},
-					{
-						name: "Get tricky case with replace (thanos)",
-						do: func(t *testing.T) {
-							// Out test module_with_replace is easy. The build without replaces would fail.
-							// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
-						},
-						expectRows: []row{
-							{name: "thanos", binName: "thanos-v0.13.1-0.20210108102609-f85e4003ba51", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.13.1-0.20210108102609-f85e4003ba51"},
-						},
-						expectBinaries: []string{
-							"buildable",
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"thanos-v0.13.1-0.20210108102609-f85e4003ba51",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
-						name: "Use -u to upgrade thanos package",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "-u", "thanos"))
-						},
-						expectRows: []row{
-							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.21.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.21.1"},
-						},
-						expectBinaries: []string{
-							"buildable",
-							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
-							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
-							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
-							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
-							"go-bindata-v3.1.1+incompatible",
-							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.21.1",
-							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
-						},
-					},
-					{
-						name: "Use -u=patch to upgrade thanos package",
-						do: func(t *testing.T) {
-							if !goVersion.LessThan(version.Go116) {
-								// TODO(bwplotka): Fix. It's not critical feature though to block release.
-								t.Skip("From Go 1.16 behavior changed: get: can't query version \"patch\" of module github.com/thanos-io/thanos/cmd/thanos: no existing version is required")
-							}
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "--upatch", "thanos"))
-						},
-						expectRows: []row{
-							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.21.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.21.1"},
-						},
 						expectSameBinariesAsBefore: true,
 					},
 				} {
@@ -971,6 +861,97 @@ func TestGet(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TODO(bwplotka): Test running versions. To do so we might want to setup small binary printing Version at each commit.
+// $GOBIN has to be set for this test to run properly.
+func TestGetIndivCases(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "bingo-tmpgoenv")
+	testutil.Ok(t, err)
+	t.Cleanup(func() { testutil.Ok(t, os.RemoveAll(tmpDir)) })
+
+	// We manually build bingo binary to make sure GOCACHE will not hit us.
+	bingoPath := filepath.Join(tmpDir, bingoBin)
+	buildInitialGobin(t, bingoPath)
+
+	r, err := runner.NewRunner(context.Background(), nil, false, "go")
+	testutil.Ok(t, err)
+	goVersion := r.GoVersion()
+
+	for _, tcase := range []struct {
+		name string
+		do   func(t *testing.T, g *goEnv, p *testProject)
+
+		expectBinaries []string
+		expectRows     []row
+	}{
+		{
+			// Regression test against https://github.com/bwplotka/bingo/issues/65.
+			name: "get tool with capital letters in name (pre modules)",
+			do: func(t *testing.T, g *goEnv, p *testProject) {
+				fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@v1.2.1"))
+			},
+			expectRows: []row{
+				{name: "compiledaemon", binName: "compiledaemon-v1.2.1", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.2.1"},
+			},
+			expectBinaries: []string{"compiledaemon-v1.2.1"},
+		},
+		{
+			// Regression test against https://github.com/bwplotka/bingo/issues/65.
+			name: "get tool with capital letters in name",
+			do: func(t *testing.T, g *goEnv, p *testProject) {
+				fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@87e39427f4ba26da4400abf3b26b2e58bfc9ebe6"))
+			},
+			expectRows: []row{
+				{name: "compiledaemon", binName: "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.3.1-0.20210706185141-87e39427f4ba"},
+			},
+			expectBinaries: []string{"compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba"},
+		},
+		{
+			name: "Get tricky case with replace (thanos)",
+			do: func(t *testing.T, g *goEnv, p *testProject) {
+				// For Thanos/Prom/k8s etc without replace even go-get or list fails. This should be handled well.
+				fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/thanos-io/thanos/cmd/thanos@f85e4003ba51f0592e42c48fdfdf0b800a23ba74"))
+			},
+			expectRows: []row{
+				{name: "thanos", binName: "thanos-v0.13.1-0.20210108102609-f85e4003ba51", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.13.1-0.20210108102609-f85e4003ba51"},
+			},
+			expectBinaries: []string{"thanos-v0.13.1-0.20210108102609-f85e4003ba51"},
+		},
+		{
+			name: "Get tricky case with retract (ginkgo)",
+			do: func(t *testing.T, g *goEnv, p *testProject) {
+				if goVersion.LessThan(version.Go116) {
+					t.Skip("Go version below 1.16 are not understanding go modules with retract directive; skip it.")
+				}
+				fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/onsi/ginkgo/ginkgo@v1.16.4"))
+			},
+			expectRows: []row{
+				{name: "ginkgo", binName: "ginkgo-v1.16.4", pkgVersion: "github.com/onsi/ginkgo/ginkgo@v1.16.4"},
+			},
+			expectBinaries: []string{"ginkgo-v1.16.4"},
+		},
+	} {
+		tcase := tcase
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := newIsolatedGoEnv(t, defaultGoProxy)
+			defer g.Close(t)
+
+			testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+			p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+			p.assertNotChanged(t)
+
+			tcase.do(t, g, p)
+			p.assertNotChanged(t, defaultModDir)
+
+			expectBingoListRows(t, tcase.expectRows, g.ExecOutput(t, p.root, bingoPath, "list"))
+			testutil.Equals(t, tcase.expectBinaries, g.existingBinaries(t))
+		})
+	}
 }
 
 type row struct {

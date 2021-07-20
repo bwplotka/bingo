@@ -10,6 +10,16 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## Unreleased
 
+## [v0.5.0](https://github.com/bwplotka/bingo/releases/tag/v0.5.0) - 2021.07.20
+
+### Added
+
+* bingo now auto-fetches `exclude` and `retract` directives from binaries' go modules that have those.
+
+### Changed
+
+* *breaking*: Use `bingo:no_directive_fetch` to disable auto fetch logic (previously: `bingo:no_replace_fetch`)
+
 ## [v0.4.3](https://github.com/bwplotka/bingo/releases/tag/v0.4.3) - 2021.05.14
 
 ### Fixed
