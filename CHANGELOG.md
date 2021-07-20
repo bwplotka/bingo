@@ -33,12 +33,11 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 ### Added
 
 * Added support for build flags and environment variables via go.mod file.
-  
+
 ### Fixed
 
 * Generated files have limited permission.
-* Support for Go pre-released versions. 
-
+* Support for Go pre-released versions.
 
 ## [v0.4.0](https://github.com/bwplotka/bingo/releases/tag/v0.4.0) - 2021.03.24
 

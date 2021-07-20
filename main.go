@@ -1,6 +1,8 @@
 // Copyright (c) Bartłomiej Płotka @bwplotka
 // Licensed under the Apache License 2.0.
 
+//lint:file-ignore faillint main.go can use fmt.Print* family for error logging, when logger is not ready.
+
 package main
 
 import (

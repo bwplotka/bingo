@@ -652,12 +652,12 @@ func TestGet(t *testing.T) {
 						// Regression test against https://github.com/bwplotka/bingo/issues/65.
 						name: "get tool with capital letters in name",
 						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@39b144afa93c8bc1b8da4d498cd72c9927c1ce49"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/githubnemo/CompileDaemon@87e39427f4ba26da4400abf3b26b2e58bfc9ebe6"))
 						},
 						expectRows: []row{
 							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
 							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
-							{name: "compiledaemon", binName: "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.2.2-0.20201129114044-39b144afa93c"},
+							{name: "compiledaemon", binName: "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba", pkgVersion: "github.com/githubnemo/CompileDaemon@v1.3.1-0.20210706185141-87e39427f4ba"},
 							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
 							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
 							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
@@ -668,7 +668,7 @@ func TestGet(t *testing.T) {
 							"buildable",
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
+							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
@@ -703,7 +703,7 @@ func TestGet(t *testing.T) {
 							"buildable",
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
+							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
@@ -718,17 +718,17 @@ func TestGet(t *testing.T) {
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.20.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.20.1"},
+							{name: "thanos", binName: "thanos-v0.21.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.21.1"},
 						},
 						expectBinaries: []string{
 							"buildable",
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
-							"compiledaemon-v1.2.1", "compiledaemon-v1.2.2-0.20201129114044-39b144afa93c",
+							"compiledaemon-v1.2.1", "compiledaemon-v1.3.1-0.20210706185141-87e39427f4ba",
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
-							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.20.1",
+							"thanos-v0.13.1-0.20210108102609-f85e4003ba51", "thanos-v0.21.1",
 							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
 						},
 					},
@@ -743,7 +743,7 @@ func TestGet(t *testing.T) {
 						},
 						expectRows: []row{
 							// TODO(bwplotka) This will be painful to maintain, but well... improve it
-							{name: "thanos", binName: "thanos-v0.20.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.20.1"},
+							{name: "thanos", binName: "thanos-v0.21.1", pkgVersion: "github.com/thanos-io/thanos/cmd/thanos@v0.21.1"},
 						},
 						expectSameBinariesAsBefore: true,
 					},
@@ -977,11 +977,24 @@ type row struct {
 	name, binName, pkgVersion, buildEnvVars, buildFlags string
 }
 
+func removeTabDups(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	var last rune
+	for i, r := range s {
+		if r != last || r != '\t' || i == 0 {
+			b.WriteRune(r)
+			last = r
+		}
+	}
+	return b.String()
+}
+
 func expectBingoListRows(t testing.TB, expect []row, output string) {
 	t.Helper()
 
 	var (
-		trimmed = strings.TrimLeft(output, bingo.PackageRenderablesPrintHeader)
+		trimmed = strings.TrimPrefix(removeTabDups(output), bingo.PackageRenderablesPrintHeader)
 		got     []row
 	)
 	for _, line := range strings.Split(trimmed, "\n") {
@@ -1009,7 +1022,7 @@ func expectBingoListRows(t testing.TB, expect []row, output string) {
 
 func TestExpectBingoListRows(t *testing.T) {
 	expectBingoListRows(t, []row{
-		{name: "pyright", binName: "copyright-v0.0.0-20210112004814-138d5e5695fe", pkgVersion: "github.com/efficientgo/tools/copyright@v0.0.0-20210112004814-138d5e5695fe"},
+		{name: "copyright", binName: "copyright-v0.0.0-20210112004814-138d5e5695fe", pkgVersion: "github.com/efficientgo/tools/copyright@v0.0.0-20210112004814-138d5e5695fe"},
 		{name: "embedmd", binName: "embedmd-v1.0.0", pkgVersion: "github.com/campoy/embedmd@v1.0.0", buildEnvVars: "CGO_ENABLED=1", buildFlags: "-tags=lol"},
 		{name: "faillint", binName: "faillint-v1.5.0", pkgVersion: "github.com/fatih/faillint@v1.5.0"},
 		{name: "goimports", binName: "goimports-v0.0.0-20210112230658-8b4aab62c064", pkgVersion: "golang.org/x/tools/cmd/goimports@v0.0.0-20210112230658-8b4aab62c064"},

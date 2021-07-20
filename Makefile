@@ -1,5 +1,6 @@
 include .bingo/Variables.mk
 FILES_TO_FMT      ?= $(shell find . -path ./vendor -prune -o -name '*.go' -print)
+MDOX_VALIDATE_CONFIG ?= .mdox.validators.yaml
 
 GO111MODULE       ?= on
 export GO111MODULE
@@ -54,9 +55,14 @@ deps: ## Ensures fresh go.mod and go.sum.
 	@go mod verify
 
 .PHONY: docs
-docs: build $(MDOX) ## Generates config snippets and doc formatting.
+docs: build $(MDOX) ## Generates config snippets, doc formatting and check links.
 	@echo ">> generating docs $(PATH)"
-	@$(MDOX) fmt -l --links.validate.without-address-regex="twitter.com" *.md
+	@$(MDOX) fmt -l --links.validate.config-file=$(MDOX_VALIDATE_CONFIG) *.md
+
+.PHONY: check-docs
+check-docs: build $(MDOX) ## Generates config snippets and doc formatting and checks links.
+	@echo ">> checking docs $(PATH)"
+	@$(MDOX) fmt --check -l --links.validate.config-file=$(MDOX_VALIDATE_CONFIG) *.md
 
 .PHONY: format
 format: ## Formats Go code including imports and cleans up white noise.
@@ -86,7 +92,7 @@ endif
 #      --mem-profile-path string   Path to memory profile output file
 # to debug big allocations during linting.
 lint: ## Runs various static analysis against our code.
-lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format docs check-git deps
+lint: $(FAILLINT) $(GOLANGCI_LINT) $(COPYRIGHT) $(MISSPELL) format check-docs check-git deps
 	$(call require_clean_work_tree,"detected not clean master before running lint")
 	@echo ">> verifying modules being imported"
 	@$(FAILLINT) -paths "errors=github.com/pkg/errors" ./...

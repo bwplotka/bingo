@@ -82,7 +82,7 @@ ${GOBIN}/<tool>-<version> <args>
 
 While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some indeterministic "latest version".
 
-> NOTE: If you use `-l` option, bingo creates symlink to <tool>. Use it with care as it's easy to have side effects by having another binary with same name e.g on CI.
+> NOTE: If you use `-l` option, bingo creates symlink to <tool> . Use it with care as it's easy to have side effects by having another binary with same name e.g on CI.
 
 `bingo` does not have `run` command [(for a reason)](https://github.com/bwplotka/bingo/issues/52), it provides useful helper variables for script or adhoc use:
 
@@ -204,8 +204,7 @@ Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities
 
 * Using advanced go build flags and environment variables.
 
-To tell bingo to use certain env vars and tags during build time, just add them as a comment to the go.mod file manually and do
-`bingo get`. Done!
+To tell bingo to use certain env vars and tags during build time, just add them as a comment to the go.mod file manually and do `bingo get`. Done!
 
 NOTE: Order of comment matters. First bingo expects relative package name (optional), then environment variables, then flags. All space delimited.
 
@@ -219,8 +218,7 @@ go 1.16
 require github.com/gohugoio/hugo v0.83.1 // CGO_ENABLED=1 -tags=extended
 ```
 
-Run `bingo list` to see if build options are parsed correctly.
-Run `bingo get` to install all binaries including the modified one with new build flags.
+Run `bingo list` to see if build options are parsed correctly. Run `bingo get` to install all binaries including the modified one with new build flags.
 
 ## Production Usage
 

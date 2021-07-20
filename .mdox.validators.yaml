@@ -1,0 +1,7 @@
+version: 1
+
+validators:
+- regex: 'twitter.com'
+  type: 'ignore'
+- regex: 'github.com/bwplotka/bingo/releases/'
+  type: 'ignore'
