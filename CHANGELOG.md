@@ -10,7 +10,7 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## Unreleased
 
-## [v0.5.0](https://github.com/bwplotka/bingo/releases/tag/v0.5.0) - 2021.07.20
+## [v0.5.1](https://github.com/bwplotka/bingo/releases/tag/v0.5.1) - 2021.07.20
 
 ### Added
 
