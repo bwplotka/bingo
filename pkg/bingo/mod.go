@@ -28,7 +28,7 @@ const (
 	// FakeRootModFileName is a name for fake go module that we have to maintain, until https://github.com/bwplotka/bingo/issues/20 is fixed.
 	FakeRootModFileName = "go.mod"
 
-	NoReplaceCommand = "bingo:no_replace_fetch"
+	NoDirectiveCommand = "bingo:no_directive_fetch"
 
 	PackageRenderablesPrintHeader = "Name\tBinary Name\tPackage @ Version\tBuild EnvVars\tBuild Flags\n" +
 		"----\t-----------\t-----------------\t-------------\t-----------\n"
@@ -80,8 +80,8 @@ type ModFile struct {
 	f *os.File
 	m *modfile.File
 
-	directPackage       *Package
-	autoReplaceDisabled bool
+	directPackage               *Package
+	directivesAutoFetchDisabled bool
 }
 
 // OpenModFile opens bingo mod file.
@@ -184,8 +184,8 @@ func (mf *ModFile) FileName() string {
 	return mf.filename
 }
 
-func (mf *ModFile) AutoReplaceDisabled() bool {
-	return mf.autoReplaceDisabled
+func (mf *ModFile) IsDirectivesAutoFetchDisabled() bool {
+	return mf.directivesAutoFetchDisabled
 }
 
 // Close flushes changes and closes file.
@@ -203,23 +203,23 @@ func (mf *ModFile) Reload() (err error) {
 		return err
 	}
 
-	mf.autoReplaceDisabled = false
+	mf.directivesAutoFetchDisabled = false
 	for _, e := range mf.m.Syntax.Stmt {
 		for _, c := range e.Comment().Before {
-			if strings.Contains(c.Token, NoReplaceCommand) {
-				mf.autoReplaceDisabled = true
+			if strings.Contains(c.Token, NoDirectiveCommand) {
+				mf.directivesAutoFetchDisabled = true
 				break
 			}
 		}
 		for _, c := range e.Comment().After {
-			if strings.Contains(c.Token, NoReplaceCommand) {
-				mf.autoReplaceDisabled = true
+			if strings.Contains(c.Token, NoDirectiveCommand) {
+				mf.directivesAutoFetchDisabled = true
 				break
 			}
 		}
 		for _, c := range e.Comment().Suffix {
-			if strings.Contains(c.Token, NoReplaceCommand) {
-				mf.autoReplaceDisabled = true
+			if strings.Contains(c.Token, NoDirectiveCommand) {
+				mf.directivesAutoFetchDisabled = true
 				break
 			}
 		}
@@ -320,16 +320,36 @@ func (mf *ModFile) dropAllRequire() {
 	mf.m.Require = mf.m.Require[:0]
 }
 
-// SetReplace removes all replace statements and set to the given ones.
+type NonRequireDirectives struct {
+	ReplaceStmts []*modfile.Replace
+	ExcludeStmts []*modfile.Exclude
+	RetractStmts []*modfile.Retract
+}
+
+func (n NonRequireDirectives) NonEmpty() bool {
+	return len(n.ReplaceStmts) > 0 || len(n.ExcludeStmts) > 0 || len(n.RetractStmts) > 0
+}
+
+// SetDirectives removes all non-require statements and set to the given ones.
 // It's caller responsibility to Flush all changes.
-func (mf *ModFile) SetReplace(target ...*modfile.Replace) (err error) {
+func (mf *ModFile) SetDirectives(d NonRequireDirectives) (err error) {
 	for _, r := range mf.m.Replace {
 		if err := mf.m.DropReplace(r.Old.Path, r.Old.Version); err != nil {
 			return err
 		}
 	}
-	for _, r := range target {
+	for _, r := range d.ReplaceStmts {
 		if err := mf.m.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version); err != nil {
+			return err
+		}
+	}
+	for _, r := range d.ExcludeStmts {
+		if err := mf.m.AddExclude(r.Mod.Path, r.Mod.Version); err != nil {
+			return err
+		}
+	}
+	for _, r := range d.RetractStmts {
+		if err := mf.m.AddRetract(r.VersionInterval, r.Rationale); err != nil {
 			return err
 		}
 	}

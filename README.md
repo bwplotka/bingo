@@ -21,7 +21,7 @@ At the end `bingo`, has following features:
 * Easy upgrade, downgrade, addition, and removal of the needed binary's version, with no risk of dependency conflicts.
   * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by commit ID.
 * Immutable binary names. This creates a reliable way for users and CIs to use expected version of the binaries, reinstalling on-demand only if needed.
-* Works with all buildable Go projects, including pre Go modules and complex projects with complex `replace` statements. (e.g Kuberentes)
+* Works with all buildable Go projects, including pre Go modules and complex projects with complex directives like `replace`, `retract` or `exclude` statements. (e.g Prometheus)
 * Optional, automatic integration with Makefiles.
 
 You can read full a story behind `bingo` [in this blog post](https://www.bwplotka.dev/2020/bingo/).
@@ -193,7 +193,7 @@ Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities
    # server response: not found: k8s.io/client-go@v12.0.0+incompatible: invalid version: +incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required
    ```
 
-   The reasoning is complex but [TL;DR: Go Modules are just sometimes hard to be properly used for some projects](https://twitter.com/bwplotka/status/1347104281120403458). This is why bigger projects like `Kubernetes`, `Prometheus` or `Thanos` has to use `replace` statement. To make this `go get` work we would need to manually craft `replace` statements in our own go `mod` file. But what if we don't want to do that or don't know how or simply we want to install pinned version of Thanos locally without having Go project? Just use bingo:
+   The reasoning is complex but [TL;DR: Go Modules are just sometimes hard to be properly used for some projects](https://twitter.com/bwplotka/status/1347104281120403458). This is why bigger projects like `Kubernetes`, `Prometheus` or `Thanos` has to use `replace` statements (plus others like `exclude` or `retract`). To make this `go get` work we would need to manually craft `replace` statements in our own go `mod` file. But what if we don't want to do that or don't know how or simply we want to install pinned version of Thanos locally without having Go project? Just use bingo:
 
    ```shell
    bingo get github.com/thanos-io/thanos/cmd/thanos@v0.17.2
