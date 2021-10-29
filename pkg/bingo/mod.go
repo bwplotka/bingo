@@ -137,6 +137,11 @@ func CreateFromExistingOrNew(ctx context.Context, r *runner.Runner, logger *log.
 				if err := copyFile(existingFile, modFile); err != nil {
 					return nil, err
 				}
+				existingSumFile := sumFilePath(existingFile)
+				sumFile := sumFilePath(modFile)
+				if err := copyFile(existingSumFile, sumFile); err != nil && !os.IsNotExist(err) {
+					return nil, err
+				}
 				return OpenModFile(modFile)
 			}
 			logger.Printf("bingo tool module file %v is malformed; it will be recreated; err: %v\n", existingFile, err)
@@ -148,6 +153,10 @@ func CreateFromExistingOrNew(ctx context.Context, r *runner.Runner, logger *log.
 		return nil, errors.Wrap(err, "mod init")
 	}
 	return OpenModFile(modFile)
+}
+
+func sumFilePath(modFilePath string) string {
+	return strings.TrimSuffix(modFilePath, ".mod") + ".sum"
 }
 
 func copyFile(src, dst string) error {
@@ -182,6 +191,10 @@ func copyFile(src, dst string) error {
 
 func (mf *ModFile) FileName() string {
 	return mf.filename
+}
+
+func (mf *ModFile) SumFileName() string {
+	return sumFilePath(mf.filename)
 }
 
 func (mf *ModFile) IsDirectivesAutoFetchDisabled() bool {
