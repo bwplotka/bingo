@@ -286,6 +286,11 @@ func (mf *ModFile) DirectPackage() *Package {
 
 // Flush saves all changes made to parsed syntax and reloads the parsed file.
 func (mf *ModFile) Flush() error {
+	if mf.m == nil {
+		// Nothing to flush.
+		// Happens when previous flush had errors.
+		return nil
+	}
 	newB := modfile.Format(mf.m.Syntax)
 	if err := mf.f.Truncate(0); err != nil {
 		return errors.Wrap(err, "truncate")

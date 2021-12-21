@@ -476,13 +476,14 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 	}() {
 		modMetaDir := filepath.Join(modMetaCache, lookupModulePath, "@v")
 		if _, err := os.Stat(modMetaDir); err != nil {
-			if os.IsNotExist(err) {
-				if verbose {
-					logger.Println("resolveInGoModCache:", modMetaDir, "directory does not exists")
-				}
-				continue
+			if !os.IsNotExist(err) {
+				return err
 			}
-			return err
+			if verbose {
+				logger.Println("resolveInGoModCache:", modMetaDir, "directory does not exists")
+			}
+			continue
+
 		}
 		if verbose {
 			logger.Println("resolveInGoModCache: Found", modMetaDir, "directory")
@@ -506,14 +507,28 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 		// Look for .info files that have exact version or sha.
 		if strings.HasPrefix(target.Module.Version, "v") {
 			if _, err := os.Stat(filepath.Join(modMetaDir, target.Module.Version+".info")); err != nil {
-				if os.IsNotExist(err) {
+				if !os.IsNotExist(err) {
+					return err
+				}
+
+				if verbose {
+					logger.Println("resolveInGoModCache:", filepath.Join(modMetaDir, target.Module.Version+".info"),
+						"file not exists. Looking for +incompatible info file")
+				}
+
+				// Try +incompatible.
+				if _, err := os.Stat(filepath.Join(modMetaDir, target.Module.Version+"+incompatible.info")); err != nil {
+					if !os.IsNotExist(err) {
+						return err
+					}
+
 					if verbose {
-						logger.Println("resolveInGoModCache:", filepath.Join(modMetaDir, target.Module.Version+".info"),
+						logger.Println("resolveInGoModCache:", filepath.Join(modMetaDir, target.Module.Version+"+incompatible.info"),
 							"file not exists. Looking for different module")
 					}
 					continue
 				}
-				return err
+				target.Module.Version += "+incompatible"
 			}
 			target.Module.Path = modulePath
 			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, target.Module.Path), "/")
