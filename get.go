@@ -328,10 +328,7 @@ func validateNewName(versions []string, old, new string) error {
 }
 
 func cleanGoGetTmpFiles(modDir string) error {
-	// Remove all sum and tmp files
-	if err := removeAllGlob(filepath.Join(modDir, "*.sum")); err != nil {
-		return err
-	}
+	// Remove all tmp files
 	if err := removeAllGlob(filepath.Join(modDir, "*.*.tmp.*")); err != nil {
 		return err
 	}
@@ -577,6 +574,8 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		tmpModFilePath = filepath.Join(c.modDir, fmt.Sprintf("%s.%d.tmp.mod", name, i))
 	}
 
+	outSumFile := strings.TrimSuffix(outModFile, ".mod") + ".sum"
+
 	// If we don't have all information or update is set, resolve version.
 	var fetchedDirectives bingo.NonRequireDirectives
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
@@ -635,7 +634,10 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 
 	// We were working on tmp file, do atomic rename.
 	if err := os.Rename(tmpModFile.FileName(), outModFile); err != nil {
-		return errors.Wrap(err, "rename")
+		return errors.Wrap(err, "rename mod file")
+	}
+	if err := os.Rename(tmpModFile.SumFileName(), outSumFile); err != nil {
+		return errors.Wrap(err, "rename sum file")
 	}
 	return nil
 }
@@ -763,6 +765,7 @@ const gitignore = `
 # But not these files:
 !.gitignore
 !*.mod
+!*.sum
 !README.md
 !Variables.mk
 !variables.env
