@@ -12,6 +12,10 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## [v0.5.2](https://github.com/bwplotka/bingo/releases/tag/v0.5.2) - 2021.12.21
 
+### Added
+
+* Added back go sum files for each pinned go tool for extra security (check sums).
+
 ### Fixed
 
 * Fixed support for modules / packages with upper case in it and Go 1.17 logic.
