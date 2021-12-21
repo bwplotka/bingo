@@ -437,15 +437,47 @@ func latestModVersion(listFile string) (_ string, err error) {
 	return lastVersion, nil
 }
 
+// encodePath returns the safe encoding of the given module path.
+// It fails if the module path is invalid.
+// Copied & modified from https://github.com/golang/go/blob/c54bc3448390d4ae4495d6d2c03c9dd4111b08f1/src/cmd/go/internal/module/module.go#L421
+func encodePath(path string) string {
+	haveUpper := false
+	for _, r := range path {
+		if 'A' <= r && r <= 'Z' {
+			haveUpper = true
+		}
+	}
+
+	if !haveUpper {
+		return path
+	}
+
+	var buf []byte
+	for _, r := range path {
+		if 'A' <= r && r <= 'Z' {
+			buf = append(buf, '!', byte(r+'a'-'A'))
+		} else {
+			buf = append(buf, byte(r))
+		}
+	}
+	return string(buf)
+}
+
 // resolveInGoModCache will try to find a referenced module in the Go modules cache.
 func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpdatePolicy, target *bingo.Package) error {
 	modMetaCache := filepath.Join(gomodcache(), "cache/download")
 	modulePath := target.Path()
+	// Case sensitivity problem is fixed by replacing upper case with '/!<lower case letter>` signature.
+	// See https://tip.golang.org/cmd/go/#hdr-Module_proxy_protocol
+	lookupModulePath := encodePath(modulePath)
 
 	// Since we don't know which part of full path is package, which part is module.
 	// Start from longest and go until we find one.
-	for ; len(strings.Split(modulePath, "/")) > 2; modulePath = filepath.Dir(modulePath) {
-		modMetaDir := filepath.Join(modMetaCache, modulePath, "@v")
+	for ; len(strings.Split(lookupModulePath, "/")) > 2; func() {
+		lookupModulePath = filepath.Dir(lookupModulePath)
+		modulePath = filepath.Dir(modulePath)
+	}() {
+		modMetaDir := filepath.Join(modMetaCache, lookupModulePath, "@v")
 		if _, err := os.Stat(modMetaDir); err != nil {
 			if os.IsNotExist(err) {
 				if verbose {
