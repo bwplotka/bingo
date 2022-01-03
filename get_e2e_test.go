@@ -99,15 +99,6 @@ func TestGet(t *testing.T) {
 						expectBinaries: []string{"faillint-v1.4.0"},
 					},
 					{
-						name: "get get istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c (short module base path)",
-						do: func(t *testing.T) {
-							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c"))
-							testutil.Equals(t, g.ExecOutput(t, p.root, bingoPath, "list", "cue-gen"), g.ExecOutput(t, p.root, bingoPath, "list"))
-						},
-						expectRows:     []row{{name: "cue-gen", binName: "cue-gen-v0.0.0-20210909062344-355a0b7a6ba7", pkgVersion: "istio.io/tools/cmd/cue-gen@v0.0.0-20210909062344-355a0b7a6ba7"}},
-						expectBinaries: []string{"cue-gen-v0.0.0-20210909062344-355a0b7a6ba7"},
-					},
-					{
 						name: "get github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
@@ -627,6 +618,32 @@ func TestGet(t *testing.T) {
 							"buildable",
 							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
 							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
+							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
+							"go-bindata-v3.1.1+incompatible",
+							"wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", "wr_buildable-v0.0.0-20210110214650-ab990d1be30b",
+						},
+					},
+					{
+						name: "get istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c (short module base path)",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c"))
+						},
+						expectRows: []row{
+							{name: "buildable", binName: "buildable-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "buildable_old", binName: "buildable_old-v0.0.0-20210109093942-2e6391144e85", pkgVersion: "github.com/bwplotka/bingo/testdata/module/buildable@v0.0.0-20210109093942-2e6391144e85"},
+							{name: "cue-gen", binName: "cue-gen-v0.0.0-20210909062344-355a0b7a6ba7", pkgVersion: "istio.io/tools/cmd/cue-gen@v0.0.0-20210909062344-355a0b7a6ba7"},
+							{name: "f3", binName: "f3-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "faillint", binName: "faillint-v1.0.0", pkgVersion: "github.com/fatih/faillint@v1.0.0"},
+							{name: "faillint", binName: "faillint-v1.1.0", pkgVersion: "github.com/fatih/faillint@v1.1.0"},
+							{name: "go-bindata", binName: "go-bindata-v3.1.1+incompatible", pkgVersion: "github.com/go-bindata/go-bindata/go-bindata@v3.1.1+incompatible"},
+							{name: "wr_buildable", binName: "wr_buildable-v0.0.0-20210109165512-ccbd4039b94a", pkgVersion: "github.com/bwplotka/bingo/testdata/module_with_replace/buildable@v0.0.0-20210109165512-ccbd4039b94a"},
+						},
+						expectBinaries: []string{
+							"buildable",
+							"buildable-v0.0.0-20210109093942-2e6391144e85", "buildable-v0.0.0-20210109094001-375d0606849d", "buildable2-v0.0.0-20210109093942-2e6391144e85", "buildable3-v0.0.0-20210109093942-2e6391144e85",
+							"buildable_old-v0.0.0-20210109093942-2e6391144e85", "buildable_old-v0.0.0-20210109094001-375d0606849d",
+							"cue-gen-v0.0.0-20210909062344-355a0b7a6ba7",
 							"f2-v1.0.0", "f2-v1.1.0", "f2-v1.2.0", "f2-v1.3.0", "f2-v1.4.0", "f2-v1.5.0", "f3-v1.1.0", "f3-v1.3.0", "f3-v1.4.0",
 							"faillint-v1.0.0", "faillint-v1.1.0", "faillint-v1.3.0", "faillint-v1.4.0", "faillint-v1.5.0",
 							"go-bindata-v3.1.1+incompatible",
