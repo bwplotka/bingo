@@ -470,7 +470,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 
 	// Since we don't know which part of full path is package, which part is module.
 	// Start from longest and go until we find one.
-	for ; len(strings.Split(lookupModulePath, "/")) > 2; func() {
+	for ; len(strings.Split(lookupModulePath, "/")) >= 2; func() {
 		lookupModulePath = filepath.Dir(lookupModulePath)
 		modulePath = filepath.Dir(modulePath)
 	}() {

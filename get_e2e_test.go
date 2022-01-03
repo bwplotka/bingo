@@ -99,6 +99,15 @@ func TestGet(t *testing.T) {
 						expectBinaries: []string{"faillint-v1.4.0"},
 					},
 					{
+						name: "get get istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c (short module base path)",
+						do: func(t *testing.T) {
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "istio.io/tools/cmd/cue-gen@355a0b7a6ba743d14e3a43a3069287086207f35c"))
+							testutil.Equals(t, g.ExecOutput(t, p.root, bingoPath, "list", "cue-gen"), g.ExecOutput(t, p.root, bingoPath, "list"))
+						},
+						expectRows:     []row{{name: "cue-gen", binName: "cue-gen-v0.0.0-20210909062344-355a0b7a6ba7", pkgVersion: "istio.io/tools/cmd/cue-gen@v0.0.0-20210909062344-355a0b7a6ba7"}},
+						expectBinaries: []string{"cue-gen-v0.0.0-20210909062344-355a0b7a6ba7"},
+					},
+					{
 						name: "get github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8",
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo/testdata/module/buildable@2e6391144e85de14181f8e47b77d64b94a7ca3a8"))
