@@ -655,6 +655,7 @@ func TestGet(t *testing.T) {
 						do: func(t *testing.T) {
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "FaIllint@none")) // case should not matter.
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable_old@none"))
+							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "cue-gen@none"))
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "f3@none"))
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable@none"))
 							fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "wr_buildable@none"))
