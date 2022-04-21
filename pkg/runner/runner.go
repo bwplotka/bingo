@@ -135,11 +135,11 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, e envars.EnvSlice, 
 
 type Runnable interface {
 	GoVersion() *semver.Version
-	List(update GetUpdatePolicy, args ...string) (string, error)
-	GetD(update GetUpdatePolicy, packages ...string) (string, error)
+	List(args ...string) (string, error)
+	GetD(packages ...string) (string, error)
 	Build(pkg, out string, args ...string) error
 	GoEnv(args ...string) (string, error)
-	ModDownload() error
+	ModDownload(args ...string) error
 }
 
 type runnable struct {
@@ -172,24 +172,13 @@ func (r *Runner) With(ctx context.Context, modFile string, dir string, extraEnvV
 	return ru
 }
 
-type GetUpdatePolicy string
-
-const (
-	NoUpdatePolicy    = GetUpdatePolicy("")
-	UpdatePolicy      = GetUpdatePolicy("-u")
-	UpdatePatchPolicy = GetUpdatePolicy("-u=patch")
-)
-
 func (r *runnable) GoVersion() *semver.Version {
 	return r.r.GoVersion()
 }
 
 // List runs `go list` against separate go modules files if any.
-func (r *runnable) List(update GetUpdatePolicy, args ...string) (string, error) {
+func (r *runnable) List(args ...string) (string, error) {
 	a := []string{"list"}
-	if update != NoUpdatePolicy {
-		a = append(a, string(update))
-	}
 	out := &bytes.Buffer{}
 	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, append(a, args...)...); err != nil {
 		return "", errors.Wrap(err, out.String())
@@ -207,13 +196,10 @@ func (r *runnable) GoEnv(args ...string) (string, error) {
 }
 
 // GetD runs 'go get -d' against separate go modules file with given arguments.
-func (r *runnable) GetD(update GetUpdatePolicy, packages ...string) (string, error) {
+func (r *runnable) GetD(packages ...string) (string, error) {
 	args := []string{"get", "-d"}
 	if r.r.insecure {
 		args = append(args, "-insecure")
-	}
-	if update != NoUpdatePolicy {
-		args = append(args, string(update))
 	}
 
 	out := &bytes.Buffer{}
@@ -239,15 +225,15 @@ func (r *runnable) Build(pkg, out string, args ...string) error {
 }
 
 // ModDownload runs 'go mod download' against separate go modules file.
-func (r *runnable) ModDownload() error {
-	args := []string{"mod", "download"}
+func (r *runnable) ModDownload(args ...string) error {
+	a := []string{"mod", "download"}
 	if r.r.verbose {
-		args = append(args, "-x")
+		a = append(a, "-x")
 	}
-	args = append(args, fmt.Sprintf("-modfile=%s", r.modFile))
+	a = append(a, fmt.Sprintf("-modfile=%s", r.modFile))
 
 	out := &bytes.Buffer{}
-	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, args...); err != nil {
+	if err := r.r.execGo(r.ctx, out, r.extraEnvVars, r.dir, r.modFile, append(a, args...)...); err != nil {
 		return errors.Wrap(err, out.String())
 	}
 

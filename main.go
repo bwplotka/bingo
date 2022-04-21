@@ -49,9 +49,6 @@ func main() {
 		" Allowed characters [A-z0-9._-]. If -r is used and no package/binary is specified or non existing binary name is used, bingo"+
 		" will return error. Cannot be used with -n.")
 	goCmd := getFlags.String("go", "go", "Path to the go command.")
-	getUpdate := getFlags.Bool("u", false, "The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.")
-	getUpdatePatch := getFlags.Bool("upatch", false, "The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.")
-
 	getInsecure := getFlags.Bool("insecure", false, "Use -insecure flag when using 'go get'")
 	getLink := getFlags.Bool("l", false, "If enabled, bingo will also create soft link called <tool> that links to the current"+
 		"<tool>-<version> binary. Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.")
@@ -106,14 +103,6 @@ func main() {
 			exitOnUsageError(flags.Usage, "'go' flag cannot be empty")
 		}
 
-		upPolicy := runner.NoUpdatePolicy
-		if *getUpdate {
-			upPolicy = runner.UpdatePolicy
-		}
-		if *getUpdatePatch {
-			upPolicy = runner.UpdatePatchPolicy
-		}
-
 		if getFlags.NArg() > 1 {
 			exitOnUsageError(flags.Usage, "Too many arguments except none or binary/package ")
 		}
@@ -148,7 +137,6 @@ func main() {
 				runner:    r,
 				modDir:    modDir,
 				relModDir: relModDir,
-				update:    upPolicy,
 				name:      *getName,
 				rename:    *getRename,
 				verbose:   *verbose,
