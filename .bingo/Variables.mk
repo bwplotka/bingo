@@ -47,11 +47,11 @@ $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
 	@echo "(re)installing $(GOBIN)/golangci-lint-v1.45.2"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=golangci-lint.mod -o=$(GOBIN)/golangci-lint-v1.45.2 "github.com/golangci/golangci-lint/cmd/golangci-lint"
 
-MDOX := $(GOBIN)/mdox-v0.2.2-0.20210628104659-ce7adf847d0a
+MDOX := $(GOBIN)/mdox-v0.9.0
 $(MDOX): $(BINGO_DIR)/mdox.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/mdox-v0.2.2-0.20210628104659-ce7adf847d0a"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.2.2-0.20210628104659-ce7adf847d0a "github.com/bwplotka/mdox"
+	@echo "(re)installing $(GOBIN)/mdox-v0.9.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=mdox.mod -o=$(GOBIN)/mdox-v0.9.0 "github.com/bwplotka/mdox"
 
 MISSPELL := $(GOBIN)/misspell-v0.3.4
 $(MISSPELL): $(BINGO_DIR)/misspell.mod

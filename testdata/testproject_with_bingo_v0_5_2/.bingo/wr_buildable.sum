@@ -1,0 +1,8 @@
+github.com/bwplotka/bingo/testdata/module_with_replace v0.0.0-20210109165512-ccbd4039b94a h1:SlGaoRbNkY9IE/wcpTJhbIoNpsTqteHgKovEaNVcVZ4=
+github.com/bwplotka/bingo/testdata/module_with_replace v0.0.0-20210109165512-ccbd4039b94a/go.mod h1:B7cYHgOahfKhx0P1zIumzlSEplYfFgiGYQDLR1CjSbY=
+github.com/bwplotka/bingo/testdata/module_with_replace v0.0.0-20210110214650-ab990d1be30b h1:Cr1Z+r2vLT5UZEIhVlO5zl340y8qKU6WdZhLzAGaPeM=
+github.com/bwplotka/bingo/testdata/module_with_replace v0.0.0-20210110214650-ab990d1be30b/go.mod h1:CIxq1y0J917NwTpTGbb7Kpt90l7PnJEd/FSELoFq+O0=
+github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=
+github.com/oklog/run v1.1.0/go.mod h1:sVPdnTZT1zYwAJeCMu2Th4T21pA3FPOQRfWjQlk7DVU=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

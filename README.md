@@ -131,12 +131,10 @@ Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities
 2. It's very common in Go world to use `goimports`, popular `gofmt` replacement which formats Go code including imports. However, not many know that it's breaking compatibility a lot between versions (there are no releases). If you want to assert certain formatting of the Go code in the CI etc your only option is to pin `goimports` version. You can do it via `bingo get`:
 
    ```shell
-   bingo get -upatch golang.org/x/tools/cmd/goimports
+   bingo get golang.org/x/tools/cmd/goimports@latest
    ```
 
    This will install (at the time of writing) latest binary: `${GOBIN}/goimports-v0.0.0-20210112230658-8b4aab62c064`
-
-   > NOTE: `-upatch` works like `go get -u=patch` - it searches for latest patch release or commit. If we would use `-u` it will fail as there was never any release.
 
 3. You rather like older formatting? No issue, let's downgrade. Since `goimports` was already installed you can reference it by just `goimports`. Let's pick the commit we want e.g `e64124511800702a4d8d79e04cf6f1af32e7bef2`:
 
@@ -154,13 +152,21 @@ Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities
 
    This will pin and install three versions of goimports. Very useful to compatibility testing.
 
-5. Listing binaries you have pinned:
+5. Updating to the current latest:
+
+   ```shell
+   bingo get goimports@latest
+   ```
+
+   This will find the latest module version, pin and install it.
+
+6. Listing binaries you have pinned:
 
    ```shell
    bingo list
    ```
 
-6. Unpinning `goimports` totally from the project:
+7. Unpinning `goimports` totally from the project:
 
    ```shell
    bingo get goimports@none
@@ -168,13 +174,13 @@ Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities
 
    > PS: `go get` also allows `@none` suffix! Did you know? I didn't (:*
 
-7. Installing all tools:
+8. Installing all tools:
 
    ```shell
    bingo get
    ```
 
-8. **Bonus**: Have you ever dreamed to pin command from bigger project like... `thanos`? I was. Can you even install it using Go tooling? Let's try:
+9. **Bonus**: Have you ever dreamed to pin command from bigger project like... `thanos`? I was. Can you even install it using Go tooling? Let's try:
 
    ```shell
    go get github.com/thanos-io/thanos/cmd/thanos@v0.17.2
@@ -249,7 +255,7 @@ See an extensive and up-to-date description of the `bingo` usage below:
 
 ## Command Help
 
-```bash mdox-gen-exec="sh -c 'bingo --help || exit 0'"
+```bash mdox-exec="bingo --help" mdox-expect-exit-code=2
 bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
 built on top of Go Modules, allowing reproducible dev environments. 'bingo' allows to easily maintain a separate, nested Go Module for each binary.
 
@@ -272,9 +278,6 @@ Commands:
     	The -n flag instructs to get binary and name it with given name instead of default, so the last element of package directory. Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified, bingo get will return error. If -n is used with existing binary name, copy of this binary will be done. Cannot be used with -r
   -r string
     	The -r flag instructs to get existing binary and rename it with given name. Allowed characters [A-z0-9._-]. If -r is used and no package/binary is specified or non existing binary name is used, bingo will return error. Cannot be used with -n.
-  -u	The -u flag instructs get to update modules providing dependencies of packages named on the command line to use newer minor or patch releases when available.
-  -upatch
-    	The -upatch flag (not -u patch) also instructs get to update dependencies, but changes the default to select patch releases.
   -v	Print more'
 
 
