@@ -10,6 +10,12 @@ We use *breaking* word for marking changes that are not backward compatible (rel
 
 ## Unreleased
 
+## [v0.6](https://github.com/bwplotka/bingo/releases/tag/v0.6) - 2022.04.23
+
+* Fixed support for MacOS and Go1.18
+* Removed `-u` and `-upatch` options which did not work correctly. `@latest` can be used instead.
+* Better error message when attempting to build forks.
+
 ## [v0.5.2](https://github.com/bwplotka/bingo/releases/tag/v0.5.2) - 2021.12.21
 
 ### Added

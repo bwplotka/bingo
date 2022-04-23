@@ -74,7 +74,6 @@ type installPackageConfig struct {
 	runner    *runner.Runner
 	modDir    string
 	relModDir string
-	update    runner.GetUpdatePolicy
 	link      bool
 
 	verbose bool
@@ -84,7 +83,6 @@ type getConfig struct {
 	runner    *runner.Runner
 	modDir    string
 	relModDir string
-	update    runner.GetUpdatePolicy
 	name      string
 	rename    string
 	link      bool
@@ -97,7 +95,6 @@ func (c getConfig) forPackage() installPackageConfig {
 		modDir:    c.modDir,
 		relModDir: c.relModDir,
 		runner:    c.runner,
-		update:    c.update,
 		verbose:   c.verbose,
 		link:      c.link,
 	}
@@ -160,12 +157,6 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	name, pkgPath, versions, err := parseTarget(rawTarget)
 	if err != nil {
 		return errors.Wrapf(err, "parse %v", rawTarget)
-	}
-
-	if c.update != runner.NoUpdatePolicy {
-		if versions[0] != "" || len(versions) > 1 {
-			return errors.Errorf("-u specified; upgrade cannot take version arguments (string after @), got %v", versions)
-		}
 	}
 
 	if c.rename != "" {
@@ -245,8 +236,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		// NOTE: We don't remove binaries.
 		return removeAllGlob(filepath.Join(c.modDir, name+".*"))
 	case "":
-		if len(existing) > 1 && c.update == runner.NoUpdatePolicy {
-			// Edge case. If no version is specified and no update is requested, allow to pull all array versions at once.
+		if len(existing) > 1 {
+			// Edge case. If no version is specified requested, allow to pull all array versions at once.
 			versions = make([]string, len(existing))
 		}
 	}
@@ -275,8 +266,8 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 				}
 
 				target.Module.Path = mf.DirectPackage().Module.Path
-				if target.Module.Version == "" && c.update == runner.NoUpdatePolicy {
-					// If no version and no update is requested, use the existing version.
+				if target.Module.Version == "" {
+					// If no version is requested, use the existing version.
 					target.Module.Version = mf.DirectPackage().Module.Version
 				}
 				target.RelPath = mf.DirectPackage().RelPath
@@ -351,14 +342,13 @@ func resolvePackage(
 	verbose bool,
 	tmpModFile string,
 	runnable runner.Runnable,
-	update runner.GetUpdatePolicy,
 	target *bingo.Package,
 ) (err error) {
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version and tell us what is the module and what package.
 	// If go get will not succeed, or will not update go mod, we will try manual lookup.
 	// This is required to support modules depending on broken modules (and using exclude/replace statements).
-	out, gerr := runnable.GetD(update, target.String())
+	out, gerr := runnable.GetD(target.String())
 	if gerr == nil {
 		mods, err := bingo.ModIndirectModules(tmpModFile)
 		if err != nil {
@@ -399,7 +389,7 @@ func resolvePackage(
 
 	// We fallback only if go-get failed which happens when it does not know what version to choose.
 	// In this case
-	if err := resolveInGoModCache(logger, verbose, update, target); err != nil {
+	if err := resolveInGoModCache(logger, verbose, target); err != nil {
 		return errors.Wrapf(err, "fallback to local go mod cache resolution failed after go get failure: %v", gerr)
 	}
 	return nil
@@ -461,7 +451,7 @@ func encodePath(path string) string {
 }
 
 // resolveInGoModCache will try to find a referenced module in the Go modules cache.
-func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpdatePolicy, target *bingo.Package) error {
+func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package) error {
 	modMetaCache := filepath.Join(gomodcache(), "cache/download")
 	modulePath := target.Path()
 	// Case sensitivity problem is fixed by replacing upper case with '/!<lower case letter>` signature.
@@ -491,7 +481,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, update runner.GetUpda
 
 		// There are 2 major cases:
 		// 1. We have -u flag or version is not pinned: find latest module having this package.
-		if update != runner.NoUpdatePolicy || target.Module.Version == "" {
+		if target.Module.Version == "" {
 			latest, err := latestModVersion(filepath.Join(modMetaDir, "list"))
 			if err != nil {
 				return errors.Wrapf(err, "get latest version from %v", filepath.Join(modMetaDir, "list"))
@@ -593,7 +583,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 
 	// If we don't have all information or update is set, resolve version.
 	var fetchedDirectives bingo.NonRequireDirectives
-	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" || c.update != runner.NoUpdatePolicy {
+	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" {
 		// Set up totally empty mod file to get clear version to install.
 		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", tmpEmptyModFilePath)
 		if err != nil {
@@ -602,7 +592,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
 		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir, nil)
-		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, c.update, &target); err != nil {
+		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, &target); err != nil {
 			return err
 		}
 
@@ -643,7 +633,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return err
 	}
 
-	if err := install(ctx, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
+	if err := install(ctx, logger, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
@@ -718,7 +708,7 @@ func gobin() string {
 	return binPath
 }
 
-func install(ctx context.Context, r *runner.Runner, modDir string, name string, link bool, modFile *bingo.ModFile) (err error) {
+func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir string, name string, link bool, modFile *bingo.ModFile) (err error) {
 	pkg := modFile.DirectPackage()
 	if err := validateTargetName(name); err != nil {
 		return errors.Wrap(err, pkg.String())
@@ -730,7 +720,7 @@ func install(ctx context.Context, r *runner.Runner, modDir string, name string, 
 	var listArgs []string
 	listArgs = append(listArgs, modFile.DirectPackage().BuildFlags...)
 	listArgs = append(listArgs, "-mod=mod", "-f={{.Name}}", pkg.Path())
-	if listOutput, err := r.With(ctx, modFile.FileName(), modDir, nil).List(runner.NoUpdatePolicy, listArgs...); err != nil {
+	if listOutput, err := r.With(ctx, modFile.FileName(), modDir, nil).List(listArgs...); err != nil {
 		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
@@ -738,9 +728,18 @@ func install(ctx context.Context, r *runner.Runner, modDir string, name string, 
 
 	gobin := gobin()
 
-	// go install does not define -modfile flag so so we mimic go install with go build -o instead.
+	// go install does not define -modfile flag so we mimic go install with go build -o instead.
 	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
-	if err := r.With(ctx, modFile.FileName(), modDir, pkg.BuildEnvs).Build(pkg.Path(), binPath, pkg.BuildFlags...); err != nil {
+
+	modCtx := r.With(ctx, modFile.FileName(), modDir, pkg.BuildEnvs)
+	if err := modCtx.Build(pkg.Path(), binPath, pkg.BuildFlags...); err != nil {
+		if strings.Contains(err.Error(), "module declares its path as: ") &&
+			strings.Contains(err.Error(), fmt.Sprintf("but was required as: %v", modFile.DirectPackage().Path())) {
+
+			// TODO(bwplotka): Add native mode for forks.
+			logger.Println("The", modFile.DirectPackage().Path(), "module is a potential fork, since go.mod has mismatching module."+
+				" Building forks is not supported yet. See https://github.com/bwplotka/bingo/issues/110.")
+		}
 		return errors.Wrap(err, "build versioned")
 	}
 

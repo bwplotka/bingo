@@ -28,7 +28,7 @@ You can read full a story behind `bingo` [in this blog post](https://www.bwplotk
 
 ## Requirements
 
-* Go 1.14+
+* Go 1.17+
 * Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26))
 * All tools that you wish to "pin" have to be built in Go (they don't need to use Go modules at all).
 
@@ -56,17 +56,28 @@ The key idea is that you can manage your tools similar to your Go dependencies v
 bingo get [<package or binary>[@version1 or none,version2,version3...]]
 ```
 
+For example:
+
+* `bingo get github.com/fatih/faillint`
+* `bingo get github.com/fatih/faillint@latest`
+* `bingo get github.com/fatih/faillint@v1.5.0`
+* `bingo get github.com/fatih/faillint@v1.1.0,v1.5.0`
+
 After this, make sure to commit `.bingo` directory in git repository, so the tools will stay versioned! Once pinned, anyone can install correct version of the tool with correct dependencies by either doing:
+
+```bash
+bingo get <tool>
+```
+
+For example `bingo get faillint`
+
+... or without `bingo`:
 
 ```bash
 go build -mod=mod -modfile .bingo/<tool>.mod -o=$GOBIN/<tool>-<version>
 ```
 
-or
-
-```bash
-bingo get <tool>
-```
+For example `go build -mod=mod -modfile .bingo/faillint.mod -o=$GOBIN/faillint-v1.5.0`
 
 `bingo` allows to easily maintain a separate, nested Go Module for each binary. By default, it will keep it `.bingo/<tool>.mod` This allows to correctly pin the binary without polluting the main go module or other's tool module.
 
@@ -80,7 +91,9 @@ bingo get <tool>
 ${GOBIN}/<tool>-<version> <args>
 ```
 
-While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some indeterministic "latest version".
+For example: `${GOBIN}/faillint-v1.5.0`
+
+While it's not the easiest for humans to read or type, it's essential to ensure your scripts use pinned version instead of some non-deterministic "latest version".
 
 > NOTE: If you use `-l` option, bingo creates symlink to <tool> . Use it with care as it's easy to have side effects by having another binary with same name e.g on CI.
 
