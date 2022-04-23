@@ -5,10 +5,11 @@ MDOX_VALIDATE_CONFIG ?= .mdox.validators.yaml
 GO111MODULE       ?= on
 export GO111MODULE
 
-GOBIN             ?= $(firstword $(subst :, ,${GOPATH}))/bin
+GOBIN ?= $(firstword $(subst :, ,${GOPATH}))/bin
+PATH := $(PATH):$(GOBIN)
 
 # Tools.
-GIT               ?= $(shell which git)
+GIT  ?= $(shell which git)
 
 # Support gsed on OSX (installed via brew), falling back to sed. On Linux
 # systems gsed won't be installed, so will use sed as expected.
