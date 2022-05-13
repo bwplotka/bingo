@@ -189,10 +189,8 @@ func main() {
 			return pkgs.PrintTab(target, os.Stdout)
 		}
 	case "version":
-		cmdFunc = func(ctx context.Context, r *runner.Runner) error {
-			_, err := fmt.Fprintln(os.Stdout, version.Version)
-			return err
-		}
+		_, _ = fmt.Fprintln(os.Stdout, version.Version)
+		return
 	default:
 		exitOnUsageError(flags.Usage, "No such command", flags.Arg(0))
 	}
