@@ -37,8 +37,10 @@ You can read full a story behind `bingo` [in this blog post](https://www.bwplotk
 In your repository (does not need to be a Go project)
 
 ```shell
-go get github.com/bwplotka/bingo
+go install github.com/bwplotka/bingo@latest
 ```
+
+> For [go version before 1.17](https://go.dev/doc/go-get-install-deprecation) use `go get github.com/bwplotka/bingo` instead.
 
 Recommended: Ideally you want to pin `bingo` tool to the single version too (inception!). Do it via:
 
