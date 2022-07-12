@@ -115,6 +115,7 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, e envars.EnvSlice, 
 	// TODO(bwplotka): Might be surprising, let's return err when this env variable is altered.
 	e = envars.MergeEnvSlices(os.Environ(), e...)
 	e.Set("GO111MODULE=on")
+	e.Set("GOWORK=off")
 	cmd.Env = e
 	cmd.Stdout = output
 	cmd.Stderr = output
