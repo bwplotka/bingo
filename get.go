@@ -557,9 +557,10 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package
 // getPackage takes package array index, tool name and package path (also module path and version which are optional) and
 // generates new module with the given package's module as the only dependency (direct require statement).
 // For generation purposes we take the existing <name>.mod file (if exists, if paths matches). This allows:
-//  * Comments to be preserved.
-//  * First direct require module will be preserved (unless version changes)
-//  * Replace to be preserved if the // bingo:no_replace_fetch commend is found it such mod file.
+//   - Comments to be preserved.
+//   - First direct require module will be preserved (unless version changes)
+//   - Replace to be preserved if the // bingo:no_replace_fetch commend is found it such mod file.
+//
 // As resolution of module vs package for Go Module is convoluted and all code is under internal dir, we have to rely on `go` binary
 // capabilities and output.
 // TODO(bwplotka): Consider copying code for it? Of course it's would be easier if such tool would exist in Go project itself (:
@@ -589,6 +590,10 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		if err != nil {
 			return errors.Wrap(err, "create empty tmp mod file")
 		}
+		// Stick to version that works with bingo.
+		// TODO(bwplotka): Stop depending on Go tooling from the provided binary, it's not reliable for what we do in bingo.
+		tmpEmptyModFile.ChangeGoVersion("1.17")
+
 		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
 		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir, nil)

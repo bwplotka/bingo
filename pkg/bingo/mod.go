@@ -280,6 +280,10 @@ func parseDirectPackageMeta(line string) (relPath string, buildEnv []string, bui
 	return relPath, buildEnv, buildFlags
 }
 
+func (mf *ModFile) ChangeGoVersion(version string) {
+	mf.m.Go.Version = version
+}
+
 func (mf *ModFile) DirectPackage() *Package {
 	return mf.directPackage
 }
