@@ -1,0 +1,4 @@
+github.com/bwplotka/bingo-testmodule v0.0.0-20221007091003-fe4d42a37d92 h1:sfBAuIKrtFQnq3zQESivtCrRgcexoiPH2fTQSZQn5+o=
+github.com/bwplotka/bingo-testmodule v0.0.0-20221007091003-fe4d42a37d92/go.mod h1:vtWaeKhKaAJtEWbufYcFpHicH91st0taVI/i6SJZi0o=
+github.com/efficientgo/core v1.0.0-rc.0.0.20220828074345-1974bfa191ce h1:L9uxGBYRmr+TPmpB5B0vUApuvyfeuYs/46qIJrbASaU=
+github.com/oklog/run v1.0.0 h1:Ru7dDtJNOyC66gQ5dQmaCa0qIsAUFY3sFpK1Xk8igrw=

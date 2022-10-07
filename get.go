@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -21,8 +20,8 @@ import (
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
-	"github.com/efficientgo/tools/core/pkg/errcapture"
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errcapture"
+	"github.com/efficientgo/core/errors"
 	"golang.org/x/mod/module"
 )
 
@@ -48,11 +47,11 @@ func parseTarget(rawTarget string) (name string, pkgPath string, versions []stri
 		dup := map[string]struct{}{}
 		for _, v := range versions {
 			if _, ok := dup[v]; ok {
-				return "", "", nil, errors.Errorf("version duplicates are not allowed, got: %v", versions)
+				return "", "", nil, errors.Newf("version duplicates are not allowed, got: %v", versions)
 			}
 			dup[v] = struct{}{}
 			if v == "none" {
-				return "", "", nil, errors.Errorf("none is not allowed when there are more than one specified Version, got: %v", versions)
+				return "", "", nil, errors.Newf("none is not allowed when there are more than one specified Version, got: %v", versions)
 			}
 		}
 	}
@@ -162,10 +161,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	if c.rename != "" {
 		// Treat rename specially.
 		if pkgPath != "" {
-			return errors.Errorf("-r rename has to reference installed tool by name not path, got: %v", pkgPath)
+			return errors.Newf("-r rename has to reference installed tool by name not path, got: %v", pkgPath)
 		}
 		if versions[0] != "" || len(versions) > 1 {
-			return errors.Errorf("-r rename cannot take version arguments (string after @), got %v", versions)
+			return errors.Newf("-r rename cannot take version arguments (string after @), got %v", versions)
 		}
 		if err := validateNewName(versions, name, c.rename); err != nil {
 			return errors.Wrap(err, "-r")
@@ -175,7 +174,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			return errors.Wrapf(err, "existing mod files for %v", c.rename)
 		}
 		if len(newExisting) > 0 {
-			return errors.Errorf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, c.rename)
+			return errors.Newf("found existing installed binaries %v under name you want to rename on. Remove target name %s or use different one", newExisting, c.rename)
 		}
 
 		existing, err := existingModFiles(c.modDir, name)
@@ -184,7 +183,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 		}
 
 		if len(existing) == 0 {
-			return errors.Errorf("nothing to rename, tool %v not installed", name)
+			return errors.Newf("nothing to rename, tool %v not installed", name)
 		}
 
 		targets := make([]bingo.Package, 0, len(existing))
@@ -227,10 +226,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 	switch versions[0] {
 	case "none":
 		if pkgPath != "" {
-			return errors.Errorf("cannot delete tool by full path. Use just %v@none name instead", targetName)
+			return errors.Newf("cannot delete tool by full path. Use just %v@none name instead", targetName)
 		}
 		if len(existing) == 0 {
-			return errors.Errorf("nothing to delete, tool %v is not installed", targetName)
+			return errors.Newf("nothing to delete, tool %v is not installed", targetName)
 		}
 		// None means we no longer want to version this package.
 		// NOTE: We don't remove binaries.
@@ -258,10 +257,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if mf.DirectPackage() != nil {
 				if target.Path() != "" && target.Path() != mf.DirectPackage().Path() {
 					if pathWasSpecified {
-						return errors.Errorf("found mod file %v that has different package path %q than given %q"+
+						return errors.Newf("found mod file %v that has different package path %q than given %q"+
 							"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
 					}
-					return errors.Errorf("found array mod file %v that has different package path %q than previous in array %q. Manual edit?"+
+					return errors.Newf("found array mod file %v that has different package path %q than previous in array %q. Manual edit?"+
 						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
 				}
 
@@ -279,7 +278,7 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			}
 		}
 		if target.Path() == "" {
-			return errors.Errorf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
+			return errors.Newf("tool referenced by name %v that was never installed before; Use full path to install a tool", name)
 		}
 		targets = append(targets, target)
 	}
@@ -310,10 +309,10 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 
 func validateNewName(versions []string, old, new string) error {
 	if new == old {
-		return errors.Errorf("cannot be the same as module name %v", new)
+		return errors.Newf("cannot be the same as module name %v", new)
 	}
 	if versions[0] == "none" {
-		return errors.Errorf("cannot use with @none logic")
+		return errors.New("cannot use with @none logic")
 	}
 	return nil
 }
@@ -328,11 +327,11 @@ func cleanGoGetTmpFiles(modDir string) error {
 
 func validateTargetName(targetName string) error {
 	if targetName == "cmd" {
-		return errors.Errorf("package would be installed with ambiguous name %s. This is a common, but slightly annoying package layout"+
+		return errors.Newf("package would be installed with ambiguous name %s. This is a common, but slightly annoying package layout"+
 			"It's advised to choose unique name with -n flag", targetName)
 	}
 	if targetName == strings.TrimSuffix(bingo.FakeRootModFileName, ".mod") {
-		return errors.Errorf("requested binary with name %q`. This is impossible, choose different name using -n flag", strings.TrimSuffix(bingo.FakeRootModFileName, ".mod"))
+		return errors.Newf("requested binary with name %q`. This is impossible, choose different name using -n flag", strings.TrimSuffix(bingo.FakeRootModFileName, ".mod"))
 	}
 	return nil
 }
@@ -357,7 +356,7 @@ func resolvePackage(
 
 		switch len(mods) {
 		case 0:
-			return errors.Errorf("no indirect module found on %v", tmpModFile)
+			return errors.Newf("no indirect module found on %v", tmpModFile)
 		case 1:
 			target.RelPath = strings.TrimPrefix(strings.TrimPrefix(target.RelPath, mods[0].Path), "/")
 			target.Module = mods[0]
@@ -371,7 +370,7 @@ func resolvePackage(
 						return nil
 					}
 				}
-				return errors.Errorf("no indirect module found on %v for %v module", tmpModFile, target.Module.Path)
+				return errors.Newf("no indirect module found on %v for %v module", tmpModFile, target.Module.Path)
 			}
 
 			for _, m := range mods {
@@ -526,7 +525,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package
 		}
 
 		// We have commit sha.
-		files, err := ioutil.ReadDir(modMetaDir)
+		files, err := os.ReadDir(modMetaDir)
 		if err != nil {
 			return err
 		}
@@ -551,7 +550,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package
 			logger.Println("resolveInGoModCache: .info file for sha", ver, "does not exists. Looking for different module")
 		}
 	}
-	return errors.Errorf("no module was cached matching given package %v", target.Path())
+	return errors.Newf("no module was cached matching given package %v", target.Path())
 }
 
 // getPackage takes package array index, tool name and package path (also module path and version which are optional) and
@@ -593,6 +592,9 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		// Stick to version that works with bingo.
 		// TODO(bwplotka): Stop depending on Go tooling from the provided binary, it's not reliable for what we do in bingo.
 		tmpEmptyModFile.ChangeGoVersion("1.17")
+		if err := tmpEmptyModFile.Flush(); err != nil {
+			return err
+		}
 
 		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
@@ -699,7 +701,7 @@ func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d bing
 	d.RetractStmts = targetModParsed.Retract
 
 	if len(d.RetractStmts) > 0 && runnable.GoVersion().LessThan(version.Go116) {
-		return d, errors.Errorf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
+		return d, errors.Newf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
 	}
 	return d, nil
 }
@@ -728,7 +730,7 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 	if listOutput, err := r.With(ctx, modFile.FileName(), modDir, nil).List(listArgs...); err != nil {
 		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
-		return errors.Errorf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
+		return errors.Newf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
 
 	gobin := gobin()
@@ -809,7 +811,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	// "A file named go.mod must still be present in order to determine the module root directory, but it is not accessed."
 	// Ref: https://golang.org/doc/go1.14#go-flags
 	// TODO(bwplotka): Remove it: https://github.com/bwplotka/bingo/issues/20
-	if err := ioutil.WriteFile(
+	if err := os.WriteFile(
 		filepath.Join(relModDir, bingo.FakeRootModFileName),
 		[]byte("module _ // Fake go.mod auto-created by 'bingo' for go -moddir compatibility with non-Go projects. Commit this file, together with other .mod files."),
 		0666,
@@ -818,7 +820,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	}
 
 	// README.
-	if err := ioutil.WriteFile(
+	if err := os.WriteFile(
 		filepath.Join(relModDir, "README.md"),
 		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir, relModDir)),
 		0666,
@@ -826,7 +828,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 		return err
 	}
 	// gitignore.
-	return ioutil.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), 0666)
+	return os.WriteFile(filepath.Join(relModDir, ".gitignore"), []byte(gitignore), 0666)
 }
 
 func removeAllGlob(glob string) error {

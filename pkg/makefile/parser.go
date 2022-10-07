@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errors"
 )
 
 // Copied from https://github.com/tj/mmake/blob/b15229aac1a8ea3f0875f064a0864f7250bd7850/parser & improved.

@@ -17,9 +17,9 @@ import (
 
 	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/runner"
-	"github.com/efficientgo/tools/core/pkg/errcapture"
-	"github.com/efficientgo/tools/core/pkg/merrors"
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errcapture"
+	"github.com/efficientgo/core/errors"
+	"github.com/efficientgo/core/merrors"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -410,7 +410,7 @@ func ModDirectPackage(modFile string) (pkg Package, err error) {
 	defer errcapture.Do(&err, mf.Close, "close")
 
 	if mf.directPackage == nil {
-		return Package{}, errors.Errorf("no direct package found in %s; empty module?", mf.filename)
+		return Package{}, errors.Newf("no direct package found in %s; empty module?", mf.filename)
 	}
 	return *mf.directPackage, nil
 }
@@ -442,19 +442,19 @@ func onModHeaderComments(m *modfile.File, f func(*modfile.Comments) error) error
 		return errors.New("failed to parse; no module's syntax")
 	}
 	if m.Module.Syntax.Comment() == nil {
-		return errors.Errorf("expected %q comment on top of module, found no comment", metaComment)
+		return errors.Newf("expected %q comment on top of module, found no comment", metaComment)
 	}
 	return f(m.Module.Syntax.Comment())
 }
 
 func errOnMetaMissing(comments *modfile.Comments) error {
 	if len(comments.Suffix) == 0 {
-		return errors.Errorf("expected %q comment on top of module, found no comment", metaComment)
+		return errors.Newf("expected %q comment on top of module, found no comment", metaComment)
 	}
 
 	tr := strings.Trim(comments.Suffix[0].Token, "\n")
 	if tr != metaComment {
-		return errors.Errorf("expected %q comment on top of module, found %q", metaComment, tr)
+		return errors.Newf("expected %q comment on top of module, found %q", metaComment, tr)
 	}
 	return nil
 }
@@ -521,7 +521,7 @@ func (pkgs PackageRenderables) PrintTab(target string, w io.Writer) error {
 	}
 
 	if target != "" {
-		return errors.Errorf("Pinned tool %s not found", target)
+		return errors.Newf("Pinned tool %s not found", target)
 	}
 	return nil
 }

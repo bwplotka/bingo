@@ -267,7 +267,7 @@ For detailed examples and documentation see: https://github.com/bwplotka/bingo
 
 Commands:
 
-  get <flags> [<package or binary>[@version1 or none,version2,version3...]]
+  get <flags> [<package or binary>[@version1,none,latest,version2,version3...]]
 
   -go string
     	Path to the go command. (default "go")

@@ -1,16 +1,11 @@
 include .bingo/Variables.mk
 
-faillint-exists: $(FAILLINT)
-	@echo "checking faillint"
-	@test $(FAILLINT) || (echo "no var" && exit 1)
-	@test -f $(FAILLINT) || (echo "no file" && exit 1)
+buildable-v2-exists: $(BUILDABLE_V2)
+	@echo "checking buildable-v2"
+	@test $(BUILDABLE_V2) || (echo "no var" && exit 1)
+	@test -f $(BUILDABLE_V2) || (echo "no file" && exit 1)
 
-buildable-exists: $(BUILDABLE)
-	@echo "checking buildable"
-	@test $(BUILDABLE) || (echo "no var" && exit 1)
-	@test -f $(BUILDABLE) || (echo "no file" && exit 1)
-
-wr_buildable-exists: $(WR_BUILDABLE)
-	@echo "checking wr_buildable"
-	@test $(WR_BUILDABLE) || (echo "no var" && exit 1)
-	@test -f $(WR_BUILDABLE) || (echo "no file" && exit 1)
+buildable-withreplace-exists: $(BUILDABLE_WITHREPLACE)
+	@echo "checking buildable-with-replace"
+	@test $(BUILDABLE_WITHREPLACE) || (echo "no var" && exit 1)
+	@test -f $(BUILDABLE_WITHREPLACE) || (echo "no file" && exit 1)

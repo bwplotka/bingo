@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errors"
 )
 
 // RemoveHelpers deletes helpers from mod directory.
