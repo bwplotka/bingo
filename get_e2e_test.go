@@ -421,6 +421,7 @@ func TestCompatibility(t *testing.T) {
 							// For no go projects we have this "bug" that requires go.mod to be present.
 							_, err := execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-mod=mod", "-modfile=buildable.1.mod",
 								"-o="+filepath.Join(g.gobin, "buildable-v1.0.0"), "github.com/bwplotka/bingo-testmodule/buildable")
+							testutil.Ok(t, err)
 							_, err = execCmd(filepath.Join(p.root, defaultModDir), nil, "go", "build", "-mod=mod", "-modfile=buildable-withReplace.mod",
 								"-o="+filepath.Join(g.gobin, "buildable-withReplace-v0.0.0-20221007091003-fe4d42a37d92"), "github.com/bwplotka/bingo-testmodule/buildable")
 							testutil.Ok(t, err)
