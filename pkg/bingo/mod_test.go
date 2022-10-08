@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/bwplotka/bingo/pkg/runner"
-	"github.com/efficientgo/tools/core/pkg/testutil"
+	"github.com/efficientgo/core/testutil"
 	"golang.org/x/mod/module"
 )
 

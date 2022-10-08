@@ -18,7 +18,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/version"
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errors"
 )
 
 // Runner allows to run certain commands against module aware Go CLI.
@@ -39,7 +39,7 @@ var versionRegexp = regexp.MustCompile(`go?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
 func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
 	el := strings.Fields(strings.TrimRight(goVersionOutput, "\n"))
 	if len(el) < 2 {
-		return nil, errors.Errorf("unexpected go version output; expected 'go version go<semver> ...; found %v", strings.TrimRight(goVersionOutput, "\n"))
+		return nil, errors.Newf("unexpected go version output; expected 'go version go<semver> ...; found %v", strings.TrimRight(goVersionOutput, "\n"))
 	}
 	goVersion := versionRegexp.FindString(el[2])
 	if goVersion == "" {
@@ -52,7 +52,7 @@ func isSupportedVersion(v *semver.Version) error {
 	if !v.LessThan(version.Go114) {
 		return nil
 	}
-	return errors.Errorf("found unsupported go version: %v; requires go 1.14.x or higher", v.String())
+	return errors.Newf("found unsupported go version: %v; requires go 1.14.x or higher", v.String())
 }
 
 // NewRunner checks Go version compatibility then returns Runner.
@@ -122,11 +122,11 @@ func (r *Runner) exec(ctx context.Context, output io.Writer, e envars.EnvSlice, 
 	if err := cmd.Run(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			if r.verbose {
-				return errors.Errorf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
+				return errors.Newf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
 			}
 			return errors.New("exit 1")
 		}
-		return errors.Errorf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
+		return errors.Newf("error while running command '%s %s'; err: %v", command, strings.Join(args, " "), err)
 	}
 	if r.verbose {
 		r.logger.Printf("exec '%s %s'\n", command, strings.Join(args, " "))

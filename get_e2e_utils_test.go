@@ -6,15 +6,14 @@ package main_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/efficientgo/tools/core/pkg/testutil"
-	"github.com/pkg/errors"
+	"github.com/efficientgo/core/errors"
+	"github.com/efficientgo/core/testutil"
 )
 
 type testProject struct {
@@ -62,10 +61,10 @@ func (g *testProject) assertNotChanged(t testing.TB, except ...string) {
 func (g *testProject) assertGoModDidNotChange(t testing.TB) *testProject {
 	t.Helper()
 
-	a, err := ioutil.ReadFile(filepath.Join(g.root, "go.mod"))
+	a, err := os.ReadFile(filepath.Join(g.root, "go.mod"))
 	testutil.Ok(t, err)
 
-	b, err := ioutil.ReadFile(filepath.Join(g.pwd, "testdata", "go.mod"))
+	b, err := os.ReadFile(filepath.Join(g.pwd, "testdata", "go.mod"))
 	testutil.Ok(t, err)
 
 	testutil.Equals(t, string(b), string(a))
@@ -76,10 +75,10 @@ func (g *testProject) assertGoModDidNotChange(t testing.TB) *testProject {
 func (g *testProject) assertGoSumDidNotChange(t testing.TB) *testProject {
 	t.Helper()
 
-	a, err := ioutil.ReadFile(filepath.Join(g.root, "go.sum"))
+	a, err := os.ReadFile(filepath.Join(g.root, "go.sum"))
 	testutil.Ok(t, err)
 
-	b, err := ioutil.ReadFile(filepath.Join(g.pwd, "testdata", "go.sum"))
+	b, err := os.ReadFile(filepath.Join(g.pwd, "testdata", "go.sum"))
 	testutil.Ok(t, err)
 
 	testutil.Equals(t, string(b), string(a))
@@ -101,7 +100,7 @@ func (g *testProject) assertProjectRootIsClean(t testing.TB, extra ...string) *t
 		expected["main.go"] = struct{}{}
 	}
 
-	i, err := ioutil.ReadDir(g.root)
+	i, err := os.ReadDir(g.root)
 	testutil.Ok(t, err)
 	got := map[string]struct{}{}
 	for _, f := range i {
@@ -136,10 +135,10 @@ func execCmd(dir string, env []string, command string, args ...string) (string, 
 	cmd.Stderr = &b
 	if err := cmd.Run(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			return "", errors.Errorf("error while running command %q; out: %s; err: %v", cmd.String(), b.String(), err)
+			return "", errors.Newf("error while running command %q; out: %s; err: %v", cmd.String(), b.String(), err)
 
 		}
-		return "", errors.Errorf("error while running command %q; out: %s; err: %v", cmd.String(), b.String(), err)
+		return "", errors.Newf("error while running command %q; out: %s; err: %v", cmd.String(), b.String(), err)
 	}
 	return b.String(), nil
 }
@@ -149,6 +148,8 @@ func buildInitialGobin(t *testing.T, targetDir string) {
 
 	wd, err := os.Getwd()
 	testutil.Ok(t, err)
+
+	testutil.Ok(t, os.Setenv("GOBIN", filepath.Join(wd, ".bin")))
 
 	_, err = execCmd(wd, nil, "make", "build")
 	testutil.Ok(t, err)
@@ -165,7 +166,7 @@ func makePath(t *testing.T) string {
 }
 
 func newIsolatedGoEnv(t testing.TB, goproxy string) *goEnv {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "bingo-tmpgoenv")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "bingo-tmpgoenv")
 	testutil.Ok(t, err)
 
 	tmpDir, err = filepath.Abs(tmpDir)
@@ -193,7 +194,7 @@ func (g *goEnv) Clear(t testing.TB) {
 	_, err := execCmd("", nil, "chmod", "-R", "777", g.tmpDir)
 	testutil.Ok(t, err)
 
-	dirs, err := ioutil.ReadDir(g.tmpDir)
+	dirs, err := os.ReadDir(g.tmpDir)
 	testutil.Ok(t, err)
 
 	for _, d := range dirs {
@@ -239,7 +240,7 @@ func (g *goEnv) existingBinaries(t *testing.T) []string {
 	t.Helper()
 
 	var filenames []string
-	files, err := ioutil.ReadDir(g.gobin)
+	files, err := os.ReadDir(g.gobin)
 	if os.IsNotExist(err) {
 		return []string{}
 	}

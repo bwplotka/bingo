@@ -4,6 +4,6 @@
 package testdata
 
 import (
+	_ "github.com/efficientgo/core/errors"
 	_ "github.com/oklog/run"
-	_ "github.com/pkg/errors"
 )

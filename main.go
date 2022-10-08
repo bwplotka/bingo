@@ -19,8 +19,8 @@ import (
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
+	"github.com/efficientgo/core/errors"
 	"github.com/oklog/run"
-	"github.com/pkg/errors"
 )
 
 func exitOnUsageError(usage func(), v ...interface{}) {
@@ -235,7 +235,7 @@ For detailed examples and documentation see: https://github.com/bwplotka/bingo
 
 Commands:
 
-  get <flags> [<package or binary>[@version1 or none,version2,version3...]]
+  get <flags> [<package or binary>[@version1,none,latest,version2,version3...]]
 
 %s
 
