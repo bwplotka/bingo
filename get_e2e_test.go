@@ -200,6 +200,20 @@ func TestGetList(t *testing.T) {
 					expectSameBinariesAsBefore: true,
 				},
 				{
+					name: "upgrade module to one with generics",
+					do: func(t *testing.T) {
+						fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c"))
+					},
+					expectRows: []row{
+						{name: "buildable", binName: "buildable-v0.0.0-20221007091146-39a7f0ae0b1e", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v0.0.0-20221007091146-39a7f0ae0b1e"},
+						{name: "buildable", binName: "buildable-v1.0.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v1.0.0"},
+						{name: "buildable", binName: "buildable-v1.1.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v1.1.0"},
+						{name: "buildable2", binName: "buildable2-v1.1.1-0.20221011180346-d48721795572", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable2@v1.1.1-0.20221011180346-d48721795572"},
+						{name: "my-buildable-v2", binName: "my-buildable-v2-v2.0.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/v2/buildable@v2.0.0"},
+					},
+					expectBinaries: []string{"buildable", "buildable-v0.0.0-20221007091146-39a7f0ae0b1e", "buildable-v1.0.0", "buildable-v1.1.0", "buildable-v2-v2.0.0", "buildable2-v0.0.0-20221007091238-9d83f47b84c5", "buildable2-v1.1.1-0.20221011180346-d48721795572", "my-buildable-v2-v2.0.0"},
+				},
+				{
 					name: "remove all",
 					do: func(t *testing.T) {
 						fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable@none"))

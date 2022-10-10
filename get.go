@@ -18,6 +18,7 @@ import (
 	"unicode"
 
 	"github.com/bwplotka/bingo/pkg/bingo"
+	"github.com/bwplotka/bingo/pkg/mod"
 	"github.com/bwplotka/bingo/pkg/runner"
 	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/core/errcapture"
@@ -582,24 +583,18 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	outSumFile := strings.TrimSuffix(outModFile, ".mod") + ".sum"
 
 	// If we don't have all information or update is set, resolve version.
-	var fetchedDirectives bingo.NonRequireDirectives
+	var fetchedDirectives nonRequireDirectives
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" {
 		// Set up totally empty mod file to get clear version to install.
 		tmpEmptyModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, "", tmpEmptyModFilePath)
 		if err != nil {
 			return errors.Wrap(err, "create empty tmp mod file")
 		}
-		// Stick to version that works with bingo.
-		// TODO(bwplotka): Stop depending on Go tooling from the provided binary, it's not reliable for what we do in bingo.
-		tmpEmptyModFile.ChangeGoVersion("1.17")
-		if err := tmpEmptyModFile.Flush(); err != nil {
-			return err
-		}
 
 		defer errcapture.Do(&err, tmpEmptyModFile.Close, "close")
 
-		runnable := c.runner.With(ctx, tmpEmptyModFile.FileName(), c.modDir, nil)
-		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.FileName(), runnable, &target); err != nil {
+		runnable := c.runner.With(ctx, tmpEmptyModFile.Filepath(), c.modDir, nil)
+		if err := resolvePackage(logger, c.verbose, tmpEmptyModFile.Filepath(), runnable, &target); err != nil {
 			return err
 		}
 
@@ -621,8 +616,14 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 	defer errcapture.Do(&err, tmpModFile.Close, "close")
 
-	if !tmpModFile.IsDirectivesAutoFetchDisabled() && fetchedDirectives.NonEmpty() {
-		if err := tmpModFile.SetDirectives(fetchedDirectives); err != nil {
+	if !tmpModFile.IsDirectivesAutoFetchDisabled() && !fetchedDirectives.isEmpty() {
+		if err := tmpModFile.SetReplaceDirectives(fetchedDirectives.replace...); err != nil {
+			return err
+		}
+		if err := tmpModFile.SetExcludeDirectives(fetchedDirectives.exclude...); err != nil {
+			return err
+		}
+		if err := tmpModFile.SetRetractDirectives(fetchedDirectives.retract...); err != nil {
 			return err
 		}
 	}
@@ -636,19 +637,15 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return err
 	}
 
-	if err := tmpModFile.Flush(); err != nil {
-		return err
-	}
-
 	if err := install(ctx, logger, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
 		return errors.Wrap(err, "install")
 	}
 
 	// We were working on tmp file, do atomic rename.
-	if err := os.Rename(tmpModFile.FileName(), outModFile); err != nil {
+	if err := os.Rename(tmpModFile.Filepath(), outModFile); err != nil {
 		return errors.Wrap(err, "rename mod file")
 	}
-	if err := os.Rename(tmpModFile.SumFileName(), outSumFile); err != nil {
+	if err := os.Rename(bingo.SumFilePath(tmpModFile.Filepath()), outSumFile); err != nil {
 		return errors.Wrap(err, "rename sum file")
 	}
 	return nil
@@ -671,11 +668,21 @@ func localGoModFileAfterGet(gopath string, target bingo.Package) string {
 	return filepath.Join(gopath, "pkg", "mod", b.String(), "go.mod")
 }
 
+type nonRequireDirectives struct {
+	replace []mod.ReplaceDirective
+	exclude []mod.ExcludeDirective
+	retract []mod.RetractDirective
+}
+
+func (d nonRequireDirectives) isEmpty() bool {
+	return len(d.replace) == 0 && len(d.exclude) == 0 && len(d.retract) == 0
+}
+
 // autoFetchDirectives is returning all non-require directives, that allows bingo to use exactly the same exclude, replace and retract statement
 // as the target module we want to install.
 // It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
 // Since we always download single tool dependency module per tool module, we can copy its non-require statements if exists to fix this common case.
-func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d bingo.NonRequireDirectives, _ error) {
+func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d nonRequireDirectives, _ error) {
 	gopath, err := runnable.GoEnv("GOPATH")
 	if err != nil {
 		return d, errors.Wrap(err, "go env")
@@ -692,15 +699,16 @@ func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d bing
 		return d, errors.Wrapf(err, "stat target mod directory %v", targetModFile)
 	}
 
-	targetModParsed, err := bingo.ParseModFileOrReader(targetModFile, nil)
+	// Mod directory has only read permissions.
+	targetModParsed, err := mod.OpenFileForRead(targetModFile)
 	if err != nil {
 		return d, errors.Wrapf(err, "parse target mod file %v", targetModFile)
 	}
-	d.ReplaceStmts = targetModParsed.Replace
-	d.ExcludeStmts = targetModParsed.Exclude
-	d.RetractStmts = targetModParsed.Retract
+	d.replace = targetModParsed.ReplaceDirectives()
+	d.exclude = targetModParsed.ExcludeDirectives()
+	d.retract = targetModParsed.RetractDirectives()
 
-	if len(d.RetractStmts) > 0 && runnable.GoVersion().LessThan(version.Go116) {
+	if len(d.retract) > 0 && runnable.GoVersion().LessThan(version.Go116) {
 		return d, errors.Newf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
 	}
 	return d, nil
@@ -727,7 +735,7 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 	var listArgs []string
 	listArgs = append(listArgs, modFile.DirectPackage().BuildFlags...)
 	listArgs = append(listArgs, "-mod=mod", "-f={{.Name}}", pkg.Path())
-	if listOutput, err := r.With(ctx, modFile.FileName(), modDir, nil).List(listArgs...); err != nil {
+	if listOutput, err := r.With(ctx, modFile.Filepath(), modDir, nil).List(listArgs...); err != nil {
 		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Newf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
@@ -738,7 +746,7 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 	// go install does not define -modfile flag so we mimic go install with go build -o instead.
 	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
 
-	modCtx := r.With(ctx, modFile.FileName(), modDir, pkg.BuildEnvs)
+	modCtx := r.With(ctx, modFile.Filepath(), modDir, pkg.BuildEnvs)
 	if err := modCtx.Build(pkg.Path(), binPath, pkg.BuildFlags...); err != nil {
 		if strings.Contains(err.Error(), "module declares its path as: ") &&
 			strings.Contains(err.Error(), fmt.Sprintf("but was required as: %v", modFile.DirectPackage().Path())) {

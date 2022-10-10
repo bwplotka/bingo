@@ -6,7 +6,6 @@ package envars
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 func TestEval(t *testing.T) {
 	t.Run("simple.env", func(t *testing.T) {
-		b, err := ioutil.ReadFile("testdata/simple.env")
+		b, err := os.ReadFile("testdata/simple.env")
 		testutil.Ok(t, err)
 
 		e, err := EvalVariables(
@@ -31,7 +30,7 @@ func TestEval(t *testing.T) {
 		}, e)
 	})
 	t.Run("bingo.env", func(t *testing.T) {
-		b, err := ioutil.ReadFile("testdata/bingo.env")
+		b, err := os.ReadFile("testdata/bingo.env")
 		testutil.Ok(t, err)
 
 		e, err := EvalVariables(
@@ -55,7 +54,7 @@ func TestEval(t *testing.T) {
 		}, e)
 	})
 	t.Run("export.env", func(t *testing.T) {
-		b, err := ioutil.ReadFile("testdata/export.env")
+		b, err := os.ReadFile("testdata/export.env")
 		testutil.Ok(t, err)
 
 		e, err := EvalVariables(
