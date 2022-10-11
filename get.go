@@ -480,8 +480,8 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package
 		}
 
 		// There are 2 major cases:
-		// 1. We have -u flag or version is not pinned: find latest module having this package.
-		if target.Module.Version == "" {
+		// 1. We have @latest or version is not pinned: find latest module having this package.
+		if target.Module.Version == "" || target.Module.Version == "latest" {
 			latest, err := latestModVersion(filepath.Join(modMetaDir, "list"))
 			if err != nil {
 				return errors.Wrapf(err, "get latest version from %v", filepath.Join(modMetaDir, "list"))
@@ -493,7 +493,7 @@ func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package
 			return nil
 		}
 
-		// 2. We don't have update flag and have version pinned: find exact version then.
+		// 2. We don't @latest and have version pinned: find exact version then.
 		// Look for .info files that have exact version or sha.
 		if strings.HasPrefix(target.Module.Version, "v") {
 			if _, err := os.Stat(filepath.Join(modMetaDir, target.Module.Version+".info")); err != nil {

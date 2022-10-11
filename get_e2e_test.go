@@ -503,6 +503,26 @@ func TestCompatibility(t *testing.T) {
 }
 
 func TestGet_ModuleCases(t *testing.T) {
+	g := newIsolatedGoEnv(t, defaultGoProxy)
+	defer g.Close(t)
+
+	t.Run("benchstat: latest in case where no major version is found", func(t *testing.T) {
+		g.Clear(t)
+
+		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+		p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+		p.assertNotChanged(t)
+
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		bingoPath := filepath.Join(g.tmpDir, bingoBin)
+		buildInitialGobin(t, bingoPath)
+
+		expectBingoListRows(t, []row(nil), g.ExecOutput(t, p.root, bingoPath, "list"))
+		testutil.Equals(t, []string{}, g.existingBinaries(t))
+
+		fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "golang.org/x/perf/cmd/benchstat@latest"))
+	})
+
 	// Tricky cases TODO.
 
 	//	// Regression test against https://github.com/bwplotka/bingo/issues/65.
