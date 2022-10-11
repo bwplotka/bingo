@@ -200,20 +200,6 @@ func TestGetList(t *testing.T) {
 					expectSameBinariesAsBefore: true,
 				},
 				{
-					name: "upgrade module to one with generics",
-					do: func(t *testing.T) {
-						fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c"))
-					},
-					expectRows: []row{
-						{name: "buildable", binName: "buildable-v0.0.0-20221007091146-39a7f0ae0b1e", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v0.0.0-20221007091146-39a7f0ae0b1e"},
-						{name: "buildable", binName: "buildable-v1.0.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v1.0.0"},
-						{name: "buildable", binName: "buildable-v1.1.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable@v1.1.0"},
-						{name: "buildable2", binName: "buildable2-v1.1.1-0.20221011180346-d48721795572", pkgVersion: "github.com/bwplotka/bingo-testmodule/buildable2@v1.1.1-0.20221011180346-d48721795572"},
-						{name: "my-buildable-v2", binName: "my-buildable-v2-v2.0.0", pkgVersion: "github.com/bwplotka/bingo-testmodule/v2/buildable@v2.0.0"},
-					},
-					expectBinaries: []string{"buildable", "buildable-v0.0.0-20221007091146-39a7f0ae0b1e", "buildable-v1.0.0", "buildable-v1.1.0", "buildable-v2-v2.0.0", "buildable2-v0.0.0-20221007091238-9d83f47b84c5", "buildable2-v1.1.1-0.20221011180346-d48721795572", "my-buildable-v2-v2.0.0"},
-				},
-				{
 					name: "remove all",
 					do: func(t *testing.T) {
 						fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "buildable@none"))
@@ -506,6 +492,13 @@ func TestGet_ModuleCases(t *testing.T) {
 	g := newIsolatedGoEnv(t, defaultGoProxy)
 	defer g.Close(t)
 
+	var goVersion *semver.Version
+	{
+		r, err := runner.NewRunner(context.Background(), nil, false, "go")
+		testutil.Ok(t, err)
+		goVersion = r.GoVersion()
+	}
+
 	t.Run("benchstat: latest in case where no major version is found", func(t *testing.T) {
 		g.Clear(t)
 
@@ -521,6 +514,27 @@ func TestGet_ModuleCases(t *testing.T) {
 		testutil.Equals(t, []string{}, g.existingBinaries(t))
 
 		fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "golang.org/x/perf/cmd/benchstat@latest"))
+	})
+	t.Run("module with generics", func(t *testing.T) {
+		g.Clear(t)
+
+		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+		p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+		p.assertNotChanged(t)
+
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		bingoPath := filepath.Join(g.tmpDir, bingoBin)
+		buildInitialGobin(t, bingoPath)
+
+		expectBingoListRows(t, []row(nil), g.ExecOutput(t, p.root, bingoPath, "list"))
+		testutil.Equals(t, []string{}, g.existingBinaries(t))
+
+		if goVersion.LessThan(semver.MustParse("v1.18")) {
+			err := g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c")
+			testutil.NotOk(t, err)
+		} else {
+			fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c"))
+		}
 	})
 
 	// Tricky cases TODO.

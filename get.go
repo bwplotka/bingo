@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Masterminds/semver"
 	"github.com/bwplotka/bingo/pkg/bingo"
 	"github.com/bwplotka/bingo/pkg/mod"
 	"github.com/bwplotka/bingo/pkg/runner"
@@ -599,7 +600,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 
 		if !strings.HasSuffix(target.Module.Version, "+incompatible") {
-			fetchedDirectives, err = autoFetchDirectives(runnable, target)
+			fetchedDirectives, err = autoFetchDirectives(runnable, logger, target)
 			if err != nil {
 				return err
 			}
@@ -682,7 +683,7 @@ func (d nonRequireDirectives) isEmpty() bool {
 // as the target module we want to install.
 // It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
 // Since we always download single tool dependency module per tool module, we can copy its non-require statements if exists to fix this common case.
-func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d nonRequireDirectives, _ error) {
+func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bingo.Package) (d nonRequireDirectives, _ error) {
 	gopath, err := runnable.GoEnv("GOPATH")
 	if err != nil {
 		return d, errors.Wrap(err, "go env")
@@ -704,6 +705,11 @@ func autoFetchDirectives(runnable runner.Runnable, target bingo.Package) (d nonR
 	if err != nil {
 		return d, errors.Wrapf(err, "parse target mod file %v", targetModFile)
 	}
+
+	if semver.MustParse(targetModParsed.GoVersion()).GreaterThan(runnable.GoVersion()) {
+		logger.Printf("WARNING: Go module you are trying to install requires higher Go version (%v) than you are using (%v). Use newer Go version to install it if you encounter build errors (e.g when generics were used).\n", targetModParsed.GoVersion(), runnable.GoVersion().String())
+	}
+
 	d.replace = targetModParsed.ReplaceDirectives()
 	d.exclude = targetModParsed.ExcludeDirectives()
 	d.retract = targetModParsed.RetractDirectives()
