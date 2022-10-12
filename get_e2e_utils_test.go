@@ -166,7 +166,7 @@ func makePath(t *testing.T) string {
 }
 
 func newIsolatedGoEnv(t testing.TB, goproxy string) *goEnv {
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "bingo-tmpgoenv")
+	tmpDir, err := os.MkdirTemp("", "bingo-tmpgoenv")
 	testutil.Ok(t, err)
 
 	tmpDir, err = filepath.Abs(tmpDir)

@@ -5,7 +5,6 @@ package makefile
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,7 +58,7 @@ type Parser struct {
 // Parse the given input reader.
 // TODO(bwplotka): Streaming version would be nice.
 func (p *Parser) Parse(r io.Reader) ([]Node, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading")
 	}

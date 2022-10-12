@@ -489,6 +489,54 @@ func TestCompatibility(t *testing.T) {
 }
 
 func TestGet_ModuleCases(t *testing.T) {
+	g := newIsolatedGoEnv(t, defaultGoProxy)
+	defer g.Close(t)
+
+	var goVersion *semver.Version
+	{
+		r, err := runner.NewRunner(context.Background(), nil, false, "go")
+		testutil.Ok(t, err)
+		goVersion = r.GoVersion()
+	}
+
+	t.Run("benchstat: latest in case where no major version is found", func(t *testing.T) {
+		g.Clear(t)
+
+		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+		p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+		p.assertNotChanged(t)
+
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		bingoPath := filepath.Join(g.tmpDir, bingoBin)
+		buildInitialGobin(t, bingoPath)
+
+		expectBingoListRows(t, []row(nil), g.ExecOutput(t, p.root, bingoPath, "list"))
+		testutil.Equals(t, []string{}, g.existingBinaries(t))
+
+		fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "golang.org/x/perf/cmd/benchstat@latest"))
+	})
+	t.Run("module with generics", func(t *testing.T) {
+		g.Clear(t)
+
+		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+		p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+		p.assertNotChanged(t)
+
+		// We manually build bingo binary to make sure GOCACHE will not hit us.
+		bingoPath := filepath.Join(g.tmpDir, bingoBin)
+		buildInitialGobin(t, bingoPath)
+
+		expectBingoListRows(t, []row(nil), g.ExecOutput(t, p.root, bingoPath, "list"))
+		testutil.Equals(t, []string{}, g.existingBinaries(t))
+
+		if goVersion.LessThan(semver.MustParse("v1.18")) {
+			err := g.ExpectErr(p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c")
+			testutil.NotOk(t, err)
+		} else {
+			fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/bwplotka/bingo-testmodule/buildable2@d48721795572f7b824f60a5b0623e524b263ed0c"))
+		}
+	})
+
 	// Tricky cases TODO.
 
 	//	// Regression test against https://github.com/bwplotka/bingo/issues/65.
