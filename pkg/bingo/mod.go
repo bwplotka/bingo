@@ -5,6 +5,7 @@ package bingo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -362,6 +363,42 @@ func (pkgs PackageRenderables) PrintTab(target string, w io.Writer) error {
 		return errors.Newf("Pinned tool %s not found", target)
 	}
 	return nil
+}
+
+type PackageJSON struct {
+	Name           string   `json:"name"`
+	BinaryName     string   `json:"binary_name"`
+	PackageVersion string   `json:"package_version"`
+	BuildEnvVars   []string `json:"build_env_vars"`
+	BuildFlags     []string `json:"build_flags"`
+}
+
+func (pkgs PackageRenderables) PrintJSON(target string, w io.Writer) error {
+	var pJSON []PackageJSON
+	for _, p := range pkgs {
+		if target != "" && p.Name != target {
+			continue
+		}
+		for _, v := range p.Versions {
+			pJSON = append(pJSON, PackageJSON{
+				Name:           p.Name,
+				BinaryName:     p.Name + "-" + v.Version,
+				PackageVersion: p.PackagePath + "@" + v.Version,
+				BuildEnvVars:   p.BuildEnvVars,
+				BuildFlags:     p.BuildFlags,
+			})
+		}
+	}
+
+	b, err := json.MarshalIndent(pJSON, "", "\t")
+	if err != nil {
+		return fmt.Errorf("error marshalling pkgs: %s", err.Error())
+	}
+
+	fmt.Fprintln(w, string(b))
+
+	return nil
+
 }
 
 // ListPinnedMainPackages lists all bingo pinned binaries (Go main packages) in the same order as seen in the filesystem.

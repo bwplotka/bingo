@@ -62,6 +62,7 @@ func main() {
 		" maintained. If does not exists, bingo list will fail.")
 	// Go flags is so broken, need to add shadow -v flag to make those work in both before and after `list` command.
 	listVerbose := listFlags.Bool("v", false, "Print more'")
+	listJSON := listFlags.Bool("json", false, "output to json")
 
 	flags.Usage = func() {
 		getFlagsHelp := &strings.Builder{}
@@ -186,6 +187,9 @@ func main() {
 			}
 
 			bingo.SortRenderables(pkgs)
+			if *listJSON {
+				return pkgs.PrintJSON(target, os.Stdout)
+			}
 			return pkgs.PrintTab(target, os.Stdout)
 		}
 	case "version":
