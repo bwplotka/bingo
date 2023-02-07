@@ -32,20 +32,16 @@ type Runner struct {
 	logger *log.Logger
 }
 
-var versionRegexp = regexp.MustCompile(`go?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?`)
+var versionRegexp = regexp.MustCompile(`^go version.* go((?:[0-9]+)(?:\.[0-9]+)?(?:\.[0-9]+)?)`)
 
 // parseGoVersion ignores pre-release identifiers immediately following the
 // patch version since we don't expect goVersionOutput to be SemVer-compliant.
 func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
-	el := strings.Fields(strings.TrimRight(goVersionOutput, "\n"))
-	if len(el) < 2 {
+	goVersion := versionRegexp.FindStringSubmatch(goVersionOutput)
+	if goVersion == nil {
 		return nil, errors.Newf("unexpected go version output; expected 'go version go<semver> ...; found %v", strings.TrimRight(goVersionOutput, "\n"))
 	}
-	goVersion := versionRegexp.FindString(el[2])
-	if goVersion == "" {
-		return nil, errors.New("unexpected go version format")
-	}
-	return semver.NewVersion(strings.TrimPrefix(goVersion, "go"))
+	return semver.NewVersion(goVersion[1])
 }
 
 func isSupportedVersion(v *semver.Version) error {
