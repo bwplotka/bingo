@@ -32,6 +32,7 @@ func TestParseAndIsSupportedVersion(t *testing.T) {
 		{output: "go version go1.16rc1 linux/amd64"},
 		{output: "go version go2 linux/amd64"},
 		{output: "go version go2.1 linux/amd64"},
+		{output: "go version devel go1.21-02d8ebda83 Mon Feb 6 22:13:07 2023 +0000 linux/amd64"},
 	} {
 		t.Run(tcase.output, func(t *testing.T) {
 			errs := merrors.New()
