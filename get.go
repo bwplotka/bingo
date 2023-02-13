@@ -388,20 +388,32 @@ func resolvePackage(
 		}
 	}
 
+	cacheModPath, err := gomodcache(runnable)
+	if err != nil {
+		return errors.Wrapf(err, "can't find GOMODCACHE or deduct it from GOPATH")
+	}
+
 	// We fallback only if go-get failed which happens when it does not know what version to choose.
 	// In this case
-	if err := resolveInGoModCache(logger, verbose, target); err != nil {
+	if err := resolveInGoModCache(logger, verbose, cacheModPath, target); err != nil {
 		return errors.Wrapf(err, "fallback to local go mod cache resolution failed after go get failure: %v", gerr)
 	}
 	return nil
 }
 
-func gomodcache() string {
-	cachepath := os.Getenv("GOMODCACHE")
-	if gpath := os.Getenv("GOPATH"); gpath != "" && cachepath == "" {
-		cachepath = filepath.Join(gpath, "pkg/mod")
+func gomodcache(runnable runner.Runnable) (string, error) {
+	cachepath, err := runnable.GoEnv("GOMODCACHE")
+	if err != nil {
+		return "", errors.Wrap(err, "go env GOMODCACHE")
 	}
-	return cachepath
+	if cachepath != "" {
+		return cachepath, nil
+	}
+	gpath, err := runnable.GoEnv("GOPATH")
+	if err != nil {
+		return "", errors.Wrap(err, "go env GOPATH")
+	}
+	return filepath.Join(gpath, "pkg/mod"), nil
 }
 
 func latestModVersion(listFile string) (_ string, err error) {
@@ -452,8 +464,8 @@ func encodePath(path string) string {
 }
 
 // resolveInGoModCache will try to find a referenced module in the Go modules cache.
-func resolveInGoModCache(logger *log.Logger, verbose bool, target *bingo.Package) error {
-	modMetaCache := filepath.Join(gomodcache(), "cache/download")
+func resolveInGoModCache(logger *log.Logger, verbose bool, cacheModPath string, target *bingo.Package) error {
+	modMetaCache := filepath.Join(cacheModPath, "cache/download")
 	modulePath := target.Path()
 	// Case sensitivity problem is fixed by replacing upper case with '/!<lower case letter>` signature.
 	// See https://tip.golang.org/cmd/go/#hdr-Module_proxy_protocol
@@ -721,12 +733,20 @@ func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bi
 }
 
 // gobin mimics the way go install finds where to install go tool.
-func gobin() string {
-	binPath := os.Getenv("GOBIN")
-	if gpath := os.Getenv("GOPATH"); gpath != "" && binPath == "" {
-		binPath = filepath.Join(gpath, "bin")
+func gobin(runnable runner.Runnable) (string, error) {
+	binPath, err := runnable.GoEnv("GOBIN")
+	if err != nil {
+		return "", errors.Wrap(err, "go env GOBIN")
 	}
-	return binPath
+	if binPath != "" {
+		return binPath, nil
+	}
+
+	gpath, err := runnable.GoEnv("GOPATH")
+	if err != nil {
+		return "", errors.Wrap(err, "go env GOPATH")
+	}
+	return filepath.Join(gpath, "bin"), nil
 }
 
 func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir string, name string, link bool, modFile *bingo.ModFile) (err error) {
@@ -747,7 +767,10 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 		return errors.Newf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
 
-	gobin := gobin()
+	gobin, err := gobin(r.With(ctx, modFile.Filepath(), modDir, nil))
+	if err != nil {
+		return errors.Wrap(err, "deduct GOBIN")
+	}
 
 	// go install does not define -modfile flag so we mimic go install with go build -o instead.
 	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
