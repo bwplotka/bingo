@@ -515,6 +515,7 @@ func TestGet_ModuleCases(t *testing.T) {
 
 		fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "golang.org/x/perf/cmd/benchstat@latest"))
 	})
+
 	t.Run("module with generics", func(t *testing.T) {
 		g.Clear(t)
 
