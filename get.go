@@ -338,13 +338,7 @@ func validateTargetName(targetName string) error {
 	return nil
 }
 
-func resolvePackage(
-	logger *log.Logger,
-	verbose bool,
-	tmpModFile string,
-	runnable runner.Runnable,
-	target *bingo.Package,
-) (err error) {
+func resolvePackage(logger *log.Logger, verbose bool, tmpModFile string, runnable runner.Runnable, target *bingo.Package) (err error) {
 	// Do initial go get -d and remember output.
 	// NOTE: We have to use get -d to resolve version and tell us what is the module and what package.
 	// If go get will not succeed, or will not update go mod, we will try manual lookup.
@@ -595,7 +589,7 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 
 	outSumFile := strings.TrimSuffix(outModFile, ".mod") + ".sum"
 
-	// If we don't have all information or update is set, resolve version.
+	// If we don't have all information, resolve version.
 	var fetchedDirectives nonRequireDirectives
 	if target.Module.Version == "" || !strings.HasPrefix(target.Module.Version, "v") || target.Module.Path == "" {
 		// Set up totally empty mod file to get clear version to install.
@@ -620,9 +614,11 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	}
 
 	// Now we should have target with all required info, prepare tmp file.
+	// TODO(bwplotka): Is this still needed?
 	if err := cleanGoGetTmpFiles(c.modDir); err != nil {
 		return err
 	}
+
 	tmpModFile, err := bingo.CreateFromExistingOrNew(ctx, c.runner, logger, outModFile, tmpModFilePath)
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
@@ -755,27 +751,34 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 		return errors.Wrap(err, pkg.String())
 	}
 
-	// Two purposes of doing list with mod=mod:
-	// * Check if path is pointing to non-buildable package.
-	// * Rebuild go.sum and go.mod (tidy) which is required to build with -mod=readonly (default) to work.
+	modCtx := r.With(ctx, modFile.Filepath(), modDir, nil)
+
+	// Check if path is pointing to non-buildable package.
 	var listArgs []string
 	listArgs = append(listArgs, modFile.DirectPackage().BuildFlags...)
 	listArgs = append(listArgs, "-mod=mod", "-f={{.Name}}", pkg.Path())
-	if listOutput, err := r.With(ctx, modFile.Filepath(), modDir, nil).List(listArgs...); err != nil {
+	if listOutput, err := modCtx.List(listArgs...); err != nil {
 		return errors.Wrap(err, "list")
 	} else if !strings.HasSuffix(listOutput, "main") {
 		return errors.Newf("package %s is non-main (go list output %q), nothing to get and build", pkg.Path(), listOutput)
 	}
 
-	gobin, err := gobin(r.With(ctx, modFile.Filepath(), modDir, nil))
+	// Use go get -d to recreate .sum file
+	// TODO(bwplotka): Do it only if not present or if we update mod to new version?
+	if out, err := modCtx.GetD(modFile.DirectPackage().String()); err != nil {
+		return errors.Wrap(err, out)
+	}
+
+	gobin, err := gobin(modCtx)
 	if err != nil {
 		return errors.Wrap(err, "deduct GOBIN")
 	}
 
-	// go install does not define -modfile flag so we mimic go install with go build -o instead.
+	// go install does not define -modfile flag, so we mimic go install with go build -o instead.
 	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
 
-	modCtx := r.With(ctx, modFile.Filepath(), modDir, pkg.BuildEnvs)
+	// New context with new environment files.
+	modCtx = r.With(ctx, modFile.Filepath(), modDir, pkg.BuildEnvs)
 	if err := modCtx.Build(pkg.Path(), binPath, pkg.BuildFlags...); err != nil {
 		if strings.Contains(err.Error(), "module declares its path as: ") &&
 			strings.Contains(err.Error(), fmt.Sprintf("but was required as: %v", modFile.DirectPackage().Path())) {

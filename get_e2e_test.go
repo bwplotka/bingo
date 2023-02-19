@@ -540,6 +540,24 @@ func TestGet_ModuleCases(t *testing.T) {
 
 	// Tricky cases TODO.
 
+	// Regression against https://github.com/bwplotka/bingo/issues/125
+	//t.Run("golangcilint", func(t *testing.T) {
+	//	g.Clear(t)
+	//
+	//	testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+	//	p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), true)
+	//	p.assertNotChanged(t)
+	//
+	//	// We manually build bingo binary to make sure GOCACHE will not hit us.
+	//	bingoPath := filepath.Join(g.tmpDir, bingoBin)
+	//	buildInitialGobin(t, bingoPath)
+	//
+	//	expectBingoListRows(t, []row(nil), g.ExecOutput(t, p.root, bingoPath, "list"))
+	//	testutil.Equals(t, []string{}, g.existingBinaries(t))
+	//
+	//	fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1"))
+	//})
+
 	//	// Regression test against https://github.com/bwplotka/bingo/issues/65.
 	//	name: "get tool with capital letters in name",
 	//	do: func(t *testing.T, g *goEnv, p *testProject) {
