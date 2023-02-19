@@ -14,6 +14,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/bwplotka/bingo/pkg/cpy"
+
 	"github.com/bwplotka/bingo/pkg/envars"
 	"github.com/bwplotka/bingo/pkg/mod"
 	"github.com/bwplotka/bingo/pkg/runner"
@@ -169,12 +171,12 @@ func CreateFromExistingOrNew(ctx context.Context, r *runner.Runner, logger *log.
 				if err := o.Close(); err != nil {
 					return nil, err
 				}
-				if err := copyFile(existingFile, modFile); err != nil {
+				if err := cpy.File(existingFile, modFile); err != nil {
 					return nil, err
 				}
 				existingSumFile := SumFilePath(existingFile)
 				sumFile := SumFilePath(modFile)
-				if err := copyFile(existingSumFile, sumFile); err != nil && !os.IsNotExist(err) {
+				if err := cpy.File(existingSumFile, sumFile); err != nil && !os.IsNotExist(err) {
 					return nil, err
 				}
 				return OpenModFile(modFile)
@@ -188,36 +190,6 @@ func CreateFromExistingOrNew(ctx context.Context, r *runner.Runner, logger *log.
 		return nil, errors.Wrap(err, "mod init")
 	}
 	return OpenModFile(modFile)
-}
-
-func copyFile(src, dst string) (err error) {
-	source, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer errcapture.Do(&err, source.Close, "close source")
-
-	destination, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer errcapture.Do(&err, destination.Close, "close destination")
-
-	buf := make([]byte, 1024)
-	for {
-		n, err := source.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if n == 0 {
-			break
-		}
-
-		if _, err := destination.Write(buf[:n]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func parseDirectPackageMeta(line string) (relPath string, buildEnv []string, buildFlags []string) {
