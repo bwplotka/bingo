@@ -35,7 +35,8 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 		Example: "bingo get github.com/fatih/faillint\n" +
 			"bingo get github.com/fatih/faillint@latest\n" +
 			"bingo get github.com/fatih/faillint@v1.5.0\n" +
-			"bingo get github.com/fatih/faillint@v1.1.0,v1.5.0",
+			"bingo get github.com/fatih/faillint@v1.1.0,v1.5.0\n" +
+			"bingo get github.com/fatih/faillint@none // this will be deleted ",
 		Short: "go get like, simple CLI that allows automated versioning of Go package level",
 		Long: "go get like, simple CLI that allows automated versioning of Go package level \n" +
 			"binaries(e.g required as dev tools by your project!) built on top of Go Modules, allowing reproducible dev environments.",
