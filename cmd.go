@@ -8,15 +8,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
+	"syscall"
 
-	"github.com/bwplotka/bingo/pkg/runner"
-
-	"github.com/bwplotka/bingo/pkg/bingo"
-	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/bwplotka/bingo/pkg/bingo"
+	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/bwplotka/bingo/pkg/version"
 )
 
 func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
@@ -34,6 +36,7 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 			"bingo get github.com/fatih/faillint@latest\n" +
 			"bingo get github.com/fatih/faillint@v1.5.0\n" +
 			"bingo get github.com/fatih/faillint@v1.1.0,v1.5.0",
+		Short: "go get like, simple CLI that allows automated versioning of Go package level",
 		Long: "go get like, simple CLI that allows automated versioning of Go package level \n" +
 			"binaries(e.g required as dev tools by your project!) built on top of Go Modules, allowing reproducible dev environments.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -55,14 +58,8 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
-			r, err := runner.NewRunner(ctx, logger, insecure, goCmd)
-			if err != nil {
-				return err
-			}
-			if verbose {
-				r.Verbose()
-			}
+			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+			defer cancel()
 
 			modDirAbs, err := filepath.Abs(moddir)
 			if err != nil {
@@ -77,6 +74,14 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 				}
 			}()
 
+			r, err := runner.NewRunner(ctx, logger, insecure, goCmd)
+			if err != nil {
+				return err
+			}
+			if verbose {
+				r.Verbose()
+			}
+
 			cfg := getConfig{
 				runner:    r,
 				modDir:    modDirAbs,
@@ -90,6 +95,7 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 			if len(args) > 0 {
 				target = args[0]
 			}
+
 			if err := get(ctx, logger, cfg, target); err != nil {
 				return errors.Wrap(err, "get")
 			}

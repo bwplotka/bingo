@@ -42,29 +42,4 @@ func main() {
 		logger.Println(err)
 		os.Exit(1)
 	}
-	return
 }
-
-const bingoHelpFmt = `bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
-built on top of Go Modules, allowing reproducible dev environments. 'bingo' allows to easily maintain a separate, nested Go Module for each binary.
-
-For detailed examples and documentation see: https://github.com/bwplotka/bingo
-
-'bingo' supports following commands:
-
-Commands:
-
-  get <flags> [<package or binary>[@version1,none,latest,version2,version3...]]
-
-%s
-
-  list <flags> [<package or binary>]
-
-List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, Version and immutable output.
-
-%s
-
-  version
-
-Prints bingo Version.
-`
