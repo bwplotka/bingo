@@ -260,16 +260,17 @@ See an extensive and up-to-date description of the `bingo` usage below:
 ```bash mdox-exec="bingo --help" mdox-expect-exit-code=2
 Bingo is a command line tool for Like `go get`  but for Go tools! 
 CI Automating versioning of Go binaries in a nested, isolated Go modules.
+For detailed examples and documentation see: https://github.com/bwplotka/bingo
 
 Usage:
   bingo [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
-  get         
+  get         go get like, simple CLI that allows automated versioning of Go package level
   help        Help about any command
   list        List enumerates all or one binary that are/is currently pinned in this project. 
-  version     Print the version number of Bingo
+  version     Prints bingo Version.
 
 Flags:
   -h, --help            help for bingo
