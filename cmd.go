@@ -162,7 +162,7 @@ func NewBingoVersionCommand() *cobra.Command {
 		Short: "Prints bingo Version.",
 		Long:  `Prints bingo Version.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Bingo Version:", version.Version)
+			_, _ = fmt.Fprintln(os.Stdout, version.Version)
 		},
 	}
 	return cmd
