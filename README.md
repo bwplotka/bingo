@@ -258,43 +258,28 @@ See an extensive and up-to-date description of the `bingo` usage below:
 ## Command Help
 
 ```bash mdox-exec="bingo --help" mdox-expect-exit-code=2
-bingo: 'go get' like, simple CLI that allows automated versioning of Go package level binaries (e.g required as dev tools by your project!)
-built on top of Go Modules, allowing reproducible dev environments. 'bingo' allows to easily maintain a separate, nested Go Module for each binary.
-
+Bingo is a command line tool for Like `go get`  but for Go tools! 
+CI Automating versioning of Go binaries in a nested, isolated Go modules.
 For detailed examples and documentation see: https://github.com/bwplotka/bingo
 
-'bingo' supports following commands:
+Usage:
+  bingo [command]
 
-Commands:
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  get         go get like, simple CLI that allows automated versioning of Go package level
+  help        Help about any command
+  list        List enumerates all or one binary that are/is currently pinned in this project. 
+  version     Prints bingo Version.
 
-  get <flags> [<package or binary>[@version1,none,latest,version2,version3...]]
+Flags:
+  -h, --help            help for bingo
+  -m, --moddir string   Directory where separate modules for each binary will be maintained. 
+                        Feel free to commit this directory to your VCS to bond binary versions to your project code. 
+                        If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
+  -v, --verbose         Print more
 
-  -go string
-    	Path to the go command. (default "go")
-  -insecure
-    	Use -insecure flag when using 'go get'
-  -l	If enabled, bingo will also create soft link called <tool> that links to the current<tool>-<version> binary. Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.
-  -moddir string
-    	Directory where separate modules for each binary will be maintained. Feel free to commit this directory to your VCS to bond binary versions to your project code. If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
-  -n string
-    	The -n flag instructs to get binary and name it with given name instead of default, so the last element of package directory. Allowed characters [A-z0-9._-]. If -n is used and no package/binary is specified, bingo get will return error. If -n is used with existing binary name, copy of this binary will be done. Cannot be used with -r
-  -r string
-    	The -r flag instructs to get existing binary and rename it with given name. Allowed characters [A-z0-9._-]. If -r is used and no package/binary is specified or non existing binary name is used, bingo will return error. Cannot be used with -n.
-  -v	Print more'
-
-
-  list <flags> [<package or binary>]
-
-List enumerates all or one binary that are/is currently pinned in this project. It will print exact path, Version and immutable output.
-
-  -moddir string
-    	Directory where separate modules for each binary is maintained. If does not exists, bingo list will fail. (default ".bingo")
-  -v	Print more'
-
-
-  version
-
-Prints bingo Version.
+Use "bingo [command] --help" for more information about a command.
 ```
 
 ## Initial Author
