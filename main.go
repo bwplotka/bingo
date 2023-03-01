@@ -6,6 +6,7 @@
 package main
 
 import (
+	"github.com/bwplotka/bingo/builtin"
 	"log"
 	"os"
 
@@ -17,11 +18,15 @@ var moddir string
 
 func NewBingoCommand(logger *log.Logger) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bingo",
-		Short: "Bingo is a command line tool for managing your Bing-o installation.",
-		Long: "Bingo is a command line tool for Like `go get`  but for Go tools! \n" +
-			"CI Automating versioning of Go binaries in a nested, isolated Go modules.\n" +
-			"For detailed examples and documentation see: https://github.com/bwplotka/bingo",
+		Use: "bingo",
+		Long: `bingo: 'go get' like, simple CLI that allows automated versioning of 
+Go package level binaries (e.g required as dev tools by your project!) 
+
+built on top of Go Modules, allowing reproducible dev environments. 
+'bingo' allows to easily maintain a separate, nested Go Module for each binary. 
+
+For detailed examples and documentation see: https://github.com/bwplotka/bingo
+`,
 	}
 	flags := cmd.PersistentFlags()
 	flags.BoolVarP(&verbose, "verbose", "v", false, "Print more")
@@ -31,6 +36,7 @@ func NewBingoCommand(logger *log.Logger) *cobra.Command {
 	cmd.AddCommand(NewBingoGetCommand(logger))
 	cmd.AddCommand(NewBingoListCommand(logger))
 	cmd.AddCommand(NewBingoVersionCommand())
+	cmd.SetUsageTemplate(builtin.CommandHelpTemplate)
 	return cmd
 }
 

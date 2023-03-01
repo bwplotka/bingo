@@ -37,7 +37,7 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 			"bingo get github.com/fatih/faillint@v1.5.0\n" +
 			"bingo get github.com/fatih/faillint@v1.1.0,v1.5.0\n" +
 			"bingo get github.com/fatih/faillint@none // this will be deleted ",
-		Short: "go get like, simple CLI that allows automated versioning of Go package level",
+		Short: "add development tools to the current project (e.g: bingo get github.com/fatih/faillint@latest)",
 		Long: "go get like, simple CLI that allows automated versioning of Go package level \n" +
 			"binaries(e.g required as dev tools by your project!) built on top of Go Modules, allowing reproducible dev environments.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
