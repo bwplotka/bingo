@@ -281,6 +281,8 @@ Options:
                         Feel free to commit this directory to your VCS to bond binary versions to your project code. 
                         If the directory does not exist bingo logs and assumes a fresh project. (default ".bingo")
   -v, --verbose         Print more
+
+Use "bingo [command] --help" for more information about a command.
 ```
 
 ## Initial Author
