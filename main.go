@@ -6,9 +6,10 @@
 package main
 
 import (
-	"github.com/bwplotka/bingo/builtin"
 	"log"
 	"os"
+
+	"github.com/bwplotka/bingo/builtin"
 
 	"github.com/spf13/cobra"
 )
