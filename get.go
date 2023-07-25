@@ -88,6 +88,7 @@ type getConfig struct {
 	rename    string
 	link      bool
 
+	timeOut uint
 	verbose bool
 }
 
@@ -138,7 +139,12 @@ func existingModFiles(modDir string, targetName string) (existingModFiles []stri
 // get performs bingo get: it's like go get, but package aware, without go source files and on dedicated mod file.
 // rawTarget is name or target package path, optionally with module version or array versions.
 func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute) // TODO(bwplotka): Put as param?
+	var cancel context.CancelFunc = func() {}
+
+	if c.timeOut > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(c.timeOut)*time.Minute)
+	}
+
 	defer cancel()
 
 	// Cleanup all bingo modules' tmp files for fresh start.
