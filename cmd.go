@@ -28,6 +28,7 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 		name     string
 		insecure bool
 		link     bool
+		timeOut  uint
 	)
 
 	cmd := &cobra.Command{
@@ -89,8 +90,9 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 				relModDir: moddir,
 				name:      name,
 				rename:    rename,
-				verbose:   verbose,
 				link:      link,
+				timeOut:   timeOut,
+				verbose:   verbose,
 			}
 			var target string
 			if len(args) > 0 {
@@ -121,6 +123,8 @@ func NewBingoGetCommand(logger *log.Logger) *cobra.Command {
 	flags.BoolVar(&insecure, "insecure", insecure, `Use -insecure flag when using 'go get'`)
 	flags.BoolVarP(&link, "link", "l", link, "If enabled, bingo will also create soft link called <tool> that links to the current <tool>-<version> binary.\n"+
 		"Use Variables.mk and variables.env if you want to be sure that what you are invoking is what is pinned.")
+	flags.UintVarP(&timeOut, "timeout", "t", 5, "The maximum time (in minutes) to wait for each go command before killing it.\n"+
+		"Set this flag to 0 to indefinitely wait on them.")
 	return cmd
 }
 
