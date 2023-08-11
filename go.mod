@@ -8,7 +8,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.5.0
-	golang.org/x/mod v0.5.1
+	golang.org/x/mod v0.12.0
 	mvdan.cc/sh/v3 v3.4.3
 )
 
