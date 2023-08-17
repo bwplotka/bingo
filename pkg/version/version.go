@@ -11,4 +11,5 @@ const Version = "v0.8"
 var (
 	Go114 = semver.MustParse("1.14")
 	Go116 = semver.MustParse("1.16")
+	Go121 = semver.MustParse("1.21")
 )

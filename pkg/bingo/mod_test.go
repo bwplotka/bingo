@@ -12,12 +12,17 @@ import (
 	"testing"
 
 	"github.com/bwplotka/bingo/pkg/runner"
+	"github.com/bwplotka/bingo/pkg/version"
 	"github.com/efficientgo/core/testutil"
 	"golang.org/x/mod/module"
 )
 
 func goVersion(r *runner.Runner) string {
-	return fmt.Sprintf("%v.%v", r.GoVersion().Major(), r.GoVersion().Minor())
+	if r.GoVersion().Compare(version.Go121) == -1 {
+		return fmt.Sprintf("%v.%v", r.GoVersion().Major(), r.GoVersion().Minor())
+	}
+
+	return r.GoVersion().String()
 }
 
 func TestCreateFromExistingOrNew(t *testing.T) {
