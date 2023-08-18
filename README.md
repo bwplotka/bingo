@@ -28,7 +28,7 @@ You can read full a story behind `bingo` [in this blog post](https://www.bwplotk
 
 ## Requirements
 
-* Go 1.17+
+* Go 1.18+
 * Linux or MacOS (Want Windows support? [Helps us out](https://github.com/bwplotka/bingo/issues/26))
 * All tools that you wish to "pin" have to be built in Go (they don't need to use Go modules at all).
 
