@@ -817,7 +817,6 @@ This is directory which stores Go modules with pinned buildable package that is 
 * Run ` + "`" + "bingo get <tool>" + "`" + ` to install <tool> that have own module file in this directory.
 * For Makefile: Make sure to put ` + "`" + "include %s/Variables.mk" + "`" + ` in your Makefile, then use $(<upper case tool name>) variable where <tool> is the %s/<tool>.mod.
 * For shell: Run ` + "`" + "source %s/variables.env" + "`" + ` to source all environment variable for each tool.
-* For go: Import ` + "`" + "%s/variables.go" + "`" + ` to for variable names.
 * See https://github.com/bwplotka/bingo or -h on how to add, remove or change binaries dependencies.
 
 ## Requirements
@@ -868,7 +867,7 @@ func ensureModDirExists(logger *log.Logger, relModDir string) error {
 	// README.
 	if err := os.WriteFile(
 		filepath.Join(relModDir, "README.md"),
-		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir, relModDir)),
+		[]byte(fmt.Sprintf(modREADMEFmt, relModDir, relModDir, relModDir)),
 		0666,
 	); err != nil {
 		return err
