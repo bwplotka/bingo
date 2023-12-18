@@ -17,3 +17,6 @@ vendor/
 
 .idea/
 examples/tmp-demo
+
+# Ignore envrc
+.envrc
