@@ -72,7 +72,7 @@ func (m Package) String() string {
 }
 
 // Path returns a full package path. package path is platform independent, usually in
-// the form of "a/b/c" with forward slaches
+// the form of "a/b/c" with forward slashes
 func (m Package) Path() string {
 	return path.Join(m.Module.Path, m.RelPath)
 }
