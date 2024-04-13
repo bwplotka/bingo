@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -70,9 +71,10 @@ func (m Package) String() string {
 	return m.Path() + "@" + m.Module.Version
 }
 
-// Path returns a full package path.
+// Path returns a full package path. package path is platform independent, usually in
+// the form of "a/b/c" with forward slaches
 func (m Package) Path() string {
-	return filepath.Join(m.Module.Path, m.RelPath)
+	return path.Join(m.Module.Path, m.RelPath)
 }
 
 // ModFile is a wrapper over module file with bingo specific data.
