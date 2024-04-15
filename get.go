@@ -837,6 +837,7 @@ const gitignore = `
 !variables.env
 
 *tmp.mod
+*tmp.sum
 `
 
 func ensureModDirExists(logger *log.Logger, relModDir string) error {
