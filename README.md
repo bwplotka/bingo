@@ -122,7 +122,7 @@ run:
 
 Let's show a few, real, sometimes novel examples showcasing `bingo` capabilities:
 
-1. [`golangci-lint`](https://github.com/golangci/golangci-lint) is all-in-one lint framework. It's important to pin it on CI so CI runs are reproducible no matter what new linters are added, removed or changed in new release. Let's pin it to `v1.35.2` and use path recommended by https://golangci-lint.run/usage/install/#install-from-source doc: ` github.com/golangci/golangci-lint/cmd/golangci-lint` (funny enough they discourage `go get` exactly because of the lack of pinning features `bingo` have!)
+1. [`golangci-lint`](https://github.com/golangci/golangci-lint) is all-in-one lint framework. It's important to pin it on CI so CI runs are reproducible no matter what new linters are added, removed or changed in new release. Let's pin it to `v1.35.2` and use path recommended by https://golangci-lint.run/welcome/install/#install-from-source doc: ` github.com/golangci/golangci-lint/cmd/golangci-lint` (funny enough they discourage `go get` exactly because of the lack of pinning features `bingo` have!)
 
    ```shell
    bingo get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.35.2
