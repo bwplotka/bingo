@@ -145,6 +145,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // cmd/prometheus
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, true, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{Module: module.Version{Path: "github.com/prometheus/prometheus", Version: "v2.4.3+incompatible"}, RelPath: "cmd/prometheus"}, *mf.DirectPackage())
@@ -178,6 +179,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // cmd/prometheus
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, false, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{Module: module.Version{Path: "github.com/prometheus/prometheus", Version: "v2.4.3+incompatible"}, RelPath: "cmd/prometheus"}, *mf.DirectPackage())
@@ -194,6 +196,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // cmd/prometheus -
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, false, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{
@@ -214,6 +217,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // cmd/prometheus C
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, false, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{
@@ -234,6 +238,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // cmd/prometheus C
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, false, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{
@@ -254,6 +259,7 @@ require github.com/prometheus/prometheus v2.4.3+incompatible // CGO_ENABLED=1 GO
 
 		mf, err := OpenModFile(testFile)
 		testutil.Ok(t, err)
+		defer mf.Close()
 
 		testutil.Equals(t, false, mf.IsDirectivesAutoFetchDisabled())
 		testutil.Equals(t, Package{
