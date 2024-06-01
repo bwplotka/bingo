@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -346,6 +347,9 @@ var (
 )
 
 func TestCompatibility(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip() // bingo for Windows won't be compatible with past versions
+	}
 	t.Parallel()
 
 	dirs, err := filepath.Glob("testdata/testproject*")
