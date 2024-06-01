@@ -73,10 +73,8 @@ format: $(GOIMPORTS)
 
 .PHONY: test
 test: ## Runs all Go unit tests.
-export GOCACHE=/tmp/cache
-test:
 	@echo ">> running unit tests (without cache)"
-	@rm -rf $(GOCACHE)
+	go clean -testcache
 	@go test -v -timeout=30m $(shell go list ./... | grep -v /vendor/);
 
 .PHONY: check-git

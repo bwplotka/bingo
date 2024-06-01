@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	bingoBin       = "bingo"
 	defaultModDir  = ".bingo"
 	defaultGoProxy = "https://proxy.golang.org"
 )
