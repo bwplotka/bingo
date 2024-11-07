@@ -200,7 +200,9 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
-			defer errcapture.Do(&err, mf.Close, "close")
+			if err := mf.Close(); err != nil {
+				return errors.Wrapf(err, "unable to close mod file %v", e)
+			}
 
 			if mf.DirectPackage() == nil {
 				return errors.Wrapf(err, "failed to rename tool %v to %v name; found empty mod file %v; Use full path to install tool again", name, c.rename, e)
@@ -260,7 +262,9 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
-			defer errcapture.Do(&err, mf.Close, "close")
+			if err := mf.Close(); err != nil {
+				return errors.Wrapf(err, "unable to close mod file %v", e)
+			}
 
 			if mf.DirectPackage() != nil {
 				if target.Path() != "" && target.Path() != mf.DirectPackage().Path() {
@@ -629,7 +633,14 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 	if err != nil {
 		return errors.Wrap(err, "create tmp mod file")
 	}
-	defer errcapture.Do(&err, tmpModFile.Close, "close")
+
+	var closed bool
+	defer func() {
+		// This defer func is only to handle below set directive method failures since they still need to keep the file open.
+		if !closed {
+			errcapture.Do(&err, tmpModFile.Close, "close")
+		}
+	}()
 
 	if !tmpModFile.IsDirectivesAutoFetchDisabled() && !fetchedDirectives.isEmpty() {
 		if err := tmpModFile.SetReplaceDirectives(fetchedDirectives.replace...); err != nil {
@@ -649,6 +660,12 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		target.BuildFlags = old.BuildFlags
 	}
 	if err := tmpModFile.SetDirectRequire(target); err != nil {
+		return err
+	}
+
+	// We have close it once here so the defer func does not need to close it again.
+	closed = true
+	if err := tmpModFile.Close(); err != nil {
 		return err
 	}
 
