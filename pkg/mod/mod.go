@@ -126,7 +126,7 @@ func (mf *File) AddComment(comment string) error {
 }
 func (mf *File) GoVersion() string {
 	if mf.m.Go == nil {
-		return ""
+		return "1.0"
 	}
 	return mf.m.Go.Version
 }
