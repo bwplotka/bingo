@@ -43,7 +43,7 @@ func TestFile(t *testing.T) {
 		testutil.Equals(t, "", p)
 		testutil.Equals(t, "", comment)
 		testutil.Equals(t, []string(nil), mf.Comments())
-		testutil.Equals(t, "", mf.GoVersion())
+		testutil.Equals(t, "1.0", mf.GoVersion())
 		testutil.Equals(t, 0, len(mf.RequireDirectives()))
 		testutil.Equals(t, 0, len(mf.ReplaceDirectives()))
 		testutil.Equals(t, 0, len(mf.ExcludeDirectives()))
