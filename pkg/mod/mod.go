@@ -124,9 +124,15 @@ func (mf *File) AddComment(comment string) error {
 
 	return mf.flush()
 }
+
+// GoVersion returns a semver string containing the value of of the go directive.
+// For example, it will return "1.2.3" if the go.mod file contains the line "go 1.2.3".
+// If no go directive is found, it returns "1.0" because:
+// 1. "1.0" is a valid semver string, so it's always safe to parse this value using semver.MustParse().
+// 2. The semantics of the absence of a go directive in a go.mod file means all versions of Go should be able to compile it.
 func (mf *File) GoVersion() string {
 	if mf.m.Go == nil {
-		return ""
+		return "1.0"
 	}
 	return mf.m.Go.Version
 }
