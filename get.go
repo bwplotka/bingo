@@ -200,14 +200,17 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
+
+			dpkg := mf.DirectPackage()
+
 			if err := mf.Close(); err != nil {
 				return errors.Wrapf(err, "unable to close mod file %v", e)
 			}
 
-			if mf.DirectPackage() == nil {
+			if dpkg == nil {
 				return errors.Wrapf(err, "failed to rename tool %v to %v name; found empty mod file %v; Use full path to install tool again", name, c.rename, e)
 			}
-			targets = append(targets, *mf.DirectPackage())
+			targets = append(targets, *dpkg)
 		}
 
 		for i, t := range targets {
@@ -262,26 +265,29 @@ func get(ctx context.Context, logger *log.Logger, c getConfig, rawTarget string)
 			if err != nil {
 				return errors.Wrapf(err, "found unparsable mod file %v. Uninstall it first via get %v@none or fix it manually.", e, name)
 			}
+
+			dpkg := mf.DirectPackage()
+
 			if err := mf.Close(); err != nil {
 				return errors.Wrapf(err, "unable to close mod file %v", e)
 			}
 
-			if mf.DirectPackage() != nil {
-				if target.Path() != "" && target.Path() != mf.DirectPackage().Path() {
+			if dpkg != nil {
+				if target.Path() != "" && target.Path() != dpkg.Path() {
 					if pathWasSpecified {
 						return errors.Newf("found mod file %v that has different package path %q than given %q"+
-							"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
+							"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, dpkg.Path(), target.Path(), targetName)
 					}
 					return errors.Newf("found array mod file %v that has different package path %q than previous in array %q. Manual edit?"+
-						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, mf.DirectPackage().Path(), target.Path(), targetName)
+						"Uninstall existing tool using `%v@none` or use `-n` flag to choose different name", e, dpkg.Path(), target.Path(), targetName)
 				}
 
-				target.Module.Path = mf.DirectPackage().Module.Path
+				target.Module.Path = dpkg.Module.Path
 				if target.Module.Version == "" {
 					// If no version is requested, use the existing version.
-					target.Module.Version = mf.DirectPackage().Module.Version
+					target.Module.Version = dpkg.Module.Version
 				}
-				target.RelPath = mf.DirectPackage().RelPath
+				target.RelPath = dpkg.RelPath
 
 				// Save for future versions without potentially existing files.
 				pkgPath = target.Path()
@@ -663,21 +669,23 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		return err
 	}
 
+	if err := install(ctx, logger, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
+		return errors.Wrap(err, "install")
+	}
+
+	tmpModFileFilepath := tmpModFile.Filepath()
+
 	// We have close it once here so the defer func does not need to close it again.
 	closed = true
 	if err := tmpModFile.Close(); err != nil {
 		return err
 	}
 
-	if err := install(ctx, logger, c.runner, c.modDir, name, c.link, tmpModFile); err != nil {
-		return errors.Wrap(err, "install")
-	}
-
 	// We were working on tmp file, do atomic rename.
-	if err := os.Rename(tmpModFile.Filepath(), outModFile); err != nil {
+	if err := os.Rename(tmpModFileFilepath, outModFile); err != nil {
 		return errors.Wrap(err, "rename mod file")
 	}
-	if err := os.Rename(bingo.SumFilePath(tmpModFile.Filepath()), outSumFile); err != nil {
+	if err := os.Rename(bingo.SumFilePath(tmpModFileFilepath), outSumFile); err != nil {
 		return errors.Wrap(err, "rename sum file")
 	}
 	return nil
