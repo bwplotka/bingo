@@ -806,7 +806,8 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 	}
 
 	// go install does not define -modfile flag, so we mimic go install with go build -o instead.
-	binPath := filepath.Join(gobin, fmt.Sprintf("%s-%s", name, pkg.Module.Version))
+	binName := fmt.Sprintf("%s-%s", name, pkg.Module.Version)
+	binPath := filepath.Join(gobin, binName)
 
 	// New context with new environment files.
 	modCtx = r.With(ctx, modFile.Filepath(), modDir, pkg.BuildEnvs)
@@ -825,12 +826,19 @@ func install(ctx context.Context, logger *log.Logger, r *runner.Runner, modDir s
 		return nil
 	}
 
-	if err := os.RemoveAll(filepath.Join(gobin, name)); err != nil {
+	return installSymlink(gobin, binName, name)
+}
+
+func installSymlink(dir, oldName, newName string) error {
+	newPath := filepath.Join(dir, newName)
+	if err := os.RemoveAll(newPath); err != nil {
 		return errors.Wrap(err, "rm")
 	}
-	if err := os.Symlink(binPath, filepath.Join(gobin, name)); err != nil {
+
+	if err := os.Symlink(oldName, newPath); err != nil {
 		return errors.Wrap(err, "symlink")
 	}
+
 	return nil
 }
 
