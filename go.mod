@@ -1,6 +1,6 @@
 module github.com/bwplotka/bingo
 
-go 1.25.3
+go 1.24.9
 
 require (
 	github.com/Masterminds/semver v1.5.0
