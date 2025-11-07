@@ -15,6 +15,8 @@ github.com/efficientgo/tools v0.0.0-20201228165755-e2b84817bf79 h1:Pi2rMrMQeQ45U
 github.com/efficientgo/tools v0.0.0-20201228165755-e2b84817bf79/go.mod h1:jQUsxCcf91LHRhOnGqrx/yrleJbosynzf29/UlCbzlk=
 github.com/efficientgo/tools/copyright v0.0.0-20210112004814-138d5e5695fe h1:UxrVXSiy2FNfp1y+Hli0iooqqls5Yoh11KPrR9GOhg8=
 github.com/efficientgo/tools/copyright v0.0.0-20210112004814-138d5e5695fe/go.mod h1:5J0wuuxLMX06WeEgnpf+SvTCptlR9+RHRNO/WEMAwSw=
+github.com/efficientgo/tools/copyright v0.0.0-20230505153745-6b7392939a60 h1:VzZsCghz61QtXsUsjWt+iV/OafxaqIPxtSenQHElOL0=
+github.com/efficientgo/tools/copyright v0.0.0-20230505153745-6b7392939a60/go.mod h1:5J0wuuxLMX06WeEgnpf+SvTCptlR9+RHRNO/WEMAwSw=
 github.com/efficientgo/tools/core v0.0.0-20210106193344-1108f4e7d16b h1:yi5z8x/FKDHrqtEFiAsxF5b7Sz2+CJrRwBC2kbyhVcA=
 github.com/efficientgo/tools/core v0.0.0-20210106193344-1108f4e7d16b/go.mod h1:RJm2+KCRfMUwgEgRte3obd5uLdVY5YbDZjgSMPY0HSA=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=

@@ -45,10 +45,10 @@ func parseGoVersion(goVersionOutput string) (*semver.Version, error) {
 }
 
 func isSupportedVersion(v *semver.Version) error {
-	if !v.LessThan(version.Go114) {
+	if !v.LessThan(version.Go124) {
 		return nil
 	}
-	return errors.Newf("found unsupported go version: %v; requires go 1.14.x or higher", v.String())
+	return errors.Newf("found unsupported go version: %v; requires go 1.24.x or higher", v.String())
 }
 
 // NewRunner checks Go version compatibility then returns Runner.
