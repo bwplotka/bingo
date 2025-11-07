@@ -14,6 +14,12 @@ GOPATH ?= $(shell go env GOPATH)
 GOBIN  ?= $(firstword $(subst :, ,${GOPATH}))/bin
 GO     ?= $(shell which go)
 
+# Ensure bingo-managed tools are always built for the host platform,
+# even when GOOS/GOARCH are set for cross-compilation of other targets.
+GOHOSTOS     ?= $(shell $(GO) env GOHOSTOS)
+GOHOSTARCH   ?= $(shell $(GO) env GOHOSTARCH)
+GOHOSTARM    ?= $(shell $(GO) env GOHOSTARM)
+
 # Below generated variables ensure that every time a tool under each variable is invoked, the correct version
 # will be used; reinstalling only if needed.
 # For example for {{ with (index .MainPackages 0) }}{{ .Name }}{{ end }} variable:
@@ -32,7 +38,7 @@ $({{ $p.EnvVarName }}):{{- range $p.Versions }} $(BINGO_DIR)/{{ .ModFile }}{{- e
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 {{- range $p.Versions }}
 	@echo "(re)installing $(GOBIN)/{{ $p.Name }}-{{ .Version }}"
-	@cd $(BINGO_DIR) && GOWORK=off {{ range $p.BuildEnvVars }}{{ . }} {{ end }}$(GO) build {{ range $p.BuildFlags }}{{ . }} {{ end }}-mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
+	@cd $(BINGO_DIR) && GOWORK=off GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) GOARM=$(GOHOSTARM) {{ range $p.BuildEnvVars }}{{ . }} {{ end }}$(GO) build {{ range $p.BuildFlags }}{{ . }} {{ end }}-mod=mod -modfile={{ .ModFile }} -o=$(GOBIN)/{{ $p.Name }}-{{ .Version }} "{{ $p.PackagePath }}"
 {{- end }}
 {{ end}}
 `,
