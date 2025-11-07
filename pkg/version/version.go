@@ -6,7 +6,7 @@ package version
 import "github.com/Masterminds/semver"
 
 // Version returns 'bingo' version.
-const Version = "v0.9"
+const Version = "v0.10"
 
 var (
 	Go114 = semver.MustParse("1.14")
