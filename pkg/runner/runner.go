@@ -21,7 +21,7 @@ import (
 	"github.com/efficientgo/core/errors"
 )
 
-// Runner allows to run certain commands against module aware Go CLI.
+// Runner allow one to run certain commands against module aware Go CLI.
 type Runner struct {
 	goCmd    string
 	insecure bool

@@ -24,7 +24,7 @@ func NewBingoCommand(logger *log.Logger) *cobra.Command {
 Go package level binaries (e.g required as dev tools by your project!) 
 
 built on top of Go Modules, allowing reproducible dev environments. 
-'bingo' allows to easily maintain a separate, nested Go Module for each binary. 
+'bingo' allow one to easily maintain a separate, nested Go Module for each binary.
 
 For detailed examples and documentation see: https://github.com/bwplotka/bingo
 `,
