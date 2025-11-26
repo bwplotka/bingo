@@ -19,7 +19,7 @@ At the end `bingo`, has following features:
 * Works also for non-Go projects. It only requires the tools to be written in Go.
 * No need to install `bingo` in order to **use** pinned tools. This avoids the "chicken & egg" problem. You only need `go build`.
 * Easy upgrade, downgrade, addition, and removal of the needed binary's version, with no risk of dependency conflicts.
-  * NOTE: Tools are **often** not following semantic versioning, so `bingo` allows to pin by commit ID.
+  * NOTE: Tools are **often** not following semantic versioning, so `bingo` allow one to pin by commit ID.
 * Immutable binary names. This creates a reliable way for users and CIs to use expected version of the binaries, reinstalling on-demand only if needed.
 * Works with all buildable Go projects, including pre Go modules and complex projects with complex directives like `replace`, `retract` or `exclude` statements. (e.g Prometheus)
 * Optional, automatic integration with Makefiles.
@@ -81,7 +81,7 @@ go build -mod=mod -modfile .bingo/<tool>.mod -o=$GOBIN/<tool>-<version>
 
 For example `go build -mod=mod -modfile .bingo/faillint.mod -o=$GOBIN/faillint-v1.5.0`
 
-`bingo` allows to easily maintain a separate, nested Go Module for each binary. By default, it will keep it `.bingo/<tool>.mod` This allows to correctly pin the binary without polluting the main go module or other's tool module.
+`bingo` allow one to easily maintain a separate, nested Go Module for each binary. By default, it will keep it `.bingo/<tool>.mod` This allow one to correctly pin the binary without polluting the main go module or other's tool module.
 
 ### Using Installed Tools
 
@@ -262,7 +262,7 @@ bingo: 'go get' like, simple CLI that allows automated versioning of
 Go package level binaries (e.g required as dev tools by your project!) 
 
 built on top of Go Modules, allowing reproducible dev environments. 
-'bingo' allows to easily maintain a separate, nested Go Module for each binary. 
+'bingo' allow one to easily maintain a separate, nested Go Module for each binary.
 
 For detailed examples and documentation see: https://github.com/bwplotka/bingo
 
