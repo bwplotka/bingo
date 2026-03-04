@@ -4,6 +4,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/efficientgo/core/errors"
@@ -88,4 +90,39 @@ func TestParseTarget(t *testing.T) {
 		})
 	}
 
+}
+
+func TestInstallSymlink(t *testing.T) {
+	dir := t.TempDir()
+	oldName := "some-binary-1.2.3"
+	newName := "some-binary"
+	oldPath := filepath.Join(dir, oldName)
+	newPath := filepath.Join(dir, newName)
+	testData := "#!/bin/true"
+
+	// simulate an existing symlink to test the removal logic
+	f, err := os.Create(newPath)
+	testutil.Ok(t, err)
+	testutil.Ok(t, f.Close())
+
+	// create a dummy target ...
+	f, err = os.Create(oldPath)
+	testutil.Ok(t, err)
+	// ... and write some data for verification later
+	_, err = f.Write([]byte(testData))
+	testutil.Ok(t, err)
+	testutil.Ok(t, f.Close())
+
+	err = installSymlink(dir, oldName, newName)
+	testutil.Ok(t, err)
+
+	gotPath, err := os.Readlink(newPath)
+	testutil.Ok(t, err)
+	testutil.Equals(t, oldName, gotPath)
+
+	gotData, err := os.ReadFile(newPath)
+	testutil.Ok(t, err)
+
+	// ensure the symlink leads to the desired target
+	testutil.Equals(t, testData, string(gotData))
 }
