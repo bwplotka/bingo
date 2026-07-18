@@ -538,6 +538,34 @@ func TestGet_ModuleCases(t *testing.T) {
 		}
 	})
 
+	t.Run("fork with a different declared module path", func(t *testing.T) {
+		g.Clear(t)
+
+		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
+		p := newTestProject(t, filepath.Join(g.tmpDir, "newproject"), filepath.Join(g.tmpDir, "testproject"), false)
+		p.assertNotChanged(t)
+
+		bingoPath := filepath.Join(g.tmpDir, bingoBin)
+		buildInitialGobin(t, bingoPath)
+
+		const forkVersion = "v1.3.1-0.20220406082449-39bc1352dc62"
+		fmt.Println(g.ExecOutput(t, p.root, bingoPath, "get", "github.com/ypresto/CompileDaemon@"+forkVersion))
+
+		expectBingoListRows(t, []row{{
+			name:       "compiledaemon",
+			binName:    "compiledaemon-" + forkVersion,
+			pkgVersion: "github.com/githubnemo/CompileDaemon@" + forkVersion,
+		}}, g.ExecOutput(t, p.root, bingoPath, "list"))
+		testutil.Equals(t, []string{"compiledaemon-" + forkVersion}, g.existingBinaries(t))
+
+		modFile, err := os.ReadFile(filepath.Join(p.root, defaultModDir, "compiledaemon.mod"))
+		testutil.Ok(t, err)
+		testutil.Equals(t, true, strings.Contains(string(modFile),
+			"replace github.com/githubnemo/CompileDaemon => github.com/ypresto/CompileDaemon "+forkVersion))
+		testutil.Equals(t, true, strings.Contains(string(modFile),
+			"require github.com/githubnemo/CompileDaemon "+forkVersion))
+	})
+
 	// Tricky cases TODO.
 
 	// Regression against https://github.com/bwplotka/bingo/issues/125

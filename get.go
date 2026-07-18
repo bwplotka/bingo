@@ -622,9 +622,18 @@ func getPackage(ctx context.Context, logger *log.Logger, c installPackageConfig,
 		}
 
 		if !strings.HasSuffix(target.Module.Version, "+incompatible") {
-			fetchedDirectives, err = autoFetchDirectives(runnable, logger, target)
+			var declaredModulePath string
+			fetchedDirectives, declaredModulePath, err = autoFetchDirectives(runnable, logger, target)
 			if err != nil {
 				return err
+			}
+			if declaredModulePath != "" && declaredModulePath != target.Module.Path {
+				forkModule := target.Module
+				target.Module.Path = declaredModulePath
+				fetchedDirectives.replace = append(fetchedDirectives.replace, mod.ReplaceDirective{
+					Old: module.Version{Path: declaredModulePath},
+					New: forkModule,
+				})
 			}
 		}
 	}
@@ -722,10 +731,10 @@ func (d nonRequireDirectives) isEmpty() bool {
 // as the target module we want to install.
 // It's a very common case where modules mitigate faulty modules or conflicts with replace directives.
 // Since we always download single tool dependency module per tool module, we can copy its non-require statements if exists to fix this common case.
-func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bingo.Package) (d nonRequireDirectives, _ error) {
+func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bingo.Package) (d nonRequireDirectives, declaredModulePath string, err error) {
 	gopath, err := runnable.GoEnv("GOPATH")
 	if err != nil {
-		return d, errors.Wrap(err, "go env")
+		return d, "", errors.Wrap(err, "go env")
 	}
 
 	// We leverage fact that when go get runs if downloads the version we find as relevant locally
@@ -734,16 +743,19 @@ func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bi
 	if _, err := os.Stat(targetModFile); err != nil {
 		if os.IsNotExist(err) {
 			// Pre module package.
-			return d, nil
+			return d, "", nil
 		}
-		return d, errors.Wrapf(err, "stat target mod directory %v", targetModFile)
+		return d, "", errors.Wrapf(err, "stat target mod directory %v", targetModFile)
 	}
 
 	// Mod directory has only read permissions.
 	targetModParsed, err := mod.OpenFileForRead(targetModFile)
 	if err != nil {
-		return d, errors.Wrapf(err, "parse target mod file %v", targetModFile)
+		return d, "", errors.Wrapf(err, "parse target mod file %v", targetModFile)
 	}
+	defer errcapture.Do(&err, targetModParsed.Close, "close target mod file")
+
+	declaredModulePath, _ = targetModParsed.Module()
 
 	if semver.MustParse(targetModParsed.GoVersion()).GreaterThan(runnable.GoVersion()) {
 		logger.Printf("WARNING: Go module you are trying to install requires higher Go version (%v) than you are using (%v). Use newer Go version to install it if you encounter build errors (e.g when generics were used).\n", targetModParsed.GoVersion(), runnable.GoVersion().String())
@@ -754,9 +766,9 @@ func autoFetchDirectives(runnable runner.Runnable, logger *log.Logger, target bi
 	d.retract = targetModParsed.RetractDirectives()
 
 	if len(d.retract) > 0 && runnable.GoVersion().LessThan(version.Go116) {
-		return d, errors.Newf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
+		return d, "", errors.Newf("target Go module is using new 'retract' directive. Use Go1.16+ to build it")
 	}
-	return d, nil
+	return d, declaredModulePath, nil
 }
 
 // gobin mimics the way go install finds where to install go tool.
