@@ -500,6 +500,10 @@ func TestGet_ModuleCases(t *testing.T) {
 	}
 
 	t.Run("benchstat: latest in case where no major version is found", func(t *testing.T) {
+		if goVersion.LessThan(semver.MustParse("v1.25")) {
+			t.Skip("latest golang.org/x/perf requires Go 1.25")
+		}
+
 		g.Clear(t)
 
 		testutil.Ok(t, os.MkdirAll(filepath.Join(g.tmpDir, "newproject"), os.ModePerm))
